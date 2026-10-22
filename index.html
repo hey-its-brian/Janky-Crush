@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Janky Crush">
+<meta name="theme-color" content="#0c0a1d">
+<title>Janky Crush</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="fonts/chakra-petch.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="bg" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-ring"></div>
+  <div class="bg-square"></div>
+</div>
+
+<main class="screen">
+  <header class="topbar">
+    <h1 id="level-name">Level 1</h1>
+    <button id="restart" class="pill" type="button" aria-label="Restart level">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>
+      Restart
+    </button>
+  </header>
+
+  <section class="hud">
+    <div class="card">
+      <span class="label">Goal</span>
+      <span class="value" id="target">0</span>
+      <span class="sub">points</span>
+    </div>
+    <div class="card card-moves">
+      <span class="label">Moves</span>
+      <span class="big" id="moves">0</span>
+    </div>
+    <div class="card">
+      <span class="label">Score</span>
+      <span class="value" id="score">0</span>
+      <div class="bar">
+        <div class="bar-fill" id="score-fill"></div>
+        <div class="bar-marks" id="score-marks"><i></i><i></i><i></i></div>
+      </div>
+      <div class="stars" id="score-stars"><b></b><b></b><b></b></div>
+    </div>
+  </section>
+
+  <div class="spacer"></div>
+  <canvas id="board" class="board"></canvas>
+  <div class="spacer"></div>
+</main>
+
+<div id="end" class="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="end-title">
+    <h2 id="end-title">Level complete</h2>
+    <div class="stars stars-big" id="end-stars"><b></b><b></b><b></b></div>
+    <p>Score <strong id="end-score">0</strong></p>
+    <button id="again" class="cta" type="button">Play again</button>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

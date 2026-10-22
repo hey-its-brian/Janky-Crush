@@ -1,0 +1,11 @@
+{
+  "name": "janky-crush",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A private match-3 game for iPhone. No real-money purchases, no tracking.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "serve": "python3 -m http.server 8000"
+  }
+}

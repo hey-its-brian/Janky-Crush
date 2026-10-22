@@ -1,0 +1,260 @@
+/* Night Arcade theme. Colors live in variables so later themes (see
+   TODO.md) only need to swap this block and the candy palette. */
+:root {
+  --bg: #0c0a1d;
+  --ink: #f1edff;
+  --ink-soft: #a9a3cf;
+  --panel: #17142f;
+  --panel-border: #3a3470;
+  --pink: #ff3d8b;
+  --cyan: #2de2e6;
+  --track: #2a2550;
+  --star-on: #ffe14d;
+  --star-off: #3a3470;
+  --board: #110e25;
+  --font: 'Chakra Petch', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button { font-family: inherit; color: inherit; }
+
+/* ---- background ---------------------------------------------------------- */
+
+.bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 38% at 50% -4%, rgba(255, 61, 139, .34), transparent 70%),
+    radial-gradient(ellipse 80% 30% at 50% 100%, rgba(45, 226, 230, .22), transparent 70%),
+    var(--bg);
+}
+.bg-grid {
+  position: absolute;
+  left: -60%;
+  right: -60%;
+  bottom: -20px;
+  height: 420px;
+  background-image:
+    linear-gradient(rgba(255, 61, 139, .6) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 61, 139, .6) 1px, transparent 1px);
+  background-size: 44px 44px;
+  transform: perspective(260px) rotateX(60deg);
+  transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, #000 20%, transparent 85%);
+  mask-image: linear-gradient(to top, #000 20%, transparent 85%);
+}
+.bg-ring {
+  position: absolute;
+  left: -40px;
+  top: 22%;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 2px solid rgba(45, 226, 230, .45);
+  box-shadow: 0 0 24px rgba(45, 226, 230, .35), inset 0 0 24px rgba(45, 226, 230, .25);
+}
+.bg-square {
+  position: absolute;
+  right: -30px;
+  top: 12%;
+  width: 110px;
+  height: 110px;
+  transform: rotate(18deg);
+  border-radius: 18px;
+  border: 2px solid rgba(192, 77, 255, .45);
+  box-shadow: 0 0 22px rgba(192, 77, 255, .35), inset 0 0 22px rgba(192, 77, 255, .2);
+}
+
+/* ---- layout -------------------------------------------------------------- */
+
+.screen {
+  position: relative;
+  height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 8px)
+    16px
+    calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+.spacer { flex: 1 1 0; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 0 18px rgba(255, 61, 139, .16);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pill:active { transform: scale(.97); }
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 0 18px rgba(255, 61, 139, .16);
+  min-width: 0;
+}
+.card-moves { align-items: center; justify-content: center; gap: 0; }
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sub { font-size: 13px; color: var(--ink-soft); }
+.big {
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: 700;
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(45, 226, 230, .6);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar { position: relative; height: 8px; border-radius: 999px; background: var(--track); }
+.bar-fill {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pink);
+  box-shadow: 0 0 8px var(--pink);
+  transition: width .3s ease-out;
+}
+.bar-marks i {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  background: var(--ink-soft);
+  border-radius: 1px;
+}
+.bar-marks i:last-child { margin-left: -2px; }
+
+.stars { display: flex; justify-content: flex-end; gap: 2px; }
+.stars b {
+  width: 16px;
+  height: 16px;
+  background: var(--star-off);
+  clip-path: polygon(50% 4%, 61.5% 36%, 96% 36%, 68% 56%, 79% 90%, 50% 70%, 21% 90%, 32% 56%, 4% 36%, 38.5% 36%);
+  transition: background .2s;
+}
+.stars b.on { background: var(--star-on); }
+
+.board {
+  display: block;
+  align-self: center;
+  width: min(408px, 100%);
+  border-radius: 14px;
+  background: var(--board);
+  border: 2px solid var(--pink);
+  box-shadow: 0 0 26px rgba(255, 61, 139, .45), inset 0 0 18px rgba(45, 226, 230, .12);
+  touch-action: none;
+}
+
+/* ---- end-of-level dialog ------------------------------------------------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 6, 20, .72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.overlay[hidden] { display: none; }
+.dialog {
+  width: min(340px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 61, 139, .7);
+  box-shadow: 0 0 30px rgba(255, 61, 139, .35);
+  text-align: center;
+}
+.dialog h2 {
+  margin: 0;
+  font-size: 26px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  text-shadow: 0 0 12px rgba(255, 61, 139, .7);
+}
+.dialog p { margin: 0; font-size: 17px; color: var(--ink-soft); }
+.dialog strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.stars-big { justify-content: center; gap: 8px; }
+.stars-big b { width: 44px; height: 44px; }
+.cta {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 12px;
+  background: var(--pink);
+  color: #1a0710;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  box-shadow: 0 0 18px rgba(255, 61, 139, .55);
+  cursor: pointer;
+}
+.cta:active { transform: scale(.98); }

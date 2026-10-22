@@ -1,0 +1,5 @@
+/* Chakra Petch (SIL OFL 1.1, see OFL.txt), bundled so the game makes no
+   third-party requests. */
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 500; font-display: swap; src: url('chakra-petch-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 600; font-display: swap; src: url('chakra-petch-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 700; font-display: swap; src: url('chakra-petch-latin-700-normal.woff2') format('woff2'); }
