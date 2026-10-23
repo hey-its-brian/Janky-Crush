@@ -109,45 +109,78 @@ function inner(color) {
   return fruit(color).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 }
 
+// Specials glow so they stand out on a busy board: a soft halo behind the
+// piece, plus twinkles. Glow colors follow each fruit.
+const GLOW = { r: '#ff6a8a', o: '#ffb347', y: '#ffe95c', g: '#9df27a', b: '#7fc2ff', p: '#d39bff' };
+
+function halo(color, opacity = 0.95) {
+  const g = id('halo');
+  return {
+    defs: `<radialGradient id="${g}" cx=".5" cy=".5" r=".5">` +
+      `<stop offset="0" stop-color="#fff" stop-opacity="${opacity}"/>` +
+      `<stop offset=".35" stop-color="${color}" stop-opacity="${opacity}"/>` +
+      `<stop offset=".7" stop-color="${color}" stop-opacity="${opacity * 0.55}"/>` +
+      `<stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient>`,
+    body: `<circle cx="50" cy="54" r="50" fill="url(#${g})"/>`,
+  };
+}
+
+// A four-point twinkle.
+const twinkle = (x, y, r, c = '#fff') =>
+  `<path d="M${x} ${y - r} Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y} Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r} ` +
+  `Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y} Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z" fill="${c}"/>`;
+
 // Striped: juicy streaks across the fruit. dir 'h' clears a row, 'v' a column.
 export function striped(color, dir) {
   const clip = id('clip');
+  const h = halo(GLOW[color]);
   const bands = [40, 52, 64].map((y) =>
-    `<rect x="10" y="${y}" width="80" height="6" rx="3" fill="#fff" opacity=".92"/>`).join('');
+    `<rect x="10" y="${y}" width="80" height="6.5" rx="3.25" fill="#fff"/>`).join('');
   const rot = dir === 'v' ? 'rotate(90 50 55)' : '';
-  return svg(`<clipPath id="${clip}"><circle cx="50" cy="56" r="31"/></clipPath>`,
-    inner(color) +
-    `<g clip-path="url(#${clip})"><g transform="${rot}" style="filter:drop-shadow(0 0 2px #fff)">${bands}</g></g>`);
+  return svg(`<clipPath id="${clip}"><circle cx="50" cy="56" r="31"/></clipPath>` + h.defs,
+    h.body + inner(color) +
+    `<g clip-path="url(#${clip})"><g transform="${rot}" style="filter:drop-shadow(0 0 3px #fff) drop-shadow(0 0 2px ${GLOW[color]})">${bands}</g></g>` +
+    twinkle(84, 20, 7) + twinkle(14, 82, 5));
 }
 
-// Wrapped: the fruit sealed in a soap bubble.
+// Wrapped: the fruit sealed in a soap bubble with a rainbow sheen.
 export function wrapped(color) {
-  const g = id('bub');
+  const g = id('bub'), rim = id('rim');
+  const h = halo('#8fe9ff');
   return svg(
     `<radialGradient id="${g}" cx=".5" cy=".5" r=".5"><stop offset=".6" stop-color="#bff4ff" stop-opacity="0"/>` +
-    `<stop offset=".92" stop-color="#9fe8ff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity=".9"/></radialGradient>`,
+    `<stop offset=".9" stop-color="#9fe8ff" stop-opacity=".6"/><stop offset="1" stop-color="#ffffff" stop-opacity=".95"/></radialGradient>` +
+    `<linearGradient id="${rim}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ad5"/>` +
+    `<stop offset=".35" stop-color="#fff59a"/><stop offset=".65" stop-color="#9ff7ff"/><stop offset="1" stop-color="#c9a6ff"/></linearGradient>` +
+    h.defs,
+    h.body +
     `<g transform="translate(50 54) scale(.78) translate(-50 -54)">${inner(color)}</g>` +
-    `<circle cx="50" cy="52" r="45" fill="url(#${g})" stroke="#fff" stroke-width="2.5"/>` +
-    `<path d="M20 38 C24 26 34 17 46 14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/>` +
-    `<circle cx="74" cy="76" r="3.5" fill="#fff" opacity=".8"/>`);
+    `<circle cx="50" cy="52" r="45" fill="url(#${g})" stroke="url(#${rim})" stroke-width="3.5"/>` +
+    `<circle cx="50" cy="52" r="42" fill="none" stroke="#fff" stroke-width="1.2" opacity=".8"/>` +
+    `<path d="M20 38 C24 26 34 17 46 14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".95"/>` +
+    `<circle cx="74" cy="76" r="3.5" fill="#fff" opacity=".9"/>` +
+    twinkle(88, 18, 6) + twinkle(10, 86, 5, '#fff59a'));
 }
 
-// Color bomb: a sparkly dragonfruit.
+// Color bomb: a sparkly dragonfruit with a rainbow glow.
 export function bomb() {
-  const g = id('df');
+  const g = id('df'), rb = id('rb');
   const scales = [
     [50, 20, 0], [30, 30, -40], [70, 30, 40], [20, 52, -80], [80, 52, 80],
     [32, 76, -130], [68, 76, 130], [50, 52, 0], [38, 62, -20], [62, 62, 20],
   ].map(([x, y, r]) =>
     `<path d="M${x} ${y} c-5 -2 -6 -10 0 -16 c6 6 5 14 0 16z" transform="rotate(${r} ${x} ${y})" fill="#5fd35a" stroke="#1d6b22" stroke-width="1.5" stroke-linejoin="round"/>` +
     `<path d="M${x} ${y - 13} l0 -4" transform="rotate(${r} ${x} ${y})" stroke="#ffe14d" stroke-width="2.5" stroke-linecap="round"/>`).join('');
-  const sparkle = (x, y, s, c) =>
-    `<path d="M${x} ${y - s} Q${x} ${y} ${x + s} ${y} Q${x} ${y} ${x} ${y + s} Q${x} ${y} ${x - s} ${y} Q${x} ${y} ${x} ${y - s}Z" fill="${c}"/>`;
-  return svg(shade(g, '#ffd1ec', '#ff3d9a', '#a3005a'),
-    SHADOW +
+  // Rainbow halo: overlapping soft glows in each fruit color.
+  const glows = [['#ff6a8a', 38, 42], ['#ffe95c', 62, 42], ['#9df27a', 66, 64], ['#7fc2ff', 50, 74], ['#d39bff', 34, 64]]
+    .map(([c, x, y]) => `<circle cx="${x}" cy="${y}" r="32" fill="url(#${rb}${c.slice(1)})"/>`).join('');
+  const glowDefs = ['#ff6a8a', '#ffe95c', '#9df27a', '#7fc2ff', '#d39bff']
+    .map((c) => `<radialGradient id="${rb}${c.slice(1)}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="${c}" stop-opacity=".85"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`).join('');
+  return svg(shade(g, '#ffd1ec', '#ff3d9a', '#a3005a') + glowDefs,
+    glows +
     `<ellipse cx="50" cy="56" rx="31" ry="34" fill="url(#${g})" stroke="#7a0042" stroke-width="2.5"/>` +
     scales + gloss(37, 42, 8, 5, -35, 0.75) +
-    sparkle(16, 18, 7, '#fff') + sparkle(86, 26, 6, '#ffe14d') + sparkle(84, 84, 7, '#fff') + sparkle(14, 80, 5, '#9fe8ff'));
+    twinkle(14, 16, 8) + twinkle(87, 24, 7, '#ffe14d') + twinkle(86, 86, 8) + twinkle(12, 80, 6, '#9fe8ff') + twinkle(50, 6, 5, '#fff'));
 }
 
 // Ingredient: a rubber ducky.

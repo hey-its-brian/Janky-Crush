@@ -47,7 +47,8 @@ function board() {
       const k = `${r},${c}`;
       if (HOLES.has(k)) { cells += `<div class="cell hole"></div>`; continue; }
       const art = SPECIAL[k] ? SPECIAL[k]() : fruit(ROWS[r][c]);
-      cells += `<div class="cell ${foam(r, c)}"><div class="piece">${art}</div></div>`;
+      const glow = SPECIAL[k] && k !== '1,6' ? ' special' : '';
+      cells += `<div class="cell ${foam(r, c)}"><div class="piece${glow}">${art}</div></div>`;
     }
   return `<div class="board">${cells}</div>`;
 }
