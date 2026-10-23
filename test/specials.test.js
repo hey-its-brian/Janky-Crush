@@ -174,8 +174,10 @@ test('a stripe clears along its stripes and nothing else', () => {
     ]);
     b.grid[2][3].special = special;
     const step = b.resolveStep(null);
-    const lines = step.blasts.filter((x) => x.kind === 'row' || x.kind === 'col');
-    assert.deepEqual(lines, [{ kind, index: kind === 'row' ? 2 : 3 }]);
+    const lines = step.blasts
+      .filter((x) => x.kind === 'row' || x.kind === 'col')
+      .map((x) => ({ kind: x.kind, index: x.index, at: x.at }));
+    assert.deepEqual(lines, [{ kind, index: kind === 'row' ? 2 : 3, at: [2, 3] }]);
   }
 });
 

@@ -17,6 +17,18 @@ const WINDUP_MS = 170;
 const EXPLOSION_MS = 700;
 const WAVE_MS_PER_CELL = 70;
 
+// The player reads what happened from these, so they're deliberately
+// unhurried.
+const CLEAR_MS = 420;           // flash, swell, shrink away
+const BEAM_MS = 700;            // stripe beam life
+const BEAM_MS_PER_CELL = 38;    // how fast a beam sweeps outward
+const MORPH_MS = 380;           // a candy turning into a special
+const BOLT_GAP_MAX = 110;       // between bomb bolts...
+const BOLT_TOTAL_MAX = 1500;    // ...but all of them land within this
+const PRIMED_HOLD_MS = 450;     // converted specials sit on screen before firing
+const CHAIN_GAP_MAX = 220;      // between blasts in a chain...
+const CHAIN_TOTAL_MAX = 2400;   // ...capped for very long chains
+
 const ease = {
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
   inQuad: (t) => t * t,
@@ -156,25 +168,29 @@ export class Renderer {
   async animateStep(step, points) {
     const t0 = performance.now();
     const n = step.blasts.length;
-    const gap = n > 1 ? Math.min(110, 900 / n) : 0;
-    // An explosion holds up the next blast in a chain until it has landed.
+    const gap = n > 1 ? Math.min(CHAIN_GAP_MAX, CHAIN_TOTAL_MAX / n) : 0;
+    const boltGap = (b) => Math.min(BOLT_GAP_MAX, BOLT_TOTAL_MAX / Math.max(1, b.targets.length));
+    const boltLands = (i, j) => blastAt[i] + j * boltGap(step.blasts[i]) + 120;
+    // Each blast waits for the one before it to land.
     const blastAt = [];
     step.blasts.forEach((b, i) => {
       const prev = step.blasts[i - 1];
-      blastAt.push(i === 0 ? 0 : blastAt[i - 1] + (prev.kind === 'area' ? WINDUP_MS + 220 : gap));
+      if (i === 0) blastAt.push(0);
+      else if (prev.kind === 'area') blastAt.push(blastAt[i - 1] + WINDUP_MS + 220);
+      else if (prev.kind === 'bolts') blastAt.push(boltLands(i - 1, prev.targets.length));
+      else blastAt.push(blastAt[i - 1] + gap);
     });
-    const boltGap = (b) => Math.min(45, 700 / Math.max(1, b.targets.length));
     const jobs = [];
-    const boltsEnd = (i) => blastAt[i] + step.blasts[i].targets.length * boltGap(step.blasts[i]) + 120;
 
     step.blasts.forEach((b, i) => {
       if (b.kind === 'bolts') {
         b.targets.forEach((to, j) =>
-          this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 300 }));
+          this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 360 }));
+      } else if (b.kind === 'area') {
+        this.effects.push({ ...b, born: t0 + blastAt[i] + WINDUP_MS, life: EXPLOSION_MS });
+        jobs.push(this.detonate(b, blastAt[i]));
       } else {
-        const isArea = b.kind === 'area';
-        this.effects.push({ ...b, born: t0 + blastAt[i] + (isArea ? WINDUP_MS : 0), life: isArea ? EXPLOSION_MS : 380 });
-        if (isArea) jobs.push(this.detonate(b, blastAt[i]));
+        this.effects.push({ ...b, born: t0 + blastAt[i], life: b.kind === 'board' ? 500 : BEAM_MS });
       }
     });
     this.requestDraw();
@@ -183,42 +199,50 @@ export class Renderer {
       const anchor = step.created[0]?.at ?? step.groups[0]?.cells[1] ?? step.cleared[0]?.at;
       if (anchor) {
         const { x, y } = this.center(...anchor);
-        this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.035, life: 900, born: t0, color: '#f1edff' });
+        this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.03, life: 1200, born: t0, color: '#f1edff' });
       }
     }
 
-    // Bomb + special: each candy the bolts reach turns into the special.
+    // Bomb + special: as each bolt lands, that candy turns into the special.
     if (step.converted.length) {
       const i = step.blasts.findIndex((b) => b.kind === 'bolts');
       const b = step.blasts[i];
+      let last = 0;
       for (const c of step.converted) {
         const v = this.visuals.get(c.candy.id);
         if (!v) continue;
         v.override = c.candy.color;
-        const j = b.targets.findIndex((p) => sameCell(p, c.at));
-        jobs.push(sleep(blastAt[i] + Math.max(0, j) * boltGap(b) + 60).then(() => {
-          v.override = null;
-          return this.pop(v);
-        }));
+        const at = boltLands(i, Math.max(0, b.targets.findIndex((p) => sameCell(p, c.at))));
+        last = Math.max(last, at);
+        jobs.push(sleep(at).then(() => this.morph(v)));
       }
+      // Let every new special sit on screen before they go off.
+      jobs.push(sleep(last + MORPH_MS + PRIMED_HOLD_MS));
     }
 
     // When each cleared candy goes.
     const delayFor = (x) => {
       if (x.special === 'bomb') {
         const i = step.blasts.findIndex((b) => b.kind === 'bolts' && sameCell(b.at, x.at));
-        if (i >= 0) return boltsEnd(i);
+        if (i >= 0) return boltLands(i, step.blasts[i].targets.length);
       }
-      if (step.blasts[0]?.kind === 'board') return 120 + (x.at[0] + x.at[1]) * 28;
+      if (step.blasts[0]?.kind === 'board') return 150 + (x.at[0] + x.at[1]) * 35;
       if (x.cause < 0) return 0;
       const b = step.blasts[x.cause];
-      if (b.kind === 'area') {
-        const dist = Math.max(Math.abs(x.at[0] - b.at[0]), Math.abs(x.at[1] - b.at[1]));
-        return blastAt[x.cause] + WINDUP_MS + 40 + dist * WAVE_MS_PER_CELL;
+      switch (b.kind) {
+        case 'area': {
+          const dist = Math.max(Math.abs(x.at[0] - b.at[0]), Math.abs(x.at[1] - b.at[1]));
+          return blastAt[x.cause] + WINDUP_MS + 40 + dist * WAVE_MS_PER_CELL;
+        }
+        case 'row':
+          return blastAt[x.cause] + Math.abs(x.at[1] - b.at[1]) * BEAM_MS_PER_CELL;
+        case 'col':
+          return blastAt[x.cause] + Math.abs(x.at[0] - b.at[0]) * BEAM_MS_PER_CELL;
+        case 'bolts':
+          return boltLands(x.cause, Math.max(0, b.targets.findIndex((p) => sameCell(p, x.at))));
+        default:
+          return blastAt[x.cause];
       }
-      if (b.kind !== 'bolts') return blastAt[x.cause];
-      const j = b.targets.findIndex((p) => sameCell(p, x.at));
-      return blastAt[x.cause] + Math.max(0, j) * boltGap(b) + 90;
     };
 
     const many = step.cleared.length > 20;
@@ -226,11 +250,20 @@ export class Renderer {
       const v = this.visuals.get(x.id);
       jobs.push(sleep(delayFor(x)).then(() => {
         const { x: px, y: py } = this.center(...x.at);
-        this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 3 : 7);
+        this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 4 : 8);
         if (!v) return;
-        return this.tween(210, (k) => {
-          v.scale = k < 0.3 ? 1 + k : 1.3 * (1 - (k - 0.3) / 0.7);
-          v.alpha = 1 - k * k;
+        // Flash white and swell, then shrink away.
+        return this.tween(CLEAR_MS, (k) => {
+          if (k < 0.3) {
+            const u = k / 0.3;
+            v.scale = 1 + 0.25 * u;
+            v.flash = u;
+          } else {
+            const u = (k - 0.3) / 0.7;
+            v.scale = 1.25 * (1 - u);
+            v.alpha = 1 - u * u;
+            v.flash = 1 - u;
+          }
         }, (t) => t).then(() => this.visuals.delete(x.id));
       }));
     }
@@ -245,6 +278,25 @@ export class Renderer {
     // Let the last bolts and beams finish before things fall.
     const tail = Math.max(0, ...this.effects.map((e) => e.born + e.life * 0.6)) - performance.now();
     if (tail > 0) await sleep(tail);
+  }
+
+  // Shrink with a flash, swap to the special's look, then pop back up.
+  morph(v) {
+    return this.tween(MORPH_MS, (k) => {
+      if (k < 0.4) {
+        const u = k / 0.4;
+        v.scale = 1 - 0.45 * u;
+        v.flash = u;
+      } else {
+        v.override = null;
+        const u = (k - 0.4) / 0.6;
+        v.scale = 0.55 + 0.45 * u + 0.35 * Math.sin(u * Math.PI);
+        v.flash = 1 - u;
+      }
+    }, (t) => t).then(() => {
+      v.scale = 1;
+      v.flash = 0;
+    });
   }
 
   // The wrapped candy swells and brightens, then blows: shake and sparks.
@@ -360,17 +412,25 @@ export class Renderer {
     switch (e.kind) {
       case 'row':
       case 'col': {
-        const span = this.cell * (0.9 - 0.6 * t);
-        const { x, y } = this.center(e.kind === 'row' ? e.index : 0, e.kind === 'col' ? e.index : 0);
-        const g = e.kind === 'row'
-          ? ctx.createLinearGradient(0, y - span / 2, 0, y + span / 2)
-          : ctx.createLinearGradient(x - span / 2, 0, x + span / 2, 0);
+        // The beam shoots out both ways from the stripe that fired it.
+        const row = e.kind === 'row';
+        const o = this.center(...e.at);
+        const reach = ((now - e.born) / BEAM_MS_PER_CELL + 0.5) * this.pitch;
+        const span = this.cell * (0.95 - 0.55 * t);
+        const g = row
+          ? ctx.createLinearGradient(0, o.y - span / 2, 0, o.y + span / 2)
+          : ctx.createLinearGradient(o.x - span / 2, 0, o.x + span / 2, 0);
         g.addColorStop(0, 'rgba(45,226,230,0)');
         g.addColorStop(0.5, `rgba(255,255,255,${0.95 * fade})`);
         g.addColorStop(1, 'rgba(45,226,230,0)');
         ctx.fillStyle = g;
-        if (e.kind === 'row') ctx.fillRect(0, y - span / 2, this.width, span);
-        else ctx.fillRect(x - span / 2, 0, span, this.height);
+        if (row) {
+          const x0 = Math.max(0, o.x - reach), x1 = Math.min(this.width, o.x + reach);
+          ctx.fillRect(x0, o.y - span / 2, x1 - x0, span);
+        } else {
+          const y0 = Math.max(0, o.y - reach), y1 = Math.min(this.height, o.y + reach);
+          ctx.fillRect(o.x - span / 2, y0, span, y1 - y0);
+        }
         break;
       }
       case 'area': {
@@ -494,6 +554,18 @@ export class Renderer {
         const t = (now - this.hint.since) / 1000;
         s *= 1 + 0.08 * Math.max(0, Math.sin(t * 6));
         dx = Math.sin(t * 18) * 1.2 * Math.max(0, Math.sin(t * 3));
+      }
+      if (v.flash > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.75 * v.flash;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(x, y, this.cell * 0.42 * v.scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
       if (v.candy.special === 'wrappedLit') {
         // Primed to go off again: throb with a white-hot glow.

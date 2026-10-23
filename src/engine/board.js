@@ -268,8 +268,8 @@ export class Board {
     } else if (isStriped(x.special) && isStriped(y.special)) {
       remove(from);
       remove(to);
-      this.lineBlast(pass, 'row', r);
-      this.lineBlast(pass, 'col', c);
+      this.lineBlast(pass, 'row', r, to);
+      this.lineBlast(pass, 'col', c, to);
     } else if (x.special === WRAPPED && y.special === WRAPPED) {
       remove(from);
       remove(to);
@@ -279,8 +279,8 @@ export class Board {
       remove(from);
       remove(to);
       for (let d = -1; d <= 1; d++) {
-        this.lineBlast(pass, 'row', r + d);
-        this.lineBlast(pass, 'col', c + d);
+        this.lineBlast(pass, 'row', r + d, to);
+        this.lineBlast(pass, 'col', c + d, to);
       }
     }
 
@@ -344,10 +344,11 @@ export class Board {
     pass.blasts.push(blast);
   }
 
-  lineBlast(pass, kind, index) {
+  // `origin` is where the beam starts, so the renderer can sweep it outward.
+  lineBlast(pass, kind, index, origin) {
     if (kind === 'row' && (index < 0 || index >= this.rows)) return;
     if (kind === 'col' && (index < 0 || index >= this.cols)) return;
-    this.startBlast(pass, { kind, index });
+    this.startBlast(pass, { kind, index, at: [...origin] });
     const n = kind === 'row' ? this.cols : this.rows;
     for (let i = 0; i < n; i++) {
       if (kind === 'row') this.mark(pass, index, i);
@@ -370,10 +371,10 @@ export class Board {
       const fired = pass.blasts.length;
       switch (cand.special) {
         case STRIPE_H:
-          this.lineBlast(pass, 'row', r);
+          this.lineBlast(pass, 'row', r, [r, c]);
           break;
         case STRIPE_V:
-          this.lineBlast(pass, 'col', c);
+          this.lineBlast(pass, 'col', c, [r, c]);
           break;
         case WRAPPED:
         case WRAPPED_LIT:
