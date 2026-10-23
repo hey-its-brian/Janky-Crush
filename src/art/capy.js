@@ -1,7 +1,7 @@
 // The host: a chibi capybara with a little orange on its head. Big round
 // head, tiny body, stubby limbs, glossy eyes, soft shading. Poses: 'idle'
 // (content, half-lidded), 'cheer' (arms up, happy eyes, open mouth) and
-// 'worried'. Returns a standalone SVG (viewBox 0 0 220 224).
+// 'worried'. Returns a standalone SVG (viewBox -12 0 244 224).
 
 const LINE = '#8a5530';
 
@@ -49,21 +49,31 @@ export function capy(pose = 'idle') {
       ? `<path d="M100 128 Q105 124 110 128 Q115 132 120 128" stroke="#5a2a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>`
       : `<path d="M100 122 Q105 128 110 122 Q115 128 120 122" stroke="#5a2a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
 
-  const arm = (x, y, rot) =>
-    `<ellipse cx="${x}" cy="${y}" rx="10" ry="15" transform="rotate(${rot} ${x} ${y})" fill="url(#${u}b)" stroke="${LINE}" stroke-width="2"/>` +
-    `<ellipse cx="${x}" cy="${y - 6}" rx="4" ry="5" transform="rotate(${rot} ${x} ${y})" fill="#fff" opacity=".18"/>`;
-  const armsDown = arm(74, 172, 28) + arm(146, 172, -28);
-  const armsUp = arm(30, 132, -42) + arm(190, 132, 42);
+  // A stubby tapered limb from a shoulder (hidden under the head) out to a
+  // round paw, so it grows out of the body instead of sitting on top.
+  const limb = (ax, ay, bx, by, wa, wb) => {
+    const len = Math.hypot(bx - ax, by - ay);
+    const nx = -(by - ay) / len, ny = (bx - ax) / len;
+    const pt = (x, y) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+    return `<path d="M${pt(ax + nx * wa, ay + ny * wa)} L${pt(bx + nx * wb, by + ny * wb)} ` +
+      `A${wb} ${wb} 0 0 0 ${pt(bx - nx * wb, by - ny * wb)} L${pt(ax - nx * wa, ay - ny * wa)}Z" ` +
+      `fill="url(#${u}b)" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round"/>` +
+      // a soft highlight along the top of the paw
+      `<circle cx="${(bx - nx * wb * 0.3 - (bx - ax) / len * wb * 0.35).toFixed(1)}" cy="${(by - ny * wb * 0.3 - (by - ay) / len * wb * 0.35).toFixed(1)}" r="${(wb * 0.4).toFixed(1)}" fill="#fff" opacity=".2"/>`;
+  };
+  const armsDown = limb(80, 146, 93, 174, 13, 11) + limb(140, 146, 127, 174, 13, 11);
+  const armsUp = limb(66, 146, 10, 100, 14, 12.5) + limb(154, 146, 210, 100, 14, 12.5);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 224"><defs>${defs}</defs>` +
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 0 244 224"><defs>${defs}</defs>` +
     // soft shadow on the ground
     `<ellipse cx="110" cy="214" rx="56" ry="8" fill="#3a1a00" opacity=".28" filter="url(#${u}f)"/>` +
     // tiny body, feet, belly
+    `<ellipse cx="90" cy="206" rx="14" ry="9" fill="#9a6235" stroke="${LINE}" stroke-width="2"/>` +
+    `<ellipse cx="130" cy="206" rx="14" ry="9" fill="#9a6235" stroke="${LINE}" stroke-width="2"/>` +
     `<path d="M68 172 C68 146 86 136 110 136 C134 136 152 146 152 172 C152 198 134 210 110 210 C86 210 68 198 68 172Z" fill="url(#${u}b)" stroke="${LINE}" stroke-width="2.5"/>` +
     `<ellipse cx="110" cy="178" rx="24" ry="22" fill="#e6b37e" opacity=".75"/>` +
-    `<ellipse cx="92" cy="208" rx="13" ry="7" fill="#9a6235" stroke="${LINE}" stroke-width="2"/>` +
-    `<ellipse cx="128" cy="208" rx="13" ry="7" fill="#9a6235" stroke="${LINE}" stroke-width="2"/>` +
-    (cheer ? '' : armsDown) +
+
+    (cheer ? armsUp : armsDown) +
     // ears, then the big round head
     `<ellipse cx="60" cy="38" rx="11" ry="9" transform="rotate(-20 60 38)" fill="url(#${u}b)" stroke="${LINE}" stroke-width="2"/>` +
     `<ellipse cx="61" cy="39" rx="5" ry="4" transform="rotate(-20 61 39)" fill="#d98a7a" opacity=".7"/>` +
@@ -80,7 +90,6 @@ export function capy(pose = 'idle') {
     mouth + eyes + brows +
     `<ellipse cx="54" cy="110" rx="15" ry="9" fill="url(#${u}k)"/>` +
     `<ellipse cx="166" cy="110" rx="15" ry="9" fill="url(#${u}k)"/>` +
-    (cheer ? armsUp : '') +
     // the orange on its head
     `<circle cx="110" cy="24" r="19" fill="url(#${u}y)" stroke="#b05800" stroke-width="2"/>` +
     `<path d="M111 7 C119 -3 134 -1 136 5 C128 12 118 12 111 7Z" fill="#5fd35a" stroke="#2a8a2a" stroke-width="1.8"/>` +
