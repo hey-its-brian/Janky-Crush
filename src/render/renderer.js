@@ -11,6 +11,12 @@ const PAD = 7;
 const GAP = 2;
 const BASE_CELL = 42; // the cell size the sprites were drawn for
 
+// Wrapped explosion timing: the candy swells, then the blast rolls outward
+// and candies pop as the shockwave reaches them.
+const WINDUP_MS = 170;
+const EXPLOSION_MS = 700;
+const WAVE_MS_PER_CELL = 70;
+
 const ease = {
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
   inQuad: (t) => t * t,
@@ -113,9 +119,11 @@ export class Renderer {
     }
     this.stepParticles(now);
     this.effects = this.effects.filter((e) => now - e.born < e.life);
+    this.applyShake(now);
     this.draw(now);
+    const shaking = this.shake && now - this.shake.born < this.shake.life;
     const lit = [...this.visuals.values()].some((v) => v.candy.special === 'wrappedLit');
-    const busy = this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint;
+    const busy = shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint;
     if (busy) requestAnimationFrame((t) => this.frame(t));
     else this.running = false;
   }
@@ -149,8 +157,14 @@ export class Renderer {
     const t0 = performance.now();
     const n = step.blasts.length;
     const gap = n > 1 ? Math.min(110, 900 / n) : 0;
-    const blastAt = step.blasts.map((_, i) => i * gap);
+    // An explosion holds up the next blast in a chain until it has landed.
+    const blastAt = [];
+    step.blasts.forEach((b, i) => {
+      const prev = step.blasts[i - 1];
+      blastAt.push(i === 0 ? 0 : blastAt[i - 1] + (prev.kind === 'area' ? WINDUP_MS + 220 : gap));
+    });
     const boltGap = (b) => Math.min(45, 700 / Math.max(1, b.targets.length));
+    const jobs = [];
     const boltsEnd = (i) => blastAt[i] + step.blasts[i].targets.length * boltGap(step.blasts[i]) + 120;
 
     step.blasts.forEach((b, i) => {
@@ -158,7 +172,9 @@ export class Renderer {
         b.targets.forEach((to, j) =>
           this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 300 }));
       } else {
-        this.effects.push({ ...b, born: t0 + blastAt[i], life: 380 });
+        const isArea = b.kind === 'area';
+        this.effects.push({ ...b, born: t0 + blastAt[i] + (isArea ? WINDUP_MS : 0), life: isArea ? EXPLOSION_MS : 380 });
+        if (isArea) jobs.push(this.detonate(b, blastAt[i]));
       }
     });
     this.requestDraw();
@@ -172,7 +188,6 @@ export class Renderer {
     }
 
     // Bomb + special: each candy the bolts reach turns into the special.
-    const jobs = [];
     if (step.converted.length) {
       const i = step.blasts.findIndex((b) => b.kind === 'bolts');
       const b = step.blasts[i];
@@ -197,6 +212,10 @@ export class Renderer {
       if (step.blasts[0]?.kind === 'board') return 120 + (x.at[0] + x.at[1]) * 28;
       if (x.cause < 0) return 0;
       const b = step.blasts[x.cause];
+      if (b.kind === 'area') {
+        const dist = Math.max(Math.abs(x.at[0] - b.at[0]), Math.abs(x.at[1] - b.at[1]));
+        return blastAt[x.cause] + WINDUP_MS + 40 + dist * WAVE_MS_PER_CELL;
+      }
       if (b.kind !== 'bolts') return blastAt[x.cause];
       const j = b.targets.findIndex((p) => sameCell(p, x.at));
       return blastAt[x.cause] + Math.max(0, j) * boltGap(b) + 90;
@@ -226,6 +245,20 @@ export class Renderer {
     // Let the last bolts and beams finish before things fall.
     const tail = Math.max(0, ...this.effects.map((e) => e.born + e.life * 0.6)) - performance.now();
     if (tail > 0) await sleep(tail);
+  }
+
+  // The wrapped candy swells and brightens, then blows: shake and sparks.
+  async detonate(blast, delay) {
+    await sleep(delay);
+    const cand = this.board.get(...blast.at);
+    const v = cand && this.visuals.get(cand.id);
+    if (v) await this.tween(WINDUP_MS, (k) => (v.scale = 1 + 0.4 * k), ease.inQuad);
+    if (v && v.candy.special === 'wrappedLit') v.scale = 1;
+    const { x, y } = this.center(...blast.at);
+    const colors = ['#ffffff', '#ff3d8b', '#ff8a1f', '#ffe14d'];
+    for (let i = 0; i < 26; i++) this.burst(x, y, colors[i % colors.length], 1, 0.12 + Math.random() * 0.16);
+    this.shake = { born: performance.now(), life: 320, amp: 3 + blast.radius * 2 };
+    this.requestDraw();
   }
 
   pop(v) {
@@ -279,11 +312,11 @@ export class Renderer {
 
   // ---- particles ----------------------------------------------------------
 
-  burst(x, y, color, count = 7) {
+  burst(x, y, color, count = 7, speed = null) {
     const now = performance.now();
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
-      const sp = 0.06 + Math.random() * 0.08;
+      const sp = speed ?? 0.06 + Math.random() * 0.08;
       this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 380 + Math.random() * 200, born: now, color, size: 1.5 + Math.random() * 2 });
     }
   }
@@ -299,6 +332,19 @@ export class Renderer {
   }
 
   // ---- drawing ------------------------------------------------------------
+
+  applyShake(now) {
+    const sh = this.shake;
+    if (!sh) return;
+    const t = (now - sh.born) / sh.life;
+    if (t >= 1) {
+      this.canvas.style.transform = '';
+      this.shake = null;
+      return;
+    }
+    const a = sh.amp * (1 - t);
+    this.canvas.style.transform = `translate(${(Math.random() - 0.5) * 2 * a}px, ${(Math.random() - 0.5) * 2 * a}px)`;
+  }
 
   // Blast effects: beams for stripes, a shockwave for wrapped, lightning for
   // the color bomb, and a flash when two bombs clear the board.
@@ -330,15 +376,40 @@ export class Renderer {
       case 'area': {
         const { x, y } = this.center(...e.at);
         const reach = this.pitch * (e.radius + 0.5);
-        const size = reach * (0.4 + 0.8 * ease.out(t));
-        ctx.strokeStyle = `rgba(255,61,139,${fade})`;
+        const grow = ease.out(Math.min(1, t * 1.6));
+
+        // Fireball: white-hot core through pink and orange, swelling then fading.
+        const r = reach * (0.35 + 0.85 * grow);
+        const fire = ctx.createRadialGradient(x, y, 0, x, y, r);
+        const heat = Math.max(0, 1 - t * 1.2);
+        fire.addColorStop(0, `rgba(255,255,255,${0.95 * heat})`);
+        fire.addColorStop(0.25, `rgba(255,225,77,${0.85 * heat})`);
+        fire.addColorStop(0.55, `rgba(255,61,139,${0.6 * heat})`);
+        fire.addColorStop(1, 'rgba(255,61,139,0)');
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = fire;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+
+        // Shockwave ring rolling past the blast area.
+        const ring = reach * (0.3 + 1.1 * ease.out(t));
+        ctx.strokeStyle = `rgba(255,255,255,${0.9 * fade})`;
         ctx.shadowColor = '#ff3d8b';
-        ctx.lineWidth = 4 * fade + 1;
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = 6 * fade + 1;
         ctx.beginPath();
-        ctx.roundRect(x - size, y - size, size * 2, size * 2, 10);
+        ctx.arc(x, y, ring, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.fillStyle = `rgba(255,255,255,${0.25 * fade})`;
-        ctx.fill();
+
+        // Square outline of the cells it takes out, so the reach is clear.
+        if (t < 0.6) {
+          const box = reach * grow;
+          ctx.strokeStyle = `rgba(255,138,31,${0.8 * (1 - t / 0.6)})`;
+          ctx.shadowColor = '#ff8a1f';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(x - box, y - box, box * 2, box * 2, 8);
+          ctx.stroke();
+        }
         break;
       }
       case 'bolt': {
