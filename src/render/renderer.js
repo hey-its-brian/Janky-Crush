@@ -40,9 +40,16 @@ const ease = {
 // short), < 0 is stretched (tall and thin). An impulse sets the squash and
 // the spring wobbles it back to round, a few times, like a gummy.
 const JELLY_K = 520;    // stiffness: about 3.6 wobbles a second
-const JELLY_C = 19;     // damping: settles in a wobble or two
-const JELLY_MAX = 0.25;
+const JELLY_C = 16;     // damping: settles in a couple of wobbles
+const JELLY_MAX = 0.3;
 const SELECT_BOUNCE_MS = 650;
+
+// Falling: real gravity in board cells per second squared, so a one-cell
+// drop takes ~150ms and a long drop speeds up and hits hard.
+const GRAVITY = 90;
+const BOUNCE = 0.14;        // how much of the landing speed bounces back
+const MAX_HOP_SPEED = 5;    // cells/s, so even big drops only hop a little
+const STACK_DELAY_MS = 24;  // candies in a column fall a hair apart
 
 export class Renderer {
   constructor(canvas, board) {
@@ -382,26 +389,55 @@ export class Renderer {
     ].filter((j) => j.v);
     const landed = new Map(); // "row,col" -> visual, for the jiggle below
     for (const v of this.visuals.values()) if (Number.isInteger(v.row)) landed.set(`${v.row},${v.col}`, v);
-    const falling = new Set(jobs.map((j) => j.v));
-    for (const v of falling) landed.delete(`${v.row},${v.col}`);
-    // Lowest first, so each candy lands on one that's already settled.
+    for (const j of jobs) landed.delete(`${j.v.row},${j.v.col}`);
+
+    // Bottom of each column first, so candies pile in rather than moving
+    // as one block.
+    const stack = new Map();
     jobs.sort((p, q) => q.to - p.to);
-    return Promise.all(
-      jobs.map((j) => {
-        const dist = j.to - j.from;
-        return this.tween(160 + 75 * Math.sqrt(dist), (k) => {
-          j.v.row = j.from + dist * k;
-          j.v.stretch = -0.09 * Math.min(1, k * 2.5); // drawn out by the fall
-        }, ease.inQuad).then(() => {
-          j.v.stretch = 0;
-          j.v.row = j.to;
-          this.jiggle(j.v, Math.min(0.18, 0.08 + 0.025 * dist));
-          const below = landed.get(`${j.to + 1},${j.v.col}`);
-          if (below) this.jiggle(below, 0.05);
-          landed.set(`${j.to},${j.v.col}`, j.v);
-        });
-      })
-    );
+    for (const j of jobs) {
+      const n = stack.get(j.v.col) ?? 0;
+      stack.set(j.v.col, n + 1);
+      j.delay = n * STACK_DELAY_MS;
+    }
+    return Promise.all(jobs.map((j) => sleep(j.delay).then(() => this.drop(j, landed))));
+  }
+
+  // One candy falls under gravity, hits, hops a little and settles.
+  drop(j, landed) {
+    const v = j.v;
+    const dist = j.to - j.from;
+    const tFall = Math.sqrt((2 * dist) / GRAVITY);
+    const impact = GRAVITY * tFall;
+    const hop = Math.min(MAX_HOP_SPEED, impact * BOUNCE);
+    const tHop = (2 * hop) / GRAVITY;
+    const total = (tFall + tHop) * 1000;
+    let hit = false;
+    const land = () => {
+      if (hit) return;
+      hit = true;
+      v.stretch = 0;
+      // Squash sized to how hard it hit.
+      this.jiggle(v, Math.min(0.26, 0.05 + 0.006 * impact));
+      const below = landed.get(`${j.to + 1},${v.col}`);
+      if (below) this.jiggle(below, Math.min(0.1, 0.002 * impact + 0.02));
+      landed.set(`${j.to},${v.col}`, v);
+    };
+    return this.tween(total, (_, t) => {
+      const sec = (t * total) / 1000;
+      if (sec < tFall) {
+        v.row = j.from + 0.5 * GRAVITY * sec * sec;
+        v.stretch = -Math.min(0.12, 0.004 * GRAVITY * sec); // drawn out by speed
+      } else {
+        land();
+        const u = sec - tFall;
+        v.row = j.to - (hop * u - 0.5 * GRAVITY * u * u);
+      }
+    }, (t) => t).then(() => {
+      land();
+      v.row = j.to;
+      v.stretch = 0;
+    });
   }
 
   animateShuffle(moves) {
