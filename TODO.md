@@ -12,6 +12,13 @@
       ingredient goals, a neon level map, level intro and result screens,
       the "Janky Crush!" end-of-level bonus, and progress saved on the
       phone. Moves and star scores are tuned by `tools/tune.mjs`.
+- [x] **Phase 3.5: Capybara Hot Springs look.** Fruit pieces, glowing
+      specials, glass board over an animated scene, bath foam, duckies and
+      pups, the capybara host with callouts, score meter with star marks,
+      end-of-level review, a lively map, new app icon.
+- [ ] **Sound.** Pops that climb in pitch through a chain, a sound for
+      each special and combo, win and lose jingles, background music, and
+      separate on/off switches. All generated in code.
 - [ ] **Phase 4: Coins, lives and boosters.**
   - Coins earned from stars, level clears, leftover moves and a daily bonus.
   - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run
@@ -26,20 +33,21 @@
 
 ## Themes
 
-- [ ] Theme picker in Settings. A theme changes colors, candies and the
+- [ ] Theme picker in Settings. A theme changes colors, pieces and the
       background only; gameplay stays the same.
-- [ ] **Sugar Paper**: soft, flat pastels, no glow. The first extra theme.
-      Mockup is the "Future theme · Sugar Paper" board on the design canvas.
-- [ ] Keep all theme colors in CSS variables (`styles.css`) and the candy
-      palette (`src/render/sprites.js`) so a theme is one swap.
+- [ ] **Night Arcade**: the original neon look (dark, glowing hard candy).
+      Its candies and styles are in git history before the Hot Springs
+      rebuild.
+- [ ] **Sugar Paper**: soft, flat pastels, no glow.
 
 ## Polish ideas
 
-- [ ] Sound effects and music, with separate on/off switches.
 - [ ] Richer match effects (sparkle trails, screen shake on big combos).
 - [ ] Haptics, if iOS ever exposes them to web apps.
 
 ## Tuning to revisit
+
+- [ ] The host hopping along the map to the next level after a win.
 
 - [ ] Gravity, bounce and jelly wobble feel right for now (constants at
       the top of `src/render/renderer.js`). Re-check once blockers,

@@ -45,7 +45,7 @@ npm test          # engine tests (Node 20+)
 npm run serve     # http://localhost:8000
 node tools/tune.mjs           # re-tune every level's moves and stars
 node tools/tune.mjs 7 12      # ...or just some levels
-python3 tools/make-icons.py   # regenerate home-screen icons (needs Pillow)
+node tools/make-icons.mjs     # regenerate home-screen icons (needs Playwright)
 ```
 
 ### Levels
@@ -70,14 +70,18 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/engine/level.js` | Level setup from a layout, and goal tracking. |
 | `src/engine/turn.js` | A turn (and the end-of-level bonus) as a sequence of events. |
 | `src/save.js` | Progress saved on the phone, per save file. |
-| `src/render/sprites.js` | Draws each candy once (glossy hard candy with a neon glow). |
+| `src/art/` | All the art, drawn as SVG in code: fruits and specials, the capybara host, scenery. |
+| `src/render/sprites.js` | Turns the piece art into canvas sprites for the board. |
 | `src/render/renderer.js` | Canvas drawing and animations. |
 | `src/game.js` | Plays a level: runs each turn's events through the renderer, and touch input. |
-| `src/main.js` | Screens: level map, dialogs, HUD. |
+| `src/main.js` | Screens: dialogs, HUD, the host's reactions. |
+| `src/ui/` | The level map and the animated hot-spring scene. |
 | `src/levels.js`, `src/level-tuning.js` | Level designs, and their tuned moves and stars. |
 | `tools/tune.mjs` | The level tuner. |
-| `styles.css` | Night Arcade theme and layout. |
+| `styles.css` | Capybara Hot Springs theme and layout. |
+| `preview/` | Look-and-feel mockup and art sheet (not part of the game). |
 | `sw.js`, `manifest.webmanifest` | Offline support and home-screen install. |
 
-The Chakra Petch font is bundled under the SIL Open Font License
-(`fonts/OFL.txt`).
+The Lilita One and Fredoka fonts are bundled under the SIL Open Font
+License (`fonts/OFL-*.txt`). Chakra Petch (`fonts/OFL.txt`) is kept for the
+Night Arcade theme.
