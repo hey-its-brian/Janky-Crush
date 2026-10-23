@@ -40,8 +40,8 @@ const ease = {
 // short), < 0 is stretched (tall and thin). An impulse sets the squash and
 // the spring wobbles it back to round, a few times, like a gummy.
 const JELLY_K = 520;    // stiffness: about 3.6 wobbles a second
-const JELLY_C = 11;     // damping: low, so it wobbles a few times
-const JELLY_MAX = 0.45;
+const JELLY_C = 19;     // damping: settles in a wobble or two
+const JELLY_MAX = 0.25;
 const SELECT_BOUNCE_MS = 650;
 
 export class Renderer {
@@ -152,7 +152,7 @@ export class Renderer {
     const va = this.visualAt(a), vb = this.visualAt(b);
     const sideways = a[0] === b[0];
     const move = (k) => {
-      const stretch = 0.2 * Math.sin(k * Math.PI) * (sideways ? 1 : -1); // wide when sliding sideways
+      const stretch = 0.12 * Math.sin(k * Math.PI) * (sideways ? 1 : -1); // wide when sliding sideways
       if (va) { va.row = a[0] + (b[0] - a[0]) * k; va.col = a[1] + (b[1] - a[1]) * k; va.stretch = stretch; }
       if (vb) { vb.row = b[0] + (a[0] - b[0]) * k; vb.col = b[1] + (a[1] - b[1]) * k; vb.stretch = stretch; }
     };
@@ -161,7 +161,7 @@ export class Renderer {
         if (!v) continue;
         v.stretch = 0;
         // Stopping sideways squeezes it tall; stopping up/down squashes it flat.
-        this.jiggle(v, sideways ? -0.18 : 0.18);
+        this.jiggle(v, sideways ? -0.1 : 0.1);
       }
     };
     return move;
@@ -274,7 +274,7 @@ export class Renderer {
         this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 4 : 8);
         if (!v) return;
         // Squish, flash white and swell, then shrink away.
-        this.jiggle(v, 0.22);
+        this.jiggle(v, 0.14);
         return this.tween(CLEAR_MS, (k) => {
           if (k < 0.3) {
             const u = k / 0.3;
@@ -336,7 +336,7 @@ export class Renderer {
   }
 
   pop(v) {
-    this.jiggle(v, -0.3);
+    this.jiggle(v, -0.16);
     return this.tween(300, (k) => (v.scale = 1 + 0.45 * Math.sin(k * Math.PI)), (t) => t);
   }
 
@@ -355,7 +355,7 @@ export class Renderer {
       const v = this.visualAt(this.selected);
       if (v && (!this.lastBounce || now - this.lastBounce > SELECT_BOUNCE_MS)) {
         this.lastBounce = now;
-        this.jiggle(v, 0.22);
+        this.jiggle(v, 0.12);
       }
     }
     for (const v of this.jiggling) {
@@ -391,13 +391,13 @@ export class Renderer {
         const dist = j.to - j.from;
         return this.tween(160 + 75 * Math.sqrt(dist), (k) => {
           j.v.row = j.from + dist * k;
-          j.v.stretch = -0.16 * Math.min(1, k * 2.5); // drawn out by the fall
+          j.v.stretch = -0.09 * Math.min(1, k * 2.5); // drawn out by the fall
         }, ease.inQuad).then(() => {
           j.v.stretch = 0;
           j.v.row = j.to;
-          this.jiggle(j.v, Math.min(0.3, 0.14 + 0.04 * dist));
+          this.jiggle(j.v, Math.min(0.18, 0.08 + 0.025 * dist));
           const below = landed.get(`${j.to + 1},${j.v.col}`);
-          if (below) this.jiggle(below, 0.1);
+          if (below) this.jiggle(below, 0.05);
           landed.set(`${j.to},${j.v.col}`, j.v);
         });
       })
