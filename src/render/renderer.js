@@ -5,6 +5,7 @@
 import { buildSprites, spriteKey, PALETTE, SPRITE } from './sprites.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sameCell = (a, b) => a[0] === b[0] && a[1] === b[1];
 
 const PAD = 7;
 const GAP = 2;
@@ -141,46 +142,94 @@ export class Renderer {
     await this.tween(170, (k) => move(1 - k));
   }
 
-  // Animate one resolution step from Board.resolveStep / comboStep.
+  // Animate one resolution step from Board.resolveStep / comboStep /
+  // firePrimed. Blasts go off one after another so chain reactions ripple,
+  // and each candy pops when the blast that hit it arrives.
   async animateStep(step, points) {
-    const now = performance.now();
-    for (const b of step.blasts) this.effects.push({ ...b, born: now, life: b.kind === 'bolts' ? 520 : 380 });
+    const t0 = performance.now();
+    const n = step.blasts.length;
+    const gap = n > 1 ? Math.min(110, 900 / n) : 0;
+    const blastAt = step.blasts.map((_, i) => i * gap);
+    const boltGap = (b) => Math.min(45, 700 / Math.max(1, b.targets.length));
+    const boltsEnd = (i) => blastAt[i] + step.blasts[i].targets.length * boltGap(step.blasts[i]) + 120;
+
+    step.blasts.forEach((b, i) => {
+      if (b.kind === 'bolts') {
+        b.targets.forEach((to, j) =>
+          this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 300 }));
+      } else {
+        this.effects.push({ ...b, born: t0 + blastAt[i], life: 380 });
+      }
+    });
     this.requestDraw();
-
-    // Bolts and converted candies get a beat to be seen before they pop.
-    if (step.converted.length || step.blasts.some((b) => b.kind === 'bolts' || b.kind === 'board')) {
-      await sleep(step.converted.length ? 380 : 240);
-    }
-
-    const many = step.cleared.length > 20;
-    for (const cell of step.cleared) {
-      const { x, y } = this.center(...cell.at);
-      this.burst(x, y, cell.color ? PALETTE[cell.color][0] : '#f1edff', many ? 3 : 7);
-    }
 
     if (points) {
       const anchor = step.created[0]?.at ?? step.groups[0]?.cells[1] ?? step.cleared[0]?.at;
       if (anchor) {
         const { x, y } = this.center(...anchor);
-        this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.035, life: 900, born: performance.now(), color: '#f1edff' });
+        this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.035, life: 900, born: t0, color: '#f1edff' });
       }
     }
 
-    // New specials pop in where they formed.
-    const made = step.created.map((m) => this.visuals.get(m.candy.id)).filter(Boolean);
-    const pop = this.tween(320, (k) => {
-      for (const v of made) v.scale = 1 + 0.45 * Math.sin(k * Math.PI);
-    }, (t) => t);
-
-    const vs = step.cleared.map((cell) => this.visuals.get(cell.id)).filter(Boolean);
-    const clear = this.tween(210, (k) => {
-      for (const v of vs) {
-        v.scale = k < 0.3 ? 1 + k : 1.3 * (1 - (k - 0.3) / 0.7);
-        v.alpha = 1 - k * k;
+    // Bomb + special: each candy the bolts reach turns into the special.
+    const jobs = [];
+    if (step.converted.length) {
+      const i = step.blasts.findIndex((b) => b.kind === 'bolts');
+      const b = step.blasts[i];
+      for (const c of step.converted) {
+        const v = this.visuals.get(c.candy.id);
+        if (!v) continue;
+        v.override = c.candy.color;
+        const j = b.targets.findIndex((p) => sameCell(p, c.at));
+        jobs.push(sleep(blastAt[i] + Math.max(0, j) * boltGap(b) + 60).then(() => {
+          v.override = null;
+          return this.pop(v);
+        }));
       }
-    }, (t) => t).then(() => step.cleared.forEach((cell) => this.visuals.delete(cell.id)));
+    }
 
-    await Promise.all([pop, clear]);
+    // When each cleared candy goes.
+    const delayFor = (x) => {
+      if (x.special === 'bomb') {
+        const i = step.blasts.findIndex((b) => b.kind === 'bolts' && sameCell(b.at, x.at));
+        if (i >= 0) return boltsEnd(i);
+      }
+      if (step.blasts[0]?.kind === 'board') return 120 + (x.at[0] + x.at[1]) * 28;
+      if (x.cause < 0) return 0;
+      const b = step.blasts[x.cause];
+      if (b.kind !== 'bolts') return blastAt[x.cause];
+      const j = b.targets.findIndex((p) => sameCell(p, x.at));
+      return blastAt[x.cause] + Math.max(0, j) * boltGap(b) + 90;
+    };
+
+    const many = step.cleared.length > 20;
+    for (const x of step.cleared) {
+      const v = this.visuals.get(x.id);
+      jobs.push(sleep(delayFor(x)).then(() => {
+        const { x: px, y: py } = this.center(...x.at);
+        this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 3 : 7);
+        if (!v) return;
+        return this.tween(210, (k) => {
+          v.scale = k < 0.3 ? 1 + k : 1.3 * (1 - (k - 0.3) / 0.7);
+          v.alpha = 1 - k * k;
+        }, (t) => t).then(() => this.visuals.delete(x.id));
+      }));
+    }
+
+    // New specials pop in where they formed.
+    for (const m of step.created) {
+      const v = this.visuals.get(m.candy.id);
+      if (v) jobs.push(this.pop(v));
+    }
+
+    await Promise.all(jobs);
+    // Let the last bolts and beams finish before things fall.
+    const tail = Math.max(0, ...this.effects.map((e) => e.born + e.life * 0.6)) - performance.now();
+    if (tail > 0) await sleep(tail);
+  }
+
+  pop(v) {
+    return this.tween(300, (k) => (v.scale = 1 + 0.45 * Math.sin(k * Math.PI)), (t) => t);
   }
 
   animateFall(moves, spawns) {
@@ -256,6 +305,7 @@ export class Renderer {
   drawEffect(e, now) {
     const { ctx } = this;
     const t = (now - e.born) / e.life;
+    if (t < 0) return; // scheduled for later in a chain
     const fade = 1 - t;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -291,24 +341,24 @@ export class Renderer {
         ctx.fill();
         break;
       }
-      case 'bolts': {
-        const from = this.center(...e.at);
-        ctx.strokeStyle = `rgba(241,237,255,${fade})`;
+      case 'bolt': {
+        const from = this.center(...e.from), to = this.center(...e.to);
+        // The bolt grows out to its target, then fades.
+        const reach = Math.min(1, t * 3);
+        const end = { x: from.x + (to.x - from.x) * reach, y: from.y + (to.y - from.y) * reach };
+        ctx.strokeStyle = `rgba(241,237,255,${Math.min(1, fade * 1.5)})`;
         ctx.shadowColor = '#c04dff';
         ctx.lineWidth = 2;
-        for (const p of e.targets) {
-          const to = this.center(...p);
-          ctx.beginPath();
-          ctx.moveTo(from.x, from.y);
-          // A few jittered kinks so it reads as electricity.
-          for (let i = 1; i < 4; i++) {
-            const f = i / 4;
-            const jitter = (Math.random() - 0.5) * 10;
-            ctx.lineTo(from.x + (to.x - from.x) * f + jitter, from.y + (to.y - from.y) * f - jitter);
-          }
-          ctx.lineTo(to.x, to.y);
-          ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        // A few jittered kinks so it reads as electricity.
+        for (let i = 1; i < 4; i++) {
+          const f = i / 4;
+          const jitter = (Math.random() - 0.5) * 10;
+          ctx.lineTo(from.x + (end.x - from.x) * f + jitter, from.y + (end.y - from.y) * f - jitter);
         }
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
         break;
       }
       case 'board': {
@@ -389,7 +439,7 @@ export class Renderer {
         ctx.restore();
       }
       ctx.globalAlpha = v.alpha;
-      ctx.drawImage(this.sprites[spriteKey(v.candy)], x - s / 2 + dx, y - s / 2, s, s);
+      ctx.drawImage(this.sprites[v.override ?? spriteKey(v.candy)], x - s / 2 + dx, y - s / 2, s, s);
     }
     ctx.globalAlpha = 1;
     ctx.restore();

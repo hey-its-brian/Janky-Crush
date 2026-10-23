@@ -138,7 +138,7 @@ test('bomb + bomb clears the board', () => {
   assert.ok(b.toStrings().every((row) => /^\.+$/.test(row)));
 });
 
-test('bomb + striped turns that color striped and fires them all', () => {
+test('bomb + striped converts that color first, then fires them in bolt order', () => {
   const b = board([
     '*Rgo',
     'gbyb',
@@ -146,8 +146,52 @@ test('bomb + striped turns that color striped and fires them all', () => {
     'opgo',
   ]);
   const step = play(b, [0, 1], [0, 0]);
-  assert.ok(step.converted.length >= 1);
+  // First step: only the bomb goes; the reds turn striped and wait.
+  assert.equal(step.primed, true);
+  assert.deepEqual(step.cleared.map((x) => x.special), [BOMB]);
+  assert.deepEqual(step.converted.map((x) => x.at), [[2, 2]]);
+  assert.equal(b.grid[2][2].special, step.converted[0].special);
+
+  const fire = b.firePrimed();
   assert.equal(b.cellsOfColor('r').length, 0);
+  // Each stripe fires along its own stripes.
+  const lines = fire.blasts.filter((x) => x.kind === 'row' || x.kind === 'col');
+  assert.equal(lines[0].kind, 'row'); // the swapped R is horizontal
+  assert.equal(lines[0].index, 0);
+  const second = step.converted[0].special === STRIPE_H ? { kind: 'row', index: 2 } : { kind: 'col', index: 2 };
+  assert.ok(lines.some((x) => x.kind === second.kind && x.index === second.index));
+  assert.equal(b.firePrimed(), null);
+});
+
+test('a stripe clears along its stripes and nothing else', () => {
+  for (const [special, kind] of [[STRIPE_H, 'row'], [STRIPE_V, 'col']]) {
+    const b = board([
+      'gobyp',
+      'ybpgo',
+      'pgrrr',
+      'oyogb',
+      'bpybg',
+    ]);
+    b.grid[2][3].special = special;
+    const step = b.resolveStep(null);
+    const lines = step.blasts.filter((x) => x.kind === 'row' || x.kind === 'col');
+    assert.deepEqual(lines, [{ kind, index: kind === 'row' ? 2 : 3 }]);
+  }
+});
+
+test('candies cleared by a blast remember which blast hit them', () => {
+  const b = board([
+    'yrRro',
+    'bgoyp',
+    'gpbyo',
+  ]);
+  b.grid[0][4].special = STRIPE_V;
+  const step = b.resolveStep(null);
+  const at = (r, c) => step.cleared.find((x) => x.at[0] === r && x.at[1] === c);
+  assert.equal(at(0, 1).cause, -1); // part of the match
+  assert.equal(at(0, 2).cause, 0);  // the stripe leaves as it fires
+  assert.equal(at(0, 0).cause, 0);  // hit by the row blast
+  assert.equal(at(2, 4).cause, 1);  // hit by the column blast it set off
 });
 
 test('striped + striped clears a cross', () => {

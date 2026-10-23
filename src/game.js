@@ -85,6 +85,11 @@ export class Game {
       this.score += points;
       this.emit();
       await r.animateStep(step, points);
+      if (step.primed) {
+        // Bomb + special: the converted candies fire before anything falls.
+        step = this.board.firePrimed();
+        continue;
+      }
       const falls = this.board.applyGravity();
       const spawns = this.board.refill();
       await r.animateFall(falls, spawns);

@@ -245,20 +245,25 @@ export class Board {
           for (let j = 0; j < this.cols; j++) if (this.grid[i][j]) remove([i, j]);
       } else {
         remove(bomb);
-        const targets = this.cellsOfColor(other.color);
-        pass.blasts.push({ kind: 'bolts', at: bomb, targets });
+        const targets = this.cellsOfColor(other.color).filter((p) => key(p) !== key(otherAt));
+        this.startBlast(pass, { kind: 'bolts', at: bomb, targets });
         if (isStriped(other.special) || other.special === WRAPPED) {
-          // Every candy of that color becomes the same special, then fires.
-          for (const p of targets) {
+          // Every candy of that color becomes the same special. They fire
+          // one after another in firePrimed(), before anything falls.
+          [otherAt, ...targets].forEach((p, i) => {
             const cand = this.get(...p);
-            if (cand.special) continue;
-            const special = other.special === WRAPPED ? WRAPPED
-              : randInt(this.rng, 2) ? STRIPE_H : STRIPE_V;
-            cand.special = special;
-            pass.converted.push({ at: p, candy: cand, special });
-          }
+            if (!cand.special) {
+              const special = other.special === WRAPPED ? WRAPPED
+                : randInt(this.rng, 2) ? STRIPE_H : STRIPE_V;
+              cand.special = special;
+              pass.converted.push({ at: p, candy: cand, special });
+            }
+            cand.primed = i + 1;
+          });
+          pass.primed = true;
+        } else {
+          for (const p of [otherAt, ...targets]) this.mark(pass, ...p);
         }
-        for (const p of [otherAt, ...targets]) this.mark(pass, ...p);
       }
     } else if (isStriped(x.special) && isStriped(y.special)) {
       remove(from);
@@ -283,6 +288,26 @@ export class Board {
     return this.commit(pass, []);
   }
 
+  // Set off the candies a bomb + special combo converted, in the order the
+  // bolts reached them. Returns a step like resolveStep.
+  firePrimed() {
+    const primed = [];
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) {
+        const cand = this.grid[r][c];
+        if (cand?.primed) primed.push({ at: [r, c], order: cand.primed });
+      }
+    if (!primed.length) return null;
+    primed.sort((a, b) => a.order - b.order);
+    const pass = this.newPass();
+    for (const { at } of primed) {
+      delete this.get(...at).primed;
+      this.mark(pass, ...at);
+    }
+    this.runPass(pass);
+    return this.commit(pass, []);
+  }
+
   newPass() {
     return {
       clear: new Map(),   // key -> [r, c] to remove
@@ -291,7 +316,10 @@ export class Board {
       queue: [],          // specials waiting to fire
       created: [],        // { at, color, special }
       converted: [],      // { at, candy, special } (bomb + special combos)
-      blasts: [],         // effects for the renderer
+      blasts: [],         // effects for the renderer, in firing order
+      cause: new Map(),   // key -> index of the blast that cleared it (-1: the match)
+      current: -1,
+      primed: false,
     };
   }
 
@@ -300,6 +328,7 @@ export class Board {
     const cand = this.get(r, c);
     const k = key([r, c]);
     if (!cand || pass.keep.has(k) || pass.clear.has(k) || pass.light.has(k)) return;
+    if (!pass.cause.has(k)) pass.cause.set(k, pass.current);
     if (cand.special === WRAPPED) {
       pass.light.set(k, [r, c]);
       pass.queue.push([r, c]);
@@ -309,10 +338,16 @@ export class Board {
     if (cand.special) pass.queue.push([r, c]);
   }
 
+  // Record a blast; cells marked until the next one count as its victims.
+  startBlast(pass, blast) {
+    pass.current = pass.blasts.length;
+    pass.blasts.push(blast);
+  }
+
   lineBlast(pass, kind, index) {
     if (kind === 'row' && (index < 0 || index >= this.rows)) return;
     if (kind === 'col' && (index < 0 || index >= this.cols)) return;
-    pass.blasts.push({ kind, index });
+    this.startBlast(pass, { kind, index });
     const n = kind === 'row' ? this.cols : this.rows;
     for (let i = 0; i < n; i++) {
       if (kind === 'row') this.mark(pass, index, i);
@@ -321,7 +356,7 @@ export class Board {
   }
 
   areaBlast(pass, r, c, radius) {
-    pass.blasts.push({ kind: 'area', at: [r, c], radius });
+    this.startBlast(pass, { kind: 'area', at: [r, c], radius });
     for (let i = r - radius; i <= r + radius; i++)
       for (let j = c - radius; j <= c + radius; j++) this.mark(pass, i, j);
   }
@@ -332,6 +367,7 @@ export class Board {
       const [r, c] = pass.queue.shift();
       const cand = this.get(r, c);
       if (!cand) continue;
+      const fired = pass.blasts.length;
       switch (cand.special) {
         case STRIPE_H:
           this.lineBlast(pass, 'row', r);
@@ -348,16 +384,21 @@ export class Board {
           const color = this.mostCommonColor(pass);
           if (!color) break;
           const targets = this.cellsOfColor(color).filter((p) => !pass.clear.has(key(p)));
-          pass.blasts.push({ kind: 'bolts', at: [r, c], targets });
+          this.startBlast(pass, { kind: 'bolts', at: [r, c], targets });
           for (const p of targets) this.mark(pass, ...p);
           break;
         }
       }
+      // A special leaves the board the moment it goes off.
+      if (pass.blasts.length > fired) pass.cause.set(key([r, c]), fired);
     }
   }
 
   commit(pass, groups) {
-    const cleared = this.clear([...pass.clear.values()]);
+    const cleared = this.clear([...pass.clear.values()]).map((x) => ({
+      ...x,
+      cause: pass.cause.get(key(x.at)) ?? -1,
+    }));
     for (const [r, c] of pass.light.values()) this.grid[r][c].special = WRAPPED_LIT;
     for (const made of pass.created) {
       const [r, c] = made.at;
@@ -379,6 +420,7 @@ export class Board {
       created: pass.created,
       converted: pass.converted,
       blasts: pass.blasts,
+      primed: pass.primed,
       points,
     };
   }
