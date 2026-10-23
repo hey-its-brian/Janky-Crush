@@ -70,6 +70,7 @@ const SELECT_BOUNCE_MS = 650;
 // Falling: real gravity in board cells per second squared, so a one-cell
 // drop takes ~150ms and a long drop speeds up and hits hard.
 const GRAVITY = 90;
+const START_SPEED = 6;      // cells/s: a nudge so one-cell drops aren't sluggish
 const BOUNCE = 0.14;        // how much of the landing speed bounces back
 const MAX_HOP_SPEED = 5;    // cells/s, so even big drops only hop a little
 const STACK_DELAY_MS = 24;  // candies in a column fall a hair apart
@@ -430,8 +431,10 @@ export class Renderer {
   drop(j, landed) {
     const v = j.v;
     const dist = j.to - j.from;
-    const tFall = Math.sqrt((2 * dist) / GRAVITY);
-    const impact = GRAVITY * tFall;
+    // Solve dist = v0·t + ½·g·t² for the time to land.
+    const v0 = START_SPEED;
+    const tFall = (-v0 + Math.sqrt(v0 * v0 + 2 * GRAVITY * dist)) / GRAVITY;
+    const impact = v0 + GRAVITY * tFall;
     const hop = Math.min(MAX_HOP_SPEED, impact * BOUNCE);
     const tHop = (2 * hop) / GRAVITY;
     const total = (tFall + tHop) * 1000;
@@ -449,8 +452,8 @@ export class Renderer {
     return this.tween(total, (_, t) => {
       const sec = (t * total) / 1000;
       if (sec < tFall) {
-        v.row = j.from + 0.5 * GRAVITY * sec * sec;
-        v.stretch = -Math.min(0.12, 0.004 * GRAVITY * sec); // drawn out by speed
+        v.row = j.from + v0 * sec + 0.5 * GRAVITY * sec * sec;
+        v.stretch = -Math.min(0.12, 0.004 * (v0 + GRAVITY * sec)); // drawn out by speed
       } else {
         land();
         const u = sec - tFall;
