@@ -96,3 +96,35 @@ export function sun() {
     `<ellipse cx="34" cy="56" rx="5" ry="3" fill="#ff8f6b" opacity=".7"/><ellipse cx="66" cy="56" rx="5" ry="3" fill="#ff8f6b" opacity=".7"/>`,
     `<radialGradient id="sun" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff6b0"/><stop offset=".6" stop-color="#ffd23f"/><stop offset="1" stop-color="#ffb000"/></radialGradient>`);
 }
+
+// A striped hot-air balloon, viewBox 0 0 80 110.
+export function balloon() {
+  const stripes = ['#ff5fa2', '#ffcf3a', '#2ec4d6', '#ffcf3a', '#ff5fa2'];
+  const segs = stripes.map((c, i) => {
+    const x0 = 6 + i * 13.6, x1 = x0 + 13.6;
+    return `<path d="M40 70 C${x0 - 6} 52 ${x0} 10 ${(x0 + x1) / 2} 6 C${x1} 10 ${x1 + 6} 52 40 70Z" fill="${c}"/>`;
+  }).join('');
+  return wrap('0 0 80 110',
+    `<g clip-path="url(#bl)">${segs}</g>` +
+    `<path d="M40 70 C8 52 2 26 12 14 C22 2 58 2 68 14 C78 26 72 52 40 70Z" fill="none" stroke="#8a1748" stroke-width="2.5"/>` +
+    `<ellipse cx="28" cy="22" rx="7" ry="10" fill="#fff" opacity=".35"/>` +
+    `<path d="M32 70 L34 86 M48 70 L46 86" stroke="#6b3f1c" stroke-width="2"/>` +
+    `<rect x="31" y="86" width="18" height="14" rx="3" fill="#c98a4b" stroke="#6b3f1c" stroke-width="2.5"/>`,
+    `<clipPath id="bl"><path d="M40 70 C8 52 2 26 12 14 C22 2 58 2 68 14 C78 26 72 52 40 70Z"/></clipPath>`);
+}
+
+// A cluster of rounded rocks, viewBox 0 0 70 40.
+export function rocks() {
+  return wrap('0 0 70 40',
+    `<g stroke="#6e6680" stroke-width="2.5">` +
+    `<ellipse cx="22" cy="28" rx="18" ry="11" fill="#c9c2d6"/>` +
+    `<ellipse cx="46" cy="26" rx="16" ry="13" fill="#b9b2c8"/>` +
+    `<ellipse cx="36" cy="32" rx="12" ry="7" fill="#d8d2e2"/></g>` +
+    `<ellipse cx="42" cy="18" rx="5" ry="3" fill="#fff" opacity=".5"/>`);
+}
+
+// A little bird in flight, viewBox 0 0 30 14. Wings flap via CSS on .wing.
+export function bird() {
+  return wrap('0 0 30 14',
+    `<path class="wing" d="M2 8 Q8 0 15 8 Q22 0 28 8" stroke="#5a2d0c" stroke-width="2.5" fill="none" stroke-linecap="round"/>`);
+}

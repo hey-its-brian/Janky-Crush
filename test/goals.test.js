@@ -74,7 +74,7 @@ test('ingredients fall to the exit and are collected', () => {
 test('shuffle leaves ingredients in place', () => {
   const b = new Board({ rng: makeRng(4) });
   b.fillInitial();
-  b.grid[0][3] = b.newIngredient('nut');
+  b.grid[0][3] = b.newIngredient('pup');
   b.shuffle();
   assert.equal(b.grid[0][3].special, INGREDIENT);
 });

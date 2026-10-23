@@ -9,15 +9,19 @@ import { Renderer, BONUS_GAP_MAX, BONUS_TOTAL_MAX } from './render/renderer.js';
 import { makeRng } from './rng.js';
 
 const HINT_AFTER_MS = 6000;
+// Callouts as a chain grows (cascade number → word).
+const CHAIN_WORDS = { 3: 'Juicy!', 5: 'Fresh!', 7: 'Tropical!', 9: 'Smoothie!' };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class Game {
   // onChange(hud) after anything the HUD shows changes; onBanner(text) to
-  // flash a big message; onEnd(result) when the level is over.
-  constructor(canvas, { onChange, onBanner, onEnd }) {
+  // flash a big message; onCallout(text) for a combo shout; onEnd(result)
+  // when the level is over.
+  constructor(canvas, { onChange, onBanner, onCallout = () => {}, onEnd }) {
     this.canvas = canvas;
     this.onChange = onChange;
     this.onBanner = onBanner;
+    this.onCallout = onCallout;
     this.onEnd = onEnd;
     this.busy = false;
     this.over = true;
@@ -89,6 +93,7 @@ export class Game {
       return;
     }
 
+    if (this.board.isComboSwap(a, b)) this.comboShout = true;
     await r.animateSwap(a, b);
     await this.run(playTurn(this.board, this.state, a, b));
 
@@ -109,6 +114,7 @@ export class Game {
       switch (ev.type) {
         case 'step':
           if (ev.step.bonus) this.countDownMoves(ev.step.converted.length);
+          this.shout(ev);
           await r.animateStep(ev.step, ev.points);
           break;
         case 'fall':
@@ -123,6 +129,20 @@ export class Game {
       }
     }
     this.emit();
+  }
+
+  // Big moments get a callout: a special combo, a color bomb made, or a
+  // chain reaching 3, 5, 7 or 9 steps.
+  shout(ev) {
+    if (this.state.inBonus) return;
+    if (this.comboShout) {
+      this.comboShout = false;
+      this.onCallout('Tropical!');
+    } else if (ev.step.created.some((m) => m.special === 'bomb')) {
+      this.onCallout('Smoothie!');
+    } else if (CHAIN_WORDS[ev.cascade]) {
+      this.onCallout(CHAIN_WORDS[ev.cascade]);
+    }
   }
 
   // In the bonus round the moves counter ticks down as each leftover move
@@ -158,7 +178,9 @@ export class Game {
       goal: s.goal.type,
       jellyLeft: s.jellyLeft(),
       ingredientsLeft: s.ingredientsLeft(),
+      collected: s.collected,
       target: s.level.stars[0],
+      stats: s.stats,
     });
   }
 

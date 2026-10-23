@@ -39,6 +39,26 @@ export class LevelState {
     this.moves = level.moves;
     this.score = 0;
     this.collected = 0;
+    // For the end-of-level review.
+    this.stats = { striped: 0, wrapped: 0, bomb: 0, bestCascade: 0, foamCleared: 0, bonus: 0 };
+    this.inBonus = false;
+  }
+
+  // Tally what a step did: specials made, the longest chain, jelly
+  // cleared, and points earned in the end-of-level bonus.
+  noteStep(step, cascade, points) {
+    const st = this.stats;
+    st.foamCleared += step.jellyHit.length;
+    if (this.inBonus) {
+      st.bonus += points;
+      return;
+    }
+    st.bestCascade = Math.max(st.bestCascade, cascade);
+    for (const m of step.created) {
+      if (m.special === 'bomb') st.bomb++;
+      else if (m.special === 'wrapped') st.wrapped++;
+      else st.striped++;
+    }
   }
 
   get goal() {

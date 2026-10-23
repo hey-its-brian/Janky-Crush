@@ -113,7 +113,12 @@ export class Renderer {
     if (this.spriteDpr !== dpr) {
       // Sprites are drawn a bit larger than 1:1 when the cell is bigger than
       // the design size, so scale the backing resolution with it.
-      this.sprites = buildSprites(dpr * Math.max(1, this.cell / BASE_CELL));
+      // Sprites rasterize asynchronously; until they're in, only the tiles draw.
+      const scale = dpr * Math.max(1, this.cell / BASE_CELL);
+      this.ready = buildSprites(scale).then((sprites) => {
+        this.sprites = sprites;
+        this.requestDraw();
+      });
       this.spriteDpr = dpr;
     }
     this.requestDraw();
@@ -174,7 +179,8 @@ export class Renderer {
     this.applyShake(now);
     this.draw(now);
     const shaking = this.shake && now - this.shake.born < this.shake.life;
-    const lit = [...this.visuals.values()].some((v) => v.candy.special === 'wrappedLit');
+    // Specials pulse, so keep drawing while any are on the board.
+    const lit = [...this.visuals.values()].some((v) => v.candy.special && v.candy.special !== 'ingredient');
     const busy = this.jiggling.size || shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint;
     if (busy) requestAnimationFrame((t) => this.frame(t));
     else this.running = false;
@@ -256,7 +262,7 @@ export class Renderer {
       const anchor = step.created[0]?.at ?? step.groups[0]?.cells[1] ?? step.cleared[0]?.at;
       if (anchor) {
         const { x, y } = this.center(...anchor);
-        this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.03, life: 1200, born: t0, color: '#f1edff' });
+        this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.03, life: 1200, born: t0, color: '#ffffff' });
       }
     }
 
@@ -364,7 +370,7 @@ export class Renderer {
       const v = this.visuals.get(it.id);
       const { x, y } = this.center(...it.at);
       for (let i = 0; i < 14; i++) this.burst(x, y, i % 2 ? '#ffe14d' : '#ffffff', 1, 0.08 + Math.random() * 0.12);
-      this.particles.push({ text: `+${points / items.length}`, x, y: y - 6, vx: 0, vy: -0.03, life: 1100, born: performance.now(), color: '#ffe14d' });
+      this.particles.push({ text: `+${points / items.length}`, x, y: y - 6, vx: 0, vy: -0.03, life: 1100, born: performance.now(), color: '#fff6b0', stroke: '#b06a00' });
       if (!v) return null;
       this.jiggle(v, -0.2);
       return this.tween(COLLECT_MS, (k) => {
@@ -562,26 +568,49 @@ export class Renderer {
 
   // ---- drawing ------------------------------------------------------------
 
-  // Jelly: a glowing cyan tile; double jelly is brighter with a second rim.
+  // Jelly is bath foam: a puffy white layer with bubbles. Double foam is
+  // thicker, with a blue rim.
   drawJelly(x, y, layers) {
     const { ctx } = this;
     const double = layers > 1;
+    const c = this.cell;
     ctx.save();
-    ctx.fillStyle = double ? 'rgba(45,226,230,.36)' : 'rgba(45,226,230,.18)';
-    ctx.strokeStyle = double ? 'rgba(160,250,255,.95)' : 'rgba(45,226,230,.75)';
-    ctx.shadowColor = '#2de2e6';
-    ctx.shadowBlur = double ? 10 : 6;
-    ctx.lineWidth = double ? 2 : 1.5;
+    const grad = ctx.createLinearGradient(0, y, 0, y + c);
+    grad.addColorStop(0, double ? 'rgba(150,224,252,.97)' : 'rgba(205,243,255,.95)');
+    grad.addColorStop(1, double ? 'rgba(70,182,232,.97)' : 'rgba(140,215,245,.95)');
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = double ? 3 : 2;
+    ctx.shadowColor = 'rgba(60,170,210,.7)';
+    ctx.shadowBlur = double ? 6 : 3;
     ctx.beginPath();
-    ctx.roundRect(x + 1, y + 1, this.cell - 2, this.cell - 2, 6);
+    ctx.roundRect(x + 1, y + 1, c - 2, c - 2, 9);
     ctx.fill();
     ctx.stroke();
-    if (double) {
-      ctx.shadowBlur = 0;
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(160,250,255,.6)';
+    ctx.shadowBlur = 0;
+    // Bubbles around the edges, where the fruit doesn't cover them. Same
+    // layout every frame for a given cell.
+    const flip = ((x * 7 + y * 13) | 0) % 2 ? 1 : -1;
+    const bubbles = [[0.17, 0.18, 0.12], [0.84, 0.16, 0.1], [0.86, 0.84, 0.13], [0.15, 0.85, 0.1], [0.5, 0.09, 0.07], [0.09, 0.5, 0.06]];
+    for (const [bx0, by, br] of bubbles) {
+      const bx = flip > 0 ? bx0 : 1 - bx0;
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.roundRect(x + 5, y + 5, this.cell - 10, this.cell - 10, 4);
+      ctx.arc(x + c * bx, y + c * by, c * br, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(110,200,235,.8)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,1)';
+      ctx.beginPath();
+      ctx.arc(x + c * bx - c * br * 0.3, y + c * by - c * br * 0.3, c * br * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (double) {
+      ctx.strokeStyle = 'rgba(70,180,220,.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x - 0.5, y - 0.5, c + 1, c + 1, 10);
       ctx.stroke();
     }
     ctx.restore();
@@ -805,9 +834,10 @@ export class Renderer {
       for (let c = 0; c < board.cols; c++) {
         if (!board.mask[r][c]) continue;
         const x = PAD + c * this.pitch, y = PAD + r * this.pitch;
-        ctx.fillStyle = (r + c) % 2 ? '#151130' : '#1a1638';
+        // Frosted glass tiles: the scene behind shows through the board.
+        ctx.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.34)';
         ctx.beginPath();
-        ctx.roundRect(x, y, this.cell, this.cell, 5);
+        ctx.roundRect(x, y, this.cell, this.cell, 9);
         ctx.fill();
         const layers = this.jellyShown.get(r * 100 + c) ?? board.jelly[r][c];
         if (layers > 0) this.drawJelly(x, y, layers);
@@ -819,12 +849,14 @@ export class Renderer {
       const x = PAD + c * this.pitch, y = PAD + r * this.pitch;
       const pulse = 0.55 + 0.45 * Math.sin(now / 160);
       ctx.save();
-      ctx.strokeStyle = `rgba(45,226,230,${0.5 + 0.5 * pulse})`;
-      ctx.shadowColor = '#2de2e6';
-      ctx.shadowBlur = 10;
-      ctx.lineWidth = 2;
+      ctx.fillStyle = `rgba(255,248,200,${0.35 + 0.25 * pulse})`;
+      ctx.strokeStyle = `rgba(255,255,255,${0.7 + 0.3 * pulse})`;
+      ctx.shadowColor = '#ffcf3a';
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.roundRect(x + 1, y + 1, this.cell - 2, this.cell - 2, 5);
+      ctx.roundRect(x + 1.5, y + 1.5, this.cell - 3, this.cell - 3, 9);
+      ctx.fill();
       ctx.stroke();
       ctx.restore();
     }
@@ -845,6 +877,7 @@ export class Renderer {
     const k = this.cell / BASE_CELL;
     const size = SPRITE * k;
     for (const [id, v] of this.visuals) {
+      if (!this.sprites) break;
       const { x, y } = this.center(v.row, v.col);
       let s = size * v.scale;
       let dx = 0;
@@ -879,6 +912,11 @@ export class Renderer {
         ctx.fill();
         ctx.restore();
       }
+      // Specials gently pulse so they catch your eye.
+      const sp = v.candy.special;
+      if (sp && sp !== 'ingredient' && sp !== 'wrappedLit' && !v.override) {
+        s *= 1 + 0.045 * Math.sin(now / 240 + v.candy.id);
+      }
       // Squash and stretch, keeping roughly the same volume, settled on its
       // bottom so a landing candy squashes into the floor.
       const j = v.j ?? 0, st = v.stretch ?? 0;
@@ -898,13 +936,14 @@ export class Renderer {
       const age = (now - p.born) / p.life;
       ctx.globalAlpha = 1 - age;
       if (p.text) {
-        ctx.font = '700 18px "Chakra Petch", system-ui, sans-serif';
+        ctx.font = '20px "Lilita One", "Fredoka", system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.shadowColor = '#ff3d8b';
-        ctx.shadowBlur = 8;
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = p.stroke ?? '#c42a6e';
+        ctx.strokeText(p.text, p.x, p.y);
         ctx.fillStyle = p.color;
         ctx.fillText(p.text, p.x, p.y);
-        ctx.shadowBlur = 0;
       } else {
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;

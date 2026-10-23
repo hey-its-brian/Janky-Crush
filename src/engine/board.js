@@ -14,7 +14,7 @@ export const WRAPPED_LIT = 'wrappedLit';
 export const BOMB = 'bomb'; // color bomb: has no color of its own
 // Ingredients can't be matched or blasted; they ride down to an exit.
 export const INGREDIENT = 'ingredient';
-export const INGREDIENT_KINDS = ['cherry', 'nut'];
+export const INGREDIENT_KINDS = ['duck', 'pup'];
 
 const isStriped = (s) => s === STRIPE_H || s === STRIPE_V;
 
@@ -117,7 +117,7 @@ export class Board {
       [...row].map((ch) => {
         if (ch === ' ' || ch === '.') return null;
         if (ch === '*') return this.newCandy(null, BOMB);
-        if (ch === '@') return this.newIngredient('cherry');
+        if (ch === '@') return this.newIngredient('duck');
         if (ch !== ch.toLowerCase()) return this.newCandy(ch.toLowerCase(), STRIPE_H);
         return this.newCandy(ch);
       })

@@ -3,7 +3,7 @@
 // before asking for the next, and the simulator can just run it through.
 //
 // Events:
-//   { type: 'step', step, points }     matches, blasts, new specials
+//   { type: 'step', step, points, cascade }  matches, blasts, new specials
 //   { type: 'fall', falls, spawns }    gravity and refill
 //   { type: 'collect', items, points } ingredients reaching an exit
 //   { type: 'shuffle', moves }         no moves left, board rearranged
@@ -24,6 +24,7 @@ export function* playTurn(board, state, a, b) {
 export function* bonusRound(board, state) {
   let n = state.moves;
   state.moves = 0;
+  state.inBonus = true;
   for (let round = 0; round < 12; round++) {
     const step = board.primeBonus(n);
     n = 0;
@@ -37,7 +38,8 @@ function* settle(board, state, first) {
   for (let cascade = 1; step; cascade++) {
     const points = step.points * cascade;
     state.score += points;
-    yield { type: 'step', step, points };
+    state.noteStep(step, cascade, points);
+    yield { type: 'step', step, points, cascade };
     if (step.primed) {
       // Converted candies fire in place before anything falls.
       step = board.firePrimed();

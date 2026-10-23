@@ -137,9 +137,12 @@ export function striped(color, dir) {
   const bands = [40, 52, 64].map((y) =>
     `<rect x="10" y="${y}" width="80" height="6.5" rx="3.25" fill="#fff"/>`).join('');
   const rot = dir === 'v' ? 'rotate(90 50 55)' : '';
-  return svg(`<clipPath id="${clip}"><circle cx="50" cy="56" r="31"/></clipPath>` + h.defs,
+  // An SVG filter (not CSS) so the glow survives being drawn into a canvas.
+  const fx = id('fx');
+  return svg(`<clipPath id="${clip}"><circle cx="50" cy="56" r="31"/></clipPath>` + h.defs +
+    `<filter id="${fx}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#fff"/></filter>`,
     h.body + inner(color) +
-    `<g clip-path="url(#${clip})"><g transform="${rot}" style="filter:drop-shadow(0 0 3px #fff) drop-shadow(0 0 2px ${GLOW[color]})">${bands}</g></g>` +
+    `<g clip-path="url(#${clip})"><g transform="${rot}" filter="url(#${fx})">${bands}</g></g>` +
     twinkle(84, 20, 7) + twinkle(14, 82, 5));
 }
 

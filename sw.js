@@ -1,29 +1,35 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v12';
+const VERSION = 'jc-v13';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './manifest.webmanifest',
-  './fonts/chakra-petch.css',
-  './fonts/chakra-petch-latin-500-normal.woff2',
-  './fonts/chakra-petch-latin-600-normal.woff2',
-  './fonts/chakra-petch-latin-700-normal.woff2',
+  './fonts/hotsprings.css',
+  './fonts/lilita-one-latin-400-normal.woff2',
+  './fonts/fredoka-latin-500-normal.woff2',
+  './fonts/fredoka-latin-600-normal.woff2',
+  './fonts/fredoka-latin-700-normal.woff2',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './src/main.js',
   './src/game.js',
   './src/levels.js',
+  './src/level-tuning.js',
   './src/rng.js',
+  './src/save.js',
   './src/engine/board.js',
   './src/engine/level.js',
   './src/engine/turn.js',
-  './src/save.js',
-  './src/level-tuning.js',
   './src/render/renderer.js',
   './src/render/sprites.js',
+  './src/art/pieces.js',
+  './src/art/capy.js',
+  './src/art/scene.js',
+  './src/ui/world.js',
+  './src/ui/map.js',
 ];
 
 self.addEventListener('install', (e) => {
