@@ -237,9 +237,92 @@ function drawBomb(ctx) {
   ctx.restore();
 }
 
+// Glossy ball with a highlight, for ingredients.
+function glossyBall(ctx, x, y, r, base, light, deep) {
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+  g.addColorStop(0, light);
+  g.addColorStop(0.35, base);
+  g.addColorStop(1, deep);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.beginPath();
+  ctx.ellipse(x - r * 0.35, y - r * 0.42, r * 0.28, r * 0.16, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Ingredient: a pair of cherries on a stem, with a gold glow so it reads
+// as "not a candy".
+function drawCherry(ctx) {
+  ctx.save();
+  ctx.shadowColor = '#ffe14d';
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#3dff8a';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-7, 3);
+  ctx.quadraticCurveTo(-4, -10, 3, -15);
+  ctx.moveTo(8, 4);
+  ctx.quadraticCurveTo(7, -8, 3, -15);
+  ctx.stroke();
+  ctx.fillStyle = '#3dff8a';
+  ctx.beginPath();
+  ctx.ellipse(8, -15, 6, 2.6, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.shadowColor = '#ff3d6b';
+  ctx.shadowBlur = 8;
+  glossyBall(ctx, -7, 7, 9, '#ff2d55', '#ffc2cf', '#5a0617');
+  glossyBall(ctx, 8, 8, 9, '#ff2d55', '#ffc2cf', '#5a0617');
+  ctx.restore();
+}
+
+// Ingredient: a hazelnut with its cap.
+function drawNut(ctx) {
+  ctx.save();
+  ctx.shadowColor = '#ffe14d';
+  ctx.shadowBlur = 12;
+  const g = ctx.createRadialGradient(-5, -2, 2, 0, 3, 17);
+  g.addColorStop(0, '#f0b27a');
+  g.addColorStop(0.45, '#b5652b');
+  g.addColorStop(1, '#3d1c08');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(0, 4, 14, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  // Cap.
+  const cap = ctx.createLinearGradient(0, -14, 0, -2);
+  cap.addColorStop(0, '#8a5a2b');
+  cap.addColorStop(1, '#4a2a10');
+  ctx.fillStyle = cap;
+  ctx.beginPath();
+  ctx.ellipse(0, -5, 14, 6.5, 0, Math.PI, Math.PI * 2);
+  ctx.lineTo(14, -4);
+  ctx.quadraticCurveTo(0, 0, -14, -4);
+  ctx.fill();
+  ctx.strokeStyle = '#4a2a10';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -11);
+  ctx.lineTo(1, -16);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.beginPath();
+  ctx.ellipse(-6, 4, 3.5, 2, -0.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 // Sprite keys: 'r' (plain), 'r:stripeH', 'r:stripeV', 'r:wrapped', 'bomb'.
 export function spriteKey(candy) {
   if (candy.special === 'bomb') return 'bomb';
+  if (candy.special === 'ingredient') return `ing:${candy.kind}`;
   if (!candy.special) return candy.color;
   return `${candy.color}:${candy.special === 'wrappedLit' ? 'wrapped' : candy.special}`;
 }
@@ -262,5 +345,7 @@ export function buildSprites(dpr) {
     make(`${k}:wrapped`, (ctx) => drawWrapped(ctx, k));
   }
   make('bomb', drawBomb);
+  make('ing:cherry', drawCherry);
+  make('ing:nut', drawNut);
   return sprites;
 }

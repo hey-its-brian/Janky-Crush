@@ -8,8 +8,10 @@
 - [x] **Phase 2: Specials and combos.** Striped (match 4, stripes follow
       the swipe), wrapped (L/T shape, explodes twice), color bomb (match 5),
       plus all six special+special combos and chain reactions.
-- [ ] **Phase 3: Levels 1–30.** Jelly and ingredient goals, level map, saved
-      progress.
+- [x] **Phase 3: Levels 1–30.** Score, jelly (single and double) and
+      ingredient goals, a neon level map, level intro and result screens,
+      the "Janky Crush!" end-of-level bonus, and progress saved on the
+      phone. Moves and star scores are tuned by `tools/tune.mjs`.
 - [ ] **Phase 4: Coins, lives and boosters.**
   - Coins earned from stars, level clears, leftover moves and a daily bonus.
   - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run

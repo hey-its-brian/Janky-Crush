@@ -24,6 +24,7 @@ const OUT = fileURLToPath(new URL('../src/level-tuning.js', import.meta.url));
 // How often the computer player should win, by level. It plays greedily
 // (best move right now, no planning), so people tend to do a bit better.
 export function targetWinRate(id) {
+  if (id <= 3) return 0.99;
   if (id <= 5) return 0.95;
   if (id <= 10) return 0.85;
   if (id <= 15) return 0.78;
@@ -51,11 +52,12 @@ function ingredientDepth(board) {
   return d;
 }
 
+// Plays like a person: judges each move only by what you can see before
+// making it (the match, any special it makes or sets off, jelly it clears,
+// how far ingredients would drop), not by cascades that follow.
 function botMove(level, board, state, rng) {
   const before = {
-    score: state.score,
     jelly: board.jellyCount(),
-    collected: state.collected,
     depth: ingredientDepth(board),
     specials: specialsValue(board),
   };
@@ -65,21 +67,21 @@ function botMove(level, board, state, rng) {
       for (const [dr, dc] of [[0, 1], [1, 0]]) {
         const a = [r, c], b = [r + dr, c + dc];
         if (!board.isValidSwap(a, b)) continue;
-        // Try it on a copy with its own randomness: the bot can't see what
-        // will drop in next.
         const copy = board.clone(makeRng(Math.floor(rng() * 2 ** 32)));
-        const s = new LevelState(level, copy);
-        Object.assign(s, { moves: state.moves, score: state.score, collected: state.collected });
-        runTurn(copy, s, a, b);
+        const combo = copy.isComboSwap(a, b);
+        copy.swap(a, b);
+        let step = combo ? copy.comboStep(a, b) : copy.resolveStep({ from: a, to: b });
+        let points = step?.points ?? 0;
+        if (step?.primed) points += copy.firePrimed()?.points ?? 0;
+        copy.applyGravity();
         // The last few jellies are worth chasing harder, as a person would.
         const jellyWeight = 400 * (1 + 6 / (before.jelly + 1));
         const value =
-          (s.score - before.score) +
+          points +
           jellyWeight * (before.jelly - copy.jellyCount()) +
-          3000 * (s.collected - before.collected) +
           250 * (ingredientDepth(copy) - before.depth) +
           (specialsValue(copy) - before.specials) +
-          rng() * 5;
+          rng() * 40;
         if (value > bestValue) [best, bestValue] = [[a, b], value];
       }
   return best;

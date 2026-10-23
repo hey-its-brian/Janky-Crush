@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v11';
+const VERSION = 'jc-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -18,6 +18,10 @@ const ASSETS = [
   './src/levels.js',
   './src/rng.js',
   './src/engine/board.js',
+  './src/engine/level.js',
+  './src/engine/turn.js',
+  './src/save.js',
+  './src/level-tuning.js',
   './src/render/renderer.js',
   './src/render/sprites.js',
 ];

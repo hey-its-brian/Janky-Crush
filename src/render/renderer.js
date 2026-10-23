@@ -51,6 +51,9 @@ const BOLT_TOTAL_MAX = 1500;    // ...but all of them land within this
 const PRIMED_HOLD_MS = 450;     // converted specials sit on screen before firing
 const CHAIN_GAP_MAX = 220;      // between blasts in a chain...
 const CHAIN_TOTAL_MAX = 2400;   // ...capped for very long chains
+export const BONUS_GAP_MAX = 140;      // bonus round: leftover moves turning into stripes...
+export const BONUS_TOTAL_MAX = 1800;   // ...all within this
+const COLLECT_MS = 520;         // an ingredient dropping out of the exit
 
 const ease = {
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
@@ -85,6 +88,8 @@ export class Renderer {
     this.particles = [];
     this.effects = [];
     this.jiggling = new Set();
+    // Jelly layers still showing while their candy hasn't popped yet.
+    this.jellyShown = new Map();
     this.selected = null;
     this.hint = null;
     this.running = false;
@@ -255,21 +260,29 @@ export class Renderer {
       }
     }
 
-    // Bomb + special: as each bolt lands, that candy turns into the special.
+    // Candies turning into specials: as each bomb bolt lands, or one after
+    // another in the end-of-level bonus.
     if (step.converted.length) {
       const i = step.blasts.findIndex((b) => b.kind === 'bolts');
       const b = step.blasts[i];
+      const bonusGap = Math.min(BONUS_GAP_MAX, BONUS_TOTAL_MAX / step.converted.length);
       let last = 0;
-      for (const c of step.converted) {
+      step.converted.forEach((c, n) => {
         const v = this.visuals.get(c.candy.id);
-        if (!v) continue;
+        if (!v) return;
         v.override = c.candy.color;
-        const at = boltLands(i, Math.max(0, b.targets.findIndex((p) => sameCell(p, c.at))));
+        const at = b
+          ? boltLands(i, Math.max(0, b.targets.findIndex((p) => sameCell(p, c.at))))
+          : n * bonusGap;
         last = Math.max(last, at);
+        if (!b) this.effects.push({ kind: 'spark', at: c.at, born: t0 + at, life: 420 });
         jobs.push(sleep(at).then(() => this.morph(v)));
-      }
+      });
       // Let every new special sit on screen before they go off.
       jobs.push(sleep(last + MORPH_MS + PRIMED_HOLD_MS));
+    } else if (step.bonus) {
+      // Bonus with no leftover moves: a beat before the specials fire.
+      jobs.push(sleep(PRIMED_HOLD_MS));
     }
 
     // When each cleared candy goes.
@@ -321,6 +334,18 @@ export class Renderer {
       }));
     }
 
+    // Jelly under a cell comes off when its candy pops.
+    for (const h of step.jellyHit) {
+      const k = h.at[0] * 100 + h.at[1];
+      this.jellyShown.set(k, h.left + 1);
+      const x = step.cleared.find((c) => sameCell(c.at, h.at));
+      jobs.push(sleep(x ? delayFor(x) : 0).then(() => {
+        this.jellyShown.delete(k);
+        this.effects.push({ kind: 'jelly', at: h.at, left: h.left, born: performance.now(), life: 480 });
+        this.requestDraw();
+      }));
+    }
+
     // New specials pop in where they formed.
     for (const m of step.created) {
       const v = this.visuals.get(m.candy.id);
@@ -331,6 +356,24 @@ export class Renderer {
     // Let the last bolts and beams finish before things fall.
     const tail = Math.max(0, ...this.effects.map((e) => e.born + e.life * 0.6)) - performance.now();
     if (tail > 0) await sleep(tail);
+  }
+
+  // Ingredients drop out through the exit with a golden burst.
+  async animateCollect(items, points) {
+    const jobs = items.map((it) => {
+      const v = this.visuals.get(it.id);
+      const { x, y } = this.center(...it.at);
+      for (let i = 0; i < 14; i++) this.burst(x, y, i % 2 ? '#ffe14d' : '#ffffff', 1, 0.08 + Math.random() * 0.12);
+      this.particles.push({ text: `+${points / items.length}`, x, y: y - 6, vx: 0, vy: -0.03, life: 1100, born: performance.now(), color: '#ffe14d' });
+      if (!v) return null;
+      this.jiggle(v, -0.2);
+      return this.tween(COLLECT_MS, (k) => {
+        v.row = it.at[0] + 1.1 * k * k;
+        v.alpha = 1 - k * k;
+        v.scale = 1 + 0.25 * Math.sin(k * Math.PI);
+      }, (t) => t).then(() => this.visuals.delete(it.id));
+    });
+    await Promise.all(jobs);
   }
 
   // Shrink with a flash, swap to the special's look, then pop back up.
@@ -519,6 +562,51 @@ export class Renderer {
 
   // ---- drawing ------------------------------------------------------------
 
+  // Jelly: a glowing cyan tile; double jelly is brighter with a second rim.
+  drawJelly(x, y, layers) {
+    const { ctx } = this;
+    const double = layers > 1;
+    ctx.save();
+    ctx.fillStyle = double ? 'rgba(45,226,230,.36)' : 'rgba(45,226,230,.18)';
+    ctx.strokeStyle = double ? 'rgba(160,250,255,.95)' : 'rgba(45,226,230,.75)';
+    ctx.shadowColor = '#2de2e6';
+    ctx.shadowBlur = double ? 10 : 6;
+    ctx.lineWidth = double ? 2 : 1.5;
+    ctx.beginPath();
+    ctx.roundRect(x + 1, y + 1, this.cell - 2, this.cell - 2, 6);
+    ctx.fill();
+    ctx.stroke();
+    if (double) {
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(160,250,255,.6)';
+      ctx.beginPath();
+      ctx.roundRect(x + 5, y + 5, this.cell - 10, this.cell - 10, 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Exit: a pulsing gold chevron at the bottom of the tile.
+  drawExit(x, y, now) {
+    const { ctx } = this;
+    const cx = x + this.cell / 2, by = y + this.cell - 4;
+    const pulse = 0.55 + 0.45 * Math.sin(now / 260);
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,225,77,${0.5 + 0.5 * pulse})`;
+    ctx.shadowColor = '#ffe14d';
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - 6, by - 5 + pulse * 1.5);
+    ctx.lineTo(cx, by + pulse * 1.5);
+    ctx.lineTo(cx + 6, by - 5 + pulse * 1.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   applyShake(now) {
     const sh = this.shake;
     if (!sh) return;
@@ -669,6 +757,36 @@ export class Renderer {
         }
         break;
       }
+      case 'jelly': {
+        // A cyan flash and ring as a layer of jelly comes off.
+        const { x, y } = this.center(...e.at);
+        const half = this.cell / 2;
+        ctx.fillStyle = `rgba(200,255,255,${0.7 * fade})`;
+        ctx.shadowColor = '#2de2e6';
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.roundRect(x - half, y - half, this.cell, this.cell, 6);
+        ctx.fill();
+        const grow = half * (1 + 0.5 * ease.out(t));
+        ctx.strokeStyle = `rgba(45,226,230,${fade})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(x - grow, y - grow, grow * 2, grow * 2, 8);
+        ctx.stroke();
+        break;
+      }
+      case 'spark': {
+        const { x, y } = this.center(...e.at);
+        const r = this.cell * (0.25 + 0.5 * ease.out(t));
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(255,255,255,${0.9 * fade})`);
+        g.addColorStop(0.5, `rgba(255,225,77,${0.5 * fade})`);
+        g.addColorStop(1, 'rgba(255,225,77,0)');
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = g;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        break;
+      }
       case 'board': {
         ctx.fillStyle = `rgba(255,255,255,${0.6 * fade})`;
         ctx.fillRect(0, 0, this.width, this.height);
@@ -691,6 +809,9 @@ export class Renderer {
         ctx.beginPath();
         ctx.roundRect(x, y, this.cell, this.cell, 5);
         ctx.fill();
+        const layers = this.jellyShown.get(r * 100 + c) ?? board.jelly[r][c];
+        if (layers > 0) this.drawJelly(x, y, layers);
+        if (board.isExit(r, c)) this.drawExit(x, y, now);
       }
 
     if (this.selected) {

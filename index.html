@@ -22,20 +22,41 @@
   <div class="bg-square"></div>
 </div>
 
-<main class="screen">
+<!-- Level map -->
+<section id="map-screen" class="map-screen" aria-label="Level map">
+  <header class="map-head">
+    <h1 class="logo"><span>Janky</span> <span>Crush</span></h1>
+    <div class="pill pill-static" aria-label="Stars collected">
+      <b class="star-icon" aria-hidden="true"></b>
+      <span id="total-stars">0</span>
+    </div>
+  </header>
+  <div id="map-scroll" class="map-scroll">
+    <div id="map-path" class="map-path"></div>
+  </div>
+</section>
+
+<!-- Playing a level -->
+<main id="game-screen" class="screen" hidden>
   <header class="topbar">
+    <button id="to-map" class="pill" type="button" aria-label="Back to map">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      Map
+    </button>
     <h1 id="level-name">Level 1</h1>
-    <button id="restart" class="pill" type="button" aria-label="Restart level">
+    <button id="restart" class="pill pill-icon" type="button" aria-label="Restart level">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>
-      Restart
     </button>
   </header>
 
   <section class="hud">
     <div class="card">
       <span class="label">Goal</span>
-      <span class="value" id="target">0</span>
-      <span class="sub">points</span>
+      <span class="goal-line">
+        <i id="goal-icon" class="goal-icon" aria-hidden="true"></i>
+        <span class="value" id="goal-value">0</span>
+      </span>
+      <span class="sub" id="goal-sub">points</span>
     </div>
     <div class="card card-moves">
       <span class="label">Moves</span>
@@ -57,12 +78,13 @@
   <div class="spacer"></div>
 </main>
 
-<div id="end" class="overlay" hidden>
-  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="end-title">
-    <h2 id="end-title">Level complete</h2>
-    <div class="stars stars-big" id="end-stars"><b></b><b></b><b></b></div>
-    <p>Score <strong id="end-score">0</strong></p>
-    <button id="again" class="cta" type="button">Play again</button>
+<div id="banner" class="banner" hidden aria-live="polite"></div>
+
+<div id="dialog" class="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    <h2 id="dialog-title"></h2>
+    <div id="dialog-body" class="dialog-body"></div>
+    <div id="dialog-actions" class="dialog-actions"></div>
   </div>
 </div>
 
