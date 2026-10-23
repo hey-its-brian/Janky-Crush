@@ -2,7 +2,9 @@
 // Visual state (where each candy is drawn) is kept separately from the
 // board, so animations can move candies between logical positions.
 
-import { buildSprites, PALETTE, SPRITE } from './sprites.js';
+import { buildSprites, spriteKey, PALETTE, SPRITE } from './sprites.js';
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const PAD = 7;
 const GAP = 2;
@@ -29,6 +31,7 @@ export class Renderer {
     this.visuals = new Map();
     this.tweens = [];
     this.particles = [];
+    this.effects = [];
     this.selected = null;
     this.hint = null;
     this.running = false;
@@ -65,7 +68,7 @@ export class Renderer {
     for (let r = 0; r < b.rows; r++)
       for (let c = 0; c < b.cols; c++) {
         const cell = b.grid[r][c];
-        if (cell) this.visuals.set(cell.id, { color: cell.color, row: r, col: c, scale: 1, alpha: 1 });
+        if (cell) this.visuals.set(cell.id, { candy: cell, row: r, col: c, scale: 1, alpha: 1 });
       }
     this.requestDraw();
   }
@@ -108,8 +111,10 @@ export class Renderer {
       }
     }
     this.stepParticles(now);
+    this.effects = this.effects.filter((e) => now - e.born < e.life);
     this.draw(now);
-    const busy = this.tweens.length || this.particles.length || this.selected || this.hint;
+    const lit = [...this.visuals.values()].some((v) => v.candy.special === 'wrappedLit');
+    const busy = this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint;
     if (busy) requestAnimationFrame((t) => this.frame(t));
     else this.running = false;
   }
@@ -136,29 +141,51 @@ export class Renderer {
     await this.tween(170, (k) => move(1 - k));
   }
 
-  animateClear(removed, groups, points) {
-    for (const cell of removed) {
+  // Animate one resolution step from Board.resolveStep / comboStep.
+  async animateStep(step, points) {
+    const now = performance.now();
+    for (const b of step.blasts) this.effects.push({ ...b, born: now, life: b.kind === 'bolts' ? 520 : 380 });
+    this.requestDraw();
+
+    // Bolts and converted candies get a beat to be seen before they pop.
+    if (step.converted.length || step.blasts.some((b) => b.kind === 'bolts' || b.kind === 'board')) {
+      await sleep(step.converted.length ? 380 : 240);
+    }
+
+    const many = step.cleared.length > 20;
+    for (const cell of step.cleared) {
       const { x, y } = this.center(...cell.at);
-      this.burst(x, y, PALETTE[cell.color][0]);
+      this.burst(x, y, cell.color ? PALETTE[cell.color][0] : '#f1edff', many ? 3 : 7);
     }
-    if (groups.length && points) {
-      const g = groups[0].cells;
-      const mid = g[Math.floor(g.length / 2)];
-      const { x, y } = this.center(...mid);
-      this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.035, life: 900, born: performance.now(), color: '#f1edff' });
+
+    if (points) {
+      const anchor = step.created[0]?.at ?? step.groups[0]?.cells[1] ?? step.cleared[0]?.at;
+      if (anchor) {
+        const { x, y } = this.center(...anchor);
+        this.particles.push({ text: `+${points}`, x, y, vx: 0, vy: -0.035, life: 900, born: performance.now(), color: '#f1edff' });
+      }
     }
-    const vs = removed.map((cell) => this.visuals.get(cell.id)).filter(Boolean);
-    return this.tween(210, (k) => {
+
+    // New specials pop in where they formed.
+    const made = step.created.map((m) => this.visuals.get(m.candy.id)).filter(Boolean);
+    const pop = this.tween(320, (k) => {
+      for (const v of made) v.scale = 1 + 0.45 * Math.sin(k * Math.PI);
+    }, (t) => t);
+
+    const vs = step.cleared.map((cell) => this.visuals.get(cell.id)).filter(Boolean);
+    const clear = this.tween(210, (k) => {
       for (const v of vs) {
         v.scale = k < 0.3 ? 1 + k : 1.3 * (1 - (k - 0.3) / 0.7);
         v.alpha = 1 - k * k;
       }
-    }, (t) => t).then(() => removed.forEach((cell) => this.visuals.delete(cell.id)));
+    }, (t) => t).then(() => step.cleared.forEach((cell) => this.visuals.delete(cell.id)));
+
+    await Promise.all([pop, clear]);
   }
 
   animateFall(moves, spawns) {
     for (const s of spawns)
-      this.visuals.set(s.id, { color: s.color, row: s.fromRow, col: s.to[1], scale: 1, alpha: 1 });
+      this.visuals.set(s.id, { candy: s.candy, row: s.fromRow, col: s.to[1], scale: 1, alpha: 1 });
     const jobs = [
       ...moves.map((m) => ({ v: this.visuals.get(m.id), from: m.from[0], to: m.to[0] })),
       ...spawns.map((s) => ({ v: this.visuals.get(s.id), from: s.fromRow, to: s.to[0] })),
@@ -203,9 +230,9 @@ export class Renderer {
 
   // ---- particles ----------------------------------------------------------
 
-  burst(x, y, color) {
+  burst(x, y, color, count = 7) {
     const now = performance.now();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 0.06 + Math.random() * 0.08;
       this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 380 + Math.random() * 200, born: now, color, size: 1.5 + Math.random() * 2 });
@@ -223,6 +250,75 @@ export class Renderer {
   }
 
   // ---- drawing ------------------------------------------------------------
+
+  // Blast effects: beams for stripes, a shockwave for wrapped, lightning for
+  // the color bomb, and a flash when two bombs clear the board.
+  drawEffect(e, now) {
+    const { ctx } = this;
+    const t = (now - e.born) / e.life;
+    const fade = 1 - t;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.shadowColor = '#2de2e6';
+    ctx.shadowBlur = 18;
+    switch (e.kind) {
+      case 'row':
+      case 'col': {
+        const span = this.cell * (0.9 - 0.6 * t);
+        const { x, y } = this.center(e.kind === 'row' ? e.index : 0, e.kind === 'col' ? e.index : 0);
+        const g = e.kind === 'row'
+          ? ctx.createLinearGradient(0, y - span / 2, 0, y + span / 2)
+          : ctx.createLinearGradient(x - span / 2, 0, x + span / 2, 0);
+        g.addColorStop(0, 'rgba(45,226,230,0)');
+        g.addColorStop(0.5, `rgba(255,255,255,${0.95 * fade})`);
+        g.addColorStop(1, 'rgba(45,226,230,0)');
+        ctx.fillStyle = g;
+        if (e.kind === 'row') ctx.fillRect(0, y - span / 2, this.width, span);
+        else ctx.fillRect(x - span / 2, 0, span, this.height);
+        break;
+      }
+      case 'area': {
+        const { x, y } = this.center(...e.at);
+        const reach = this.pitch * (e.radius + 0.5);
+        const size = reach * (0.4 + 0.8 * ease.out(t));
+        ctx.strokeStyle = `rgba(255,61,139,${fade})`;
+        ctx.shadowColor = '#ff3d8b';
+        ctx.lineWidth = 4 * fade + 1;
+        ctx.beginPath();
+        ctx.roundRect(x - size, y - size, size * 2, size * 2, 10);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(255,255,255,${0.25 * fade})`;
+        ctx.fill();
+        break;
+      }
+      case 'bolts': {
+        const from = this.center(...e.at);
+        ctx.strokeStyle = `rgba(241,237,255,${fade})`;
+        ctx.shadowColor = '#c04dff';
+        ctx.lineWidth = 2;
+        for (const p of e.targets) {
+          const to = this.center(...p);
+          ctx.beginPath();
+          ctx.moveTo(from.x, from.y);
+          // A few jittered kinks so it reads as electricity.
+          for (let i = 1; i < 4; i++) {
+            const f = i / 4;
+            const jitter = (Math.random() - 0.5) * 10;
+            ctx.lineTo(from.x + (to.x - from.x) * f + jitter, from.y + (to.y - from.y) * f - jitter);
+          }
+          ctx.lineTo(to.x, to.y);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'board': {
+        ctx.fillStyle = `rgba(255,255,255,${0.6 * fade})`;
+        ctx.fillRect(0, 0, this.width, this.height);
+        break;
+      }
+    }
+    ctx.restore();
+  }
 
   draw(now) {
     const { ctx, dpr, board } = this;
@@ -278,11 +374,27 @@ export class Renderer {
         s *= 1 + 0.08 * Math.max(0, Math.sin(t * 6));
         dx = Math.sin(t * 18) * 1.2 * Math.max(0, Math.sin(t * 3));
       }
+      if (v.candy.special === 'wrappedLit') {
+        // Primed to go off again: throb with a white-hot glow.
+        const throb = 0.5 + 0.5 * Math.sin(now / 70);
+        s *= 1.05 + 0.1 * throb;
+        ctx.save();
+        ctx.globalAlpha = 0.35 + 0.35 * throb;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.arc(x, y, this.cell * 0.36, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
       ctx.globalAlpha = v.alpha;
-      ctx.drawImage(this.sprites[v.color], x - s / 2 + dx, y - s / 2, s, s);
+      ctx.drawImage(this.sprites[spriteKey(v.candy)], x - s / 2 + dx, y - s / 2, s, s);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
+
+    for (const e of this.effects) this.drawEffect(e, now);
 
     for (const p of this.particles) {
       const age = (now - p.born) / p.life;

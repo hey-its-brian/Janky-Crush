@@ -58,9 +58,10 @@ function hexA(hex, a) {
   return hex + Math.round(a * 255).toString(16).padStart(2, '0');
 }
 
-function drawCandy(ctx, k) {
+// `stripes` is 'h' or 'v' for a striped candy. `shape` lets the wrapped
+// candy reuse the same glossy body on its own outline.
+function drawCandy(ctx, k, { shape = shapeFor(k), stripes = null, swirl = k === 'b', facet = k === 'p' } = {}) {
   const [base, light, deep] = PALETTE[k];
-  const shape = shapeFor(k);
 
   // Neon glow: two passes, tight then wide.
   ctx.save();
@@ -84,7 +85,7 @@ function drawCandy(ctx, k) {
   ctx.fillStyle = body;
   ctx.fillRect(-24, -24, 48, 48);
 
-  if (k === 'b' && ctx.createConicGradient) {
+  if (swirl && ctx.createConicGradient) {
     const swirl = ctx.createConicGradient(0.2, 0, 0);
     for (let i = 0; i < 8; i++) {
       swirl.addColorStop(i / 8, 'rgba(255,255,255,.4)');
@@ -93,7 +94,7 @@ function drawCandy(ctx, k) {
     ctx.fillStyle = swirl;
     ctx.fillRect(-24, -24, 48, 48);
   }
-  if (k === 'p') {
+  if (facet) {
     const facet = ctx.createLinearGradient(-17, -15, 17, 15);
     facet.addColorStop(0, 'rgba(255,255,255,.3)');
     facet.addColorStop(0.36, 'rgba(255,255,255,.3)');
@@ -116,6 +117,17 @@ function drawCandy(ctx, k) {
   ctx.fillStyle = shade;
   ctx.fillRect(-24, -24, 48, 48);
 
+  // Candy-cane bands, with a soft glow so they read at a glance.
+  if (stripes) {
+    ctx.save();
+    if (stripes === 'v') ctx.rotate(Math.PI / 2);
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = 'rgba(255,255,255,.88)';
+    for (const y of [-9, -1.5, 6]) ctx.fillRect(-24, y, 48, 3.5);
+    ctx.restore();
+  }
+
   // Specular highlight.
   ctx.save();
   ctx.translate(-6, -8);
@@ -134,16 +146,121 @@ function drawCandy(ctx, k) {
   ctx.restore();
 }
 
+// A sweet in a twist wrapper: glossy square body with twisted ends.
+function drawWrapped(ctx, k) {
+  const [base, light] = PALETTE[k];
+  const ends = new Path2D();
+  for (const s of [-1, 1]) {
+    ends.moveTo(s * 10, -4);
+    ends.lineTo(s * 22, -11);
+    ends.quadraticCurveTo(s * 18, 0, s * 22, 11);
+    ends.lineTo(s * 10, 4);
+    ends.closePath();
+  }
+  ctx.save();
+  ctx.shadowColor = base;
+  ctx.shadowBlur = 8;
+  const g = ctx.createLinearGradient(0, -11, 0, 11);
+  g.addColorStop(0, light);
+  g.addColorStop(0.5, base);
+  g.addColorStop(1, light);
+  ctx.fillStyle = g;
+  ctx.fill(ends);
+  ctx.restore();
+
+  const body = new Path2D();
+  body.roundRect(-13, -13, 26, 26, 8);
+  drawCandy(ctx, k, { shape: body, swirl: false, facet: false });
+
+  // The wrapper's edge: a bright band around the body.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.85)';
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 6;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 3]);
+  const band = new Path2D();
+  band.roundRect(-10, -10, 20, 20, 6);
+  ctx.stroke(band);
+  ctx.restore();
+}
+
+// Color bomb: glossy chocolate ball covered in neon sprinkles.
+const SPRINKLES = [
+  [-8, -5, 0.4, 'r'], [3, -10, -0.6, 'y'], [9, -2, 1.1, 'b'], [-3, 4, -1.2, 'g'],
+  [6, 8, 0.3, 'p'], [-10, 6, 1.4, 'o'], [-1, -3, 2.0, 'b'], [11, 5, -0.2, 'r'],
+  [-6, 11, 0.8, 'y'], [2, 12, -1.0, 'g'], [-12, -1, 0.0, 'p'], [5, -4, 1.6, 'o'],
+];
+
+function drawBomb(ctx) {
+  const ball = new Path2D();
+  ball.arc(0, 0, 16, 0, Math.PI * 2);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(241,237,255,.85)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#2a140a';
+  ctx.fill(ball);
+  ctx.restore();
+
+  ctx.save();
+  ctx.clip(ball);
+  const body = ctx.createRadialGradient(-5, -6, 1, -2, -2, 20);
+  body.addColorStop(0, '#9a5a35');
+  body.addColorStop(0.35, '#5a2e17');
+  body.addColorStop(1, '#1a0b05');
+  ctx.fillStyle = body;
+  ctx.fillRect(-20, -20, 40, 40);
+
+  for (const [x, y, rot, k] of SPRINKLES) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.shadowColor = PALETTE[k][0];
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = PALETTE[k][1];
+    ctx.beginPath();
+    ctx.roundRect(-3, -1, 6, 2.2, 1.1);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(-6, -8);
+  ctx.scale(1, 0.62);
+  const shine = ctx.createRadialGradient(0, 0, 0, 0, 0, 8);
+  shine.addColorStop(0, 'rgba(255,255,255,.8)');
+  shine.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = shine;
+  ctx.fillRect(-12, -12, 24, 24);
+  ctx.restore();
+  ctx.restore();
+}
+
+// Sprite keys: 'r' (plain), 'r:stripeH', 'r:stripeV', 'r:wrapped', 'bomb'.
+export function spriteKey(candy) {
+  if (candy.special === 'bomb') return 'bomb';
+  if (!candy.special) return candy.color;
+  return `${candy.color}:${candy.special === 'wrappedLit' ? 'wrapped' : candy.special}`;
+}
+
 export function buildSprites(dpr) {
   const sprites = {};
-  for (const k of Object.keys(PALETTE)) {
+  const make = (name, paint) => {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = Math.ceil(SPRITE * dpr);
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
     ctx.translate(SPRITE / 2, SPRITE / 2);
-    drawCandy(ctx, k);
-    sprites[k] = canvas;
+    paint(ctx);
+    sprites[name] = canvas;
+  };
+  for (const k of Object.keys(PALETTE)) {
+    make(k, (ctx) => drawCandy(ctx, k));
+    make(`${k}:stripeH`, (ctx) => drawCandy(ctx, k, { stripes: 'h', swirl: false }));
+    make(`${k}:stripeV`, (ctx) => drawCandy(ctx, k, { stripes: 'v', swirl: false }));
+    make(`${k}:wrapped`, (ctx) => drawWrapped(ctx, k));
   }
+  make('bomb', drawBomb);
   return sprites;
 }

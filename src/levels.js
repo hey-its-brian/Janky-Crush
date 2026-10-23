@@ -14,6 +14,6 @@ export const LEVELS = [
     mask: cornersCut,
     moves: 20,
     // Score for 1, 2 and 3 stars.
-    stars: [1500, 3000, 4500],
+    stars: [2000, 4500, 7000],
   },
 ];

@@ -1,7 +1,7 @@
 // The turn loop: take a swap, then clear → fall → refill until the board
 // settles, animating each step. Also owns touch input.
 
-import { Board, scoreFor, uniqueCells } from './engine/board.js';
+import { Board } from './engine/board.js';
 import { Renderer } from './render/renderer.js';
 
 const HINT_AFTER_MS = 6000;
@@ -64,35 +64,31 @@ export class Game {
       this.busy = false;
       return;
     }
-    // Check the swap on a scratch swap first so the animation knows which
-    // way to go.
-    this.board.swap(a, b);
-    const ok = this.board.matchesAt(...a) || this.board.matchesAt(...b);
-    this.board.swap(a, b);
-
-    if (!ok) {
+    if (!this.board.isValidSwap(a, b)) {
       await r.animateBadSwap(a, b);
       this.busy = false;
       this.armHint();
       return;
     }
 
+    const combo = this.board.isComboSwap(a, b);
     await r.animateSwap(a, b);
     this.board.swap(a, b);
     this.moves--;
     this.emit();
 
-    for (let cascade = 1; ; cascade++) {
-      const groups = this.board.findMatches();
-      if (!groups.length) break;
-      const points = scoreFor(groups, cascade);
+    // The first step knows the swap, so new specials land where the player
+    // moved. Every later step is a cascade.
+    let step = combo ? this.board.comboStep(a, b) : this.board.resolveStep({ from: a, to: b });
+    for (let cascade = 1; step; cascade++) {
+      const points = step.points * cascade;
       this.score += points;
-      const removed = this.board.clear(uniqueCells(groups));
       this.emit();
-      await r.animateClear(removed, groups, points);
+      await r.animateStep(step, points);
       const falls = this.board.applyGravity();
       const spawns = this.board.refill();
       await r.animateFall(falls, spawns);
+      step = this.board.resolveStep(null);
     }
 
     if (!this.board.findPossibleMove()) {

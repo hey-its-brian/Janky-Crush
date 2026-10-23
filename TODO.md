@@ -5,8 +5,9 @@
 - [x] **Phase 1: Core engine.** Board, swipe or tap-tap swapping, matching,
       cascades, gravity, refill, auto-shuffle when no moves are left, idle
       hint, score and stars, Night Arcade look, installable on iPhone.
-- [ ] **Phase 2: Specials and combos.** Striped (match 4), wrapped (L/T
-      shape), color bomb (match 5), plus all six special+special combos.
+- [x] **Phase 2: Specials and combos.** Striped (match 4, stripes follow
+      the swipe), wrapped (L/T shape, explodes twice), color bomb (match 5),
+      plus all six special+special combos and chain reactions.
 - [ ] **Phase 3: Levels 1–30.** Jelly and ingredient goals, level map, saved
       progress.
 - [ ] **Phase 4: Coins, lives and boosters.**
