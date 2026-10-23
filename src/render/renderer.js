@@ -36,11 +36,13 @@ const ease = {
 };
 
 // A small settle at the end of a fall, like the candy lands and squashes.
-function fallEase(t) {
-  if (t < 0.82) return ease.inQuad(t / 0.82);
-  const u = (t - 0.82) / 0.18;
-  return 1 + Math.sin(u * Math.PI) * 0.06;
-}
+// Jelly: every candy has a squash spring. `j` > 0 is squashed (wide and
+// short), < 0 is stretched (tall and thin). An impulse sets the squash and
+// the spring wobbles it back to round, a few times, like a gummy.
+const JELLY_K = 520;    // stiffness: about 3.6 wobbles a second
+const JELLY_C = 11;     // damping: low, so it wobbles a few times
+const JELLY_MAX = 0.45;
+const SELECT_BOUNCE_MS = 650;
 
 export class Renderer {
   constructor(canvas, board) {
@@ -51,6 +53,7 @@ export class Renderer {
     this.tweens = [];
     this.particles = [];
     this.effects = [];
+    this.jiggling = new Set();
     this.selected = null;
     this.hint = null;
     this.running = false;
@@ -130,12 +133,13 @@ export class Renderer {
       }
     }
     this.stepParticles(now);
+    this.stepJelly(now);
     this.effects = this.effects.filter((e) => now - e.born < e.life);
     this.applyShake(now);
     this.draw(now);
     const shaking = this.shake && now - this.shake.born < this.shake.life;
     const lit = [...this.visuals.values()].some((v) => v.candy.special === 'wrappedLit');
-    const busy = shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint;
+    const busy = this.jiggling.size || shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint;
     if (busy) requestAnimationFrame((t) => this.frame(t));
     else this.running = false;
   }
@@ -143,23 +147,40 @@ export class Renderer {
   // ---- steps --------------------------------------------------------------
 
   // Both take board positions before the board itself is swapped.
+  // Candies stretch the way they're moving, then wobble when they stop.
   swapMover(a, b) {
     const va = this.visualAt(a), vb = this.visualAt(b);
-    return (k) => {
-      if (va) { va.row = a[0] + (b[0] - a[0]) * k; va.col = a[1] + (b[1] - a[1]) * k; }
-      if (vb) { vb.row = b[0] + (a[0] - b[0]) * k; vb.col = b[1] + (a[1] - b[1]) * k; }
+    const sideways = a[0] === b[0];
+    const move = (k) => {
+      const stretch = 0.2 * Math.sin(k * Math.PI) * (sideways ? 1 : -1); // wide when sliding sideways
+      if (va) { va.row = a[0] + (b[0] - a[0]) * k; va.col = a[1] + (b[1] - a[1]) * k; va.stretch = stretch; }
+      if (vb) { vb.row = b[0] + (a[0] - b[0]) * k; vb.col = b[1] + (a[1] - b[1]) * k; vb.stretch = stretch; }
     };
+    move.settle = () => {
+      for (const v of [va, vb]) {
+        if (!v) continue;
+        v.stretch = 0;
+        // Stopping sideways squeezes it tall; stopping up/down squashes it flat.
+        this.jiggle(v, sideways ? -0.18 : 0.18);
+      }
+    };
+    return move;
   }
 
-  animateSwap(a, b) {
-    return this.tween(170, this.swapMover(a, b));
+  async animateSwap(a, b) {
+    const move = this.swapMover(a, b);
+    await this.tween(190, move);
+    move.settle();
   }
 
   // Swap there and back, for a swap that doesn't match.
   async animateBadSwap(a, b) {
     const move = this.swapMover(a, b);
-    await this.tween(170, move);
-    await this.tween(170, (k) => move(1 - k));
+    await this.tween(190, move);
+    move.settle();
+    await sleep(60);
+    await this.tween(190, (k) => move(1 - k));
+    move.settle();
   }
 
   // Animate one resolution step from Board.resolveStep / comboStep /
@@ -252,7 +273,8 @@ export class Renderer {
         const { x: px, y: py } = this.center(...x.at);
         this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 4 : 8);
         if (!v) return;
-        // Flash white and swell, then shrink away.
+        // Squish, flash white and swell, then shrink away.
+        this.jiggle(v, 0.22);
         return this.tween(CLEAR_MS, (k) => {
           if (k < 0.3) {
             const u = k / 0.3;
@@ -314,7 +336,41 @@ export class Renderer {
   }
 
   pop(v) {
+    this.jiggle(v, -0.3);
     return this.tween(300, (k) => (v.scale = 1 + 0.45 * Math.sin(k * Math.PI)), (t) => t);
+  }
+
+  jiggle(v, amount) {
+    v.j = Math.max(-JELLY_MAX, Math.min(JELLY_MAX, (v.j ?? 0) + amount));
+    v.jv = v.jv ?? 0;
+    this.jiggling.add(v);
+    this.requestDraw();
+  }
+
+  stepJelly(now) {
+    const dt = this.lastJelly ? Math.min(0.033, (now - this.lastJelly) / 1000) : 0.016;
+    this.lastJelly = now;
+    // The selected candy keeps bouncing, like it's waiting to be moved.
+    if (this.selected) {
+      const v = this.visualAt(this.selected);
+      if (v && (!this.lastBounce || now - this.lastBounce > SELECT_BOUNCE_MS)) {
+        this.lastBounce = now;
+        this.jiggle(v, 0.22);
+      }
+    }
+    for (const v of this.jiggling) {
+      // Two half-steps keep the stiff spring stable at 60Hz.
+      for (let i = 0; i < 2; i++) {
+        const h = dt / 2;
+        v.jv += (-JELLY_K * v.j - JELLY_C * v.jv) * h;
+        v.j += v.jv * h;
+      }
+      if (Math.abs(v.j) < 0.002 && Math.abs(v.jv) < 0.03) {
+        v.j = 0;
+        v.jv = 0;
+        this.jiggling.delete(v);
+      }
+    }
   }
 
   animateFall(moves, spawns) {
@@ -324,10 +380,26 @@ export class Renderer {
       ...moves.map((m) => ({ v: this.visuals.get(m.id), from: m.from[0], to: m.to[0] })),
       ...spawns.map((s) => ({ v: this.visuals.get(s.id), from: s.fromRow, to: s.to[0] })),
     ].filter((j) => j.v);
+    const landed = new Map(); // "row,col" -> visual, for the jiggle below
+    for (const v of this.visuals.values()) if (Number.isInteger(v.row)) landed.set(`${v.row},${v.col}`, v);
+    const falling = new Set(jobs.map((j) => j.v));
+    for (const v of falling) landed.delete(`${v.row},${v.col}`);
+    // Lowest first, so each candy lands on one that's already settled.
+    jobs.sort((p, q) => q.to - p.to);
     return Promise.all(
       jobs.map((j) => {
         const dist = j.to - j.from;
-        return this.tween(140 + 70 * Math.sqrt(dist), (k) => (j.v.row = j.from + dist * k), fallEase);
+        return this.tween(160 + 75 * Math.sqrt(dist), (k) => {
+          j.v.row = j.from + dist * k;
+          j.v.stretch = -0.16 * Math.min(1, k * 2.5); // drawn out by the fall
+        }, ease.inQuad).then(() => {
+          j.v.stretch = 0;
+          j.v.row = j.to;
+          this.jiggle(j.v, Math.min(0.3, 0.14 + 0.04 * dist));
+          const below = landed.get(`${j.to + 1},${j.v.col}`);
+          if (below) this.jiggle(below, 0.1);
+          landed.set(`${j.to},${j.v.col}`, j.v);
+        });
       })
     );
   }
@@ -581,8 +653,15 @@ export class Renderer {
         ctx.fill();
         ctx.restore();
       }
+      // Squash and stretch, keeping roughly the same volume, settled on its
+      // bottom so a landing candy squashes into the floor.
+      const j = v.j ?? 0, st = v.stretch ?? 0;
+      const sy = (1 - j) * (1 - st);
+      const sx = (1 + j * 0.85) * (1 + st * 0.6);
+      const w = s * sx, h = s * sy;
+      const sink = (s - h) * 0.3;
       ctx.globalAlpha = v.alpha;
-      ctx.drawImage(this.sprites[v.override ?? spriteKey(v.candy)], x - s / 2 + dx, y - s / 2, s, s);
+      ctx.drawImage(this.sprites[v.override ?? spriteKey(v.candy)], x - w / 2 + dx, y - h / 2 + sink, w, h);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
