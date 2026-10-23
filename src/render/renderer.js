@@ -70,7 +70,7 @@ const SELECT_BOUNCE_MS = 650;
 // Falling: real gravity in board cells per second squared, so a one-cell
 // drop takes ~150ms and a long drop speeds up and hits hard.
 const GRAVITY = 90;
-const START_SPEED = 6;      // cells/s: a nudge so one-cell drops aren't sluggish
+const START_SPEED = 9;      // cells/s: a nudge so one-cell drops aren't sluggish
 const BOUNCE = 0.14;        // how much of the landing speed bounces back
 const MAX_HOP_SPEED = 5;    // cells/s, so even big drops only hop a little
 const STACK_DELAY_MS = 24;  // candies in a column fall a hair apart
