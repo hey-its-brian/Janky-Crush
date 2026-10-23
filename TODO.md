@@ -36,3 +36,10 @@
 - [ ] Sound effects and music, with separate on/off switches.
 - [ ] Richer match effects (sparkle trails, screen shake on big combos).
 - [ ] Haptics, if iOS ever exposes them to web apps.
+
+## Tuning to revisit
+
+- [ ] Gravity, bounce and jelly wobble feel right for now (constants at
+      the top of `src/render/renderer.js`). Re-check once blockers,
+      jelly tiles and boosters are in, since busier boards may need it
+      lighter or faster.

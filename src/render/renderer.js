@@ -7,6 +7,29 @@ import { buildSprites, spriteKey, PALETTE, SPRITE } from './sprites.js';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sameCell = (a, b) => a[0] === b[0] && a[1] === b[1];
 
+// A zigzag from a to b: `n` segments, each kink pushed sideways by up to
+// `amp` px. New every frame, which is what makes lightning flicker.
+function jaggedPath(a, b, n, amp) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;
+  const pts = [{ x: a.x, y: a.y }];
+  for (let i = 1; i < n; i++) {
+    const f = i / n;
+    const off = (Math.random() - 0.5) * 2 * amp;
+    pts.push({ x: a.x + dx * f + nx * off, y: a.y + dy * f + ny * off });
+  }
+  pts.push({ x: b.x, y: b.y });
+  return pts;
+}
+
+function strokePath(ctx, pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.stroke();
+}
+
 const PAD = 7;
 const GAP = 2;
 const BASE_CELL = 42; // the cell size the sprites were drawn for
@@ -213,7 +236,7 @@ export class Renderer {
     step.blasts.forEach((b, i) => {
       if (b.kind === 'bolts') {
         b.targets.forEach((to, j) =>
-          this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 360 }));
+          this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 480 }));
       } else if (b.kind === 'area') {
         this.effects.push({ ...b, born: t0 + blastAt[i] + WINDUP_MS, life: EXPLOSION_MS });
         jobs.push(this.detonate(b, blastAt[i]));
@@ -582,22 +605,65 @@ export class Renderer {
       }
       case 'bolt': {
         const from = this.center(...e.from), to = this.center(...e.to);
-        // The bolt grows out to its target, then fades.
-        const reach = Math.min(1, t * 3);
+        // The bolt strikes out to its target fast, then crackles and fades.
+        const reach = Math.min(1, t * 4);
         const end = { x: from.x + (to.x - from.x) * reach, y: from.y + (to.y - from.y) * reach };
-        ctx.strokeStyle = `rgba(241,237,255,${Math.min(1, fade * 1.5)})`;
-        ctx.shadowColor = '#c04dff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(from.x, from.y);
-        // A few jittered kinks so it reads as electricity.
-        for (let i = 1; i < 4; i++) {
-          const f = i / 4;
-          const jitter = (Math.random() - 0.5) * 10;
-          ctx.lineTo(from.x + (end.x - from.x) * f + jitter, from.y + (end.y - from.y) * f - jitter);
+        const flicker = 0.75 + 0.25 * Math.random();
+        const alpha = Math.min(1, fade * 1.6) * flicker;
+
+        // Charged-up aura around the bomb while it's firing.
+        const aura = ctx.createRadialGradient(from.x, from.y, 0, from.x, from.y, this.cell * 0.9);
+        aura.addColorStop(0, `rgba(255,255,255,${0.35 * alpha})`);
+        aura.addColorStop(0.4, `rgba(192,77,255,${0.25 * alpha})`);
+        aura.addColorStop(1, 'rgba(192,77,255,0)');
+        ctx.fillStyle = aura;
+        ctx.fillRect(from.x - this.cell, from.y - this.cell, this.cell * 2, this.cell * 2);
+
+        const path = jaggedPath(from, end, 9, Math.min(14, Math.hypot(end.x - from.x, end.y - from.y) * 0.08));
+        // Side forks crackling off the main bolt.
+        const forks = [];
+        for (let f = 0; f < 2; f++) {
+          const at = path[2 + Math.floor(Math.random() * (path.length - 4))];
+          if (!at) continue;
+          const ang = Math.atan2(end.y - from.y, end.x - from.x) + (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.6);
+          const len = this.cell * (0.6 + Math.random() * 0.8);
+          forks.push(jaggedPath(at, { x: at.x + Math.cos(ang) * len, y: at.y + Math.sin(ang) * len }, 4, 5));
         }
-        ctx.lineTo(end.x, end.y);
-        ctx.stroke();
+
+        // Three passes: wide purple glow, hot magenta, white core.
+        const passes = [
+          { width: 9, color: `rgba(192,77,255,${0.35 * alpha})`, blur: 26, glow: '#c04dff' },
+          { width: 4, color: `rgba(255,120,240,${0.75 * alpha})`, blur: 12, glow: '#ff3d8b' },
+          { width: 1.8, color: `rgba(255,255,255,${alpha})`, blur: 6, glow: '#ffffff' },
+        ];
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        for (const pass of passes) {
+          ctx.strokeStyle = pass.color;
+          ctx.shadowColor = pass.glow;
+          ctx.shadowBlur = pass.blur;
+          ctx.lineWidth = pass.width;
+          strokePath(ctx, path);
+          ctx.lineWidth = pass.width * 0.55;
+          for (const fork of forks) strokePath(ctx, fork);
+        }
+
+        // Impact: a white flash on the candy it hits, sparks and a jolt.
+        if (reach >= 1) {
+          if (!e.struck) {
+            e.struck = true;
+            for (let i = 0; i < 8; i++) this.burst(to.x, to.y, i % 2 ? '#ffffff' : '#c04dff', 1, 0.1 + Math.random() * 0.12);
+            if (!this.shake || this.shake.amp < 2) this.shake = { born: now, life: 120, amp: 2 };
+          }
+          const u = Math.min(1, (t - 0.25) / 0.75);
+          const flash = ctx.createRadialGradient(to.x, to.y, 0, to.x, to.y, this.cell * (0.35 + 0.35 * u));
+          flash.addColorStop(0, `rgba(255,255,255,${0.9 * (1 - u)})`);
+          flash.addColorStop(0.5, `rgba(192,77,255,${0.5 * (1 - u)})`);
+          flash.addColorStop(1, 'rgba(192,77,255,0)');
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = flash;
+          ctx.fillRect(to.x - this.cell, to.y - this.cell, this.cell * 2, this.cell * 2);
+        }
         break;
       }
       case 'board': {
