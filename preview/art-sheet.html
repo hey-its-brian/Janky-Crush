@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Art sheet</title>
+<link rel="stylesheet" href="../fonts/hotsprings.css">
+<style>
+body{margin:0;padding:16px;background:linear-gradient(#bfeaff,#fff1d6);font-family:Fredoka,sans-serif;color:#5a2d0c}
+h2{font-family:'Lilita One';margin:12px 0 6px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.cell{width:84px;height:84px;background:rgba(255,255,255,.35);border-radius:14px;display:grid;place-items:center}
+.cell svg{width:76px;height:76px}
+.big svg{width:180px;height:200px}
+</style></head><body>
+<h2>Fruits</h2><div class="row" id="fruits"></div>
+<h2>Striped (row / column)</h2><div class="row" id="striped"></div>
+<h2>Bubble (wrapped), dragonfruit (bomb), ingredients</h2><div class="row" id="other"></div>
+<h2>Host</h2><div class="row big" id="capy"></div>
+<script type="module">
+import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup } from '../src/art/pieces.js';
+import { capy } from '../src/art/capy.js';
+const add = (id, html) => { const d = document.createElement('div'); d.className = 'cell'; d.innerHTML = html; document.getElementById(id).append(d); };
+for (const k of FRUIT_KEYS) add('fruits', fruit(k));
+for (const k of FRUIT_KEYS.slice(0, 3)) { add('striped', striped(k, 'h')); add('striped', striped(k, 'v')); }
+for (const k of FRUIT_KEYS.slice(0, 3)) add('other', wrapped(k));
+add('other', bomb()); add('other', ducky()); add('other', pup());
+for (const p of ['idle', 'cheer', 'worried']) { const d = document.createElement('div'); d.innerHTML = capy(p); document.getElementById('capy').append(d); }
+</script></body></html>
