@@ -164,24 +164,30 @@ export function ducky() {
     gloss(48, 28, 6, 3.5, -30));
 }
 
-// Ingredient: a capybara pup's head (boxy, sleepy-eyed, like the host).
+// Ingredient: a chibi capybara pup's head, shaded like the host.
 export function pup() {
-  const lid = (x) =>
-    `<ellipse cx="${x}" cy="44" rx="4.2" ry="4.2" fill="#1e1208"/><circle cx="${x + 1.4}" cy="45" r="1.3" fill="#fff"/>` +
-    `<path d="M${x - 5} 43 Q${x} 37 ${x + 5} 43 L${x + 5} 40 Q${x} 34 ${x - 5} 40Z" fill="#c4864f"/>` +
-    `<path d="M${x - 5} 43 Q${x} 39.5 ${x + 5} 43" stroke="#4a2a14" stroke-width="2" fill="none" stroke-linecap="round"/>`;
-  return svg('',
+  const h = id('ph'), sn = id('ps'), e = id('pe');
+  const eye = (x) =>
+    `<path d="M${x - 5.2} 45 Q${x} 42.5 ${x + 5.2} 45 A5.5 6.5 0 1 1 ${x - 5.2} 45Z" fill="url(#${e})"/>` +
+    `<circle cx="${x + 2}" cy="48" r="1.8" fill="#fff"/><circle cx="${x - 2}" cy="51" r=".9" fill="#fff" opacity=".9"/>` +
+    `<path d="M${x - 6.5} 45.3 Q${x} 41.5 ${x + 6.5} 45.3" stroke="#5a3216" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+  return svg(
+    `<radialGradient id="${h}" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#ecb67d"/><stop offset=".55" stop-color="#c98a52"/><stop offset="1" stop-color="#9a6235"/></radialGradient>` +
+    `<radialGradient id="${sn}" cx=".45" cy=".25" r=".8"><stop offset="0" stop-color="#f7d3a4"/><stop offset=".65" stop-color="#e0aa73"/><stop offset="1" stop-color="#c48a55"/></radialGradient>` +
+    `<radialGradient id="${e}" cx=".5" cy=".35" r=".65"><stop offset="0" stop-color="#5a3216"/><stop offset=".7" stop-color="#2a1408"/><stop offset="1" stop-color="#150903"/></radialGradient>`,
     SHADOW +
-    `<ellipse cx="27" cy="25" rx="6" ry="4.6" transform="rotate(-15 27 25)" fill="#8a5530" stroke="#6b3f1c" stroke-width="2"/>` +
-    `<ellipse cx="73" cy="25" rx="6" ry="4.6" transform="rotate(15 73 25)" fill="#8a5530" stroke="#6b3f1c" stroke-width="2"/>` +
-    `<path d="M12 46 C12 32 22 26 36 26 L64 26 C78 26 88 32 88 46 L88 66 C88 80 78 88 64 88 L36 88 C22 88 12 80 12 66Z" fill="#c4864f" stroke="#6b3f1c" stroke-width="2.5"/>` +
-    `<path d="M22 66 C22 56 32 52 50 52 C68 52 78 56 78 66 C78 78 66 85 50 85 C34 85 22 78 22 66Z" fill="#d6995f"/>` +
-    `<rect x="37" y="54" width="26" height="10" rx="5" fill="#4a2a14"/>` +
-    `<path d="M44 72 Q47 76 50 72 Q53 76 56 72" stroke="#4a2a14" stroke-width="2.2" fill="none" stroke-linecap="round"/>` +
-    lid(34) + lid(66) +
-    `<ellipse cx="20" cy="58" rx="5.5" ry="3.4" fill="#ff8fb0" opacity=".7"/>` +
-    `<ellipse cx="80" cy="58" rx="5.5" ry="3.4" fill="#ff8fb0" opacity=".7"/>` +
-    `<circle cx="50" cy="20" r="9" fill="#ffb02e" stroke="#a84a00" stroke-width="2"/>` +
-    `<path d="M51 12 C55 6 63 7 64 10 C60 14 55 14 51 12Z" fill="#4cc94f" stroke="#1d6b22" stroke-width="1.5"/>` +
-    gloss(30, 33, 7, 3.5, -20, 0.3));
+    `<ellipse cx="26" cy="25" rx="6.5" ry="5.5" transform="rotate(-20 26 25)" fill="#b0743f" stroke="#8a5530" stroke-width="1.5"/>` +
+    `<ellipse cx="74" cy="25" rx="6.5" ry="5.5" transform="rotate(20 74 25)" fill="#b0743f" stroke="#8a5530" stroke-width="1.5"/>` +
+    `<path d="M10 52 C10 32 28 22 50 22 C72 22 90 32 90 52 C90 72 74 86 50 86 C26 86 10 72 10 52Z" fill="url(#${h})" stroke="#8a5530" stroke-width="2"/>` +
+    `<path d="M22 38 C28 30 38 27 50 27" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".28"/>` +
+    `<ellipse cx="50" cy="66" rx="27" ry="17" fill="url(#${sn})"/>` +
+    `<rect x="38" y="55" width="24" height="10" rx="5" fill="#4a2512"/>` +
+    `<ellipse cx="46" cy="57" rx="4" ry="1.5" fill="#fff" opacity=".35"/>` +
+    `<path d="M45 72 Q47.5 75 50 72 Q52.5 75 55 72" stroke="#5a2a10" stroke-width="1.8" fill="none" stroke-linecap="round"/>` +
+    eye(31) + eye(69) +
+    `<ellipse cx="22" cy="62" rx="7" ry="4.2" fill="#ff8fae" opacity=".55"/>` +
+    `<ellipse cx="78" cy="62" rx="7" ry="4.2" fill="#ff8fae" opacity=".55"/>` +
+    `<circle cx="50" cy="19" r="9" fill="#ffb02e" stroke="#b05800" stroke-width="1.5"/>` +
+    `<path d="M51 11 C55 5 63 6 64 9 C60 13 55 13 51 11Z" fill="#5fd35a" stroke="#2a8a2a" stroke-width="1.2"/>` +
+    `<ellipse cx="46.5" cy="15.5" rx="3" ry="1.8" transform="rotate(-30 46.5 15.5)" fill="#fff" opacity=".75"/>`);
 }
