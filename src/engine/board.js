@@ -12,12 +12,16 @@ export const STRIPE_V = 'stripeV'; // clears its column
 export const WRAPPED = 'wrapped';
 export const WRAPPED_LIT = 'wrappedLit';
 export const BOMB = 'bomb'; // color bomb: has no color of its own
+// Ingredients can't be matched or blasted; they ride down to an exit.
+export const INGREDIENT = 'ingredient';
+export const INGREDIENT_KINDS = ['cherry', 'nut'];
 
 const isStriped = (s) => s === STRIPE_H || s === STRIPE_V;
 
 // Points on top of the match itself.
 const POINTS_PER_SPECIAL_MADE = 60;
 const POINTS_PER_BLASTED_CANDY = 30;
+const POINTS_PER_JELLY = 100;
 
 let nextId = 1;
 
@@ -30,6 +34,24 @@ export class Board {
     // mask[r][c] === false means the cell is not part of the board.
     this.mask = mask ?? Array.from({ length: rows }, () => Array(cols).fill(true));
     this.grid = Array.from({ length: rows }, () => Array(cols).fill(null));
+    // Jelly layers under each cell (0, 1 or 2).
+    this.jelly = Array.from({ length: rows }, () => Array(cols).fill(0));
+    // Cells where ingredients leave the board (keys from key()).
+    this.exits = new Set();
+    // { remaining, maxOnBoard, chance } on ingredient levels.
+    this.spawner = null;
+  }
+
+  // A copy to try moves on. Candy objects are copied so the original is
+  // untouched; `rng` should differ so the copy can't see future refills.
+  clone(rng) {
+    const b = new Board({ rows: this.rows, cols: this.cols, mask: this.mask, rng });
+    b.colors = [...this.colors];
+    b.grid = this.grid.map((row) => row.map((c) => (c ? { ...c } : null)));
+    b.jelly = this.jelly.map((row) => [...row]);
+    b.exits = new Set(this.exits);
+    b.spawner = this.spawner ? { ...this.spawner } : null;
+    return b;
   }
 
   playable(r, c) {
@@ -43,12 +65,16 @@ export class Board {
   // The color a candy matches as, or null if it can't be part of a match.
   matchColor(r, c) {
     const cell = this.get(r, c);
-    if (!cell || cell.special === BOMB || cell.special === WRAPPED_LIT) return null;
+    if (!cell || cell.special === BOMB || cell.special === WRAPPED_LIT || cell.special === INGREDIENT) return null;
     return cell.color;
   }
 
   newCandy(color, special = null) {
-    return { id: nextId++, color: special === BOMB ? null : color, special };
+    return { id: nextId++, color: special === BOMB || special === INGREDIENT ? null : color, special };
+  }
+
+  newIngredient(kind) {
+    return { ...this.newCandy(null, INGREDIENT), kind };
   }
 
   randomColor() {
@@ -61,7 +87,7 @@ export class Board {
     for (let attempt = 0; attempt < 100; attempt++) {
       for (let r = 0; r < this.rows; r++) {
         for (let c = 0; c < this.cols; c++) {
-          if (!this.mask[r][c]) continue;
+          if (!this.mask[r][c] || this.grid[r][c]?.special === INGREDIENT) continue;
           const banned = new Set();
           const l1 = this.get(r, c - 1), l2 = this.get(r, c - 2);
           if (l1 && l2 && l1.color === l2.color) banned.add(l1.color);
@@ -80,6 +106,7 @@ export class Board {
   //   r o y g b p   plain candy
   //   R O Y G B P   horizontal striped      (vertical: set .special by hand)
   //   *             color bomb
+  //   @             ingredient
   //   .             empty playable cell
   //   (space)       outside the board
   load(rowsOfChars) {
@@ -90,10 +117,12 @@ export class Board {
       [...row].map((ch) => {
         if (ch === ' ' || ch === '.') return null;
         if (ch === '*') return this.newCandy(null, BOMB);
+        if (ch === '@') return this.newIngredient('cherry');
         if (ch !== ch.toLowerCase()) return this.newCandy(ch.toLowerCase(), STRIPE_H);
         return this.newCandy(ch);
       })
     );
+    this.jelly = this.grid.map((row) => row.map(() => 0));
     return this;
   }
 
@@ -104,6 +133,7 @@ export class Board {
           if (!this.mask[r][c]) return ' ';
           if (!cell) return '.';
           if (cell.special === BOMB) return '*';
+          if (cell.special === INGREDIENT) return '@';
           return cell.special ? cell.color.toUpperCase() : cell.color;
         })
         .join('')
@@ -164,6 +194,7 @@ export class Board {
   isComboSwap(a, b) {
     const x = this.get(...a), y = this.get(...b);
     if (!x || !y) return false;
+    if (x.special === INGREDIENT || y.special === INGREDIENT) return false;
     if (x.special === BOMB || y.special === BOMB) return true;
     return Boolean(x.special && y.special);
   }
@@ -242,7 +273,8 @@ export class Board {
         remove(from);
         remove(to);
         for (let i = 0; i < this.rows; i++)
-          for (let j = 0; j < this.cols; j++) if (this.grid[i][j]) remove([i, j]);
+          for (let j = 0; j < this.cols; j++)
+            if (this.grid[i][j] && this.grid[i][j].special !== INGREDIENT) remove([i, j]);
       } else {
         remove(bomb);
         const targets = this.cellsOfColor(other.color).filter((p) => key(p) !== key(otherAt));
@@ -327,7 +359,8 @@ export class Board {
   mark(pass, r, c) {
     const cand = this.get(r, c);
     const k = key([r, c]);
-    if (!cand || pass.keep.has(k) || pass.clear.has(k) || pass.light.has(k)) return;
+    if (!cand || cand.special === INGREDIENT) return;
+    if (pass.keep.has(k) || pass.clear.has(k) || pass.light.has(k)) return;
     if (!pass.cause.has(k)) pass.cause.set(k, pass.current);
     if (cand.special === WRAPPED) {
       pass.light.set(k, [r, c]);
@@ -408,12 +441,26 @@ export class Board {
       if (made.special === BOMB) cand.color = null;
       made.candy = cand;
     }
+    // Jelly comes off every cell that was matched or blasted, including
+    // where a new special formed and under a wrapped candy that went off.
+    const jellyHit = [];
+    const hitCells = [...cleared.map((x) => x.at), ...pass.light.values(), ...pass.created.map((m) => m.at)];
+    const seen = new Set();
+    for (const [r, c] of hitCells) {
+      const k = key([r, c]);
+      if (seen.has(k) || this.jelly[r][c] <= 0) continue;
+      seen.add(k);
+      this.jelly[r][c]--;
+      jellyHit.push({ at: [r, c], left: this.jelly[r][c] });
+    }
+
     const matched = new Set(groups.flatMap((g) => g.cells.map(key)));
     const blasted = cleared.filter((x) => !matched.has(key(x.at))).length;
     const points =
       scoreFor(groups, 1) +
       pass.created.length * POINTS_PER_SPECIAL_MADE +
-      blasted * POINTS_PER_BLASTED_CANDY;
+      blasted * POINTS_PER_BLASTED_CANDY +
+      jellyHit.length * POINTS_PER_JELLY;
     return {
       groups,
       cleared,
@@ -422,6 +469,7 @@ export class Board {
       converted: pass.converted,
       blasts: pass.blasts,
       primed: pass.primed,
+      jellyHit,
       points,
     };
   }
@@ -505,16 +553,117 @@ export class Board {
   // board it starts, so a column's new candies stack up and fall in together.
   refill() {
     const spawns = [];
+    const ingredientCol = this.pickIngredientColumn();
     for (let c = 0; c < this.cols; c++) {
       const empty = [];
       for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.grid[r][c]) empty.push(r);
       empty.forEach((r, i) => {
-        const cell = this.newCandy(this.randomColor());
+        const cell = c === ingredientCol && i === 0
+          ? this.newIngredient(this.nextIngredientKind())
+          : this.newCandy(this.randomColor());
         this.grid[r][c] = cell;
         spawns.push({ id: cell.id, candy: cell, color: cell.color, to: [r, c], fromRow: i - empty.length });
       });
     }
     return spawns;
+  }
+
+  // On ingredient levels, sometimes drop a new one in with the refill.
+  pickIngredientColumn() {
+    const sp = this.spawner;
+    if (!sp || sp.remaining <= 0 || this.countIngredients() >= sp.maxOnBoard) return -1;
+    if (this.rng() >= sp.chance) return -1;
+    const cols = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.grid[r][c]) { cols.push(c); break; }
+    if (!cols.length) return -1;
+    sp.remaining--;
+    return cols[randInt(this.rng, cols.length)];
+  }
+
+  nextIngredientKind() {
+    this.ingredientsMade = (this.ingredientsMade ?? 0) + 1;
+    return INGREDIENT_KINDS[this.ingredientsMade % INGREDIENT_KINDS.length];
+  }
+
+  countIngredients() {
+    let n = 0;
+    for (const row of this.grid) for (const c of row) if (c?.special === INGREDIENT) n++;
+    return n;
+  }
+
+  // Put `n` ingredients along the top at the start of a level.
+  placeIngredients(n) {
+    const cols = [];
+    for (let c = 0; c < this.cols; c++) if (this.topRow(c) >= 0) cols.push(c);
+    for (let i = 0; i < n && cols.length; i++) {
+      const c = cols.splice(randInt(this.rng, cols.length), 1)[0];
+      this.grid[this.topRow(c)][c] = this.newIngredient(this.nextIngredientKind());
+    }
+  }
+
+  topRow(c) {
+    for (let r = 0; r < this.rows; r++) if (this.mask[r][c]) return r;
+    return -1;
+  }
+
+  // Every column's lowest cell is an exit.
+  setExits() {
+    this.exits.clear();
+    for (let c = 0; c < this.cols; c++)
+      for (let r = this.rows - 1; r >= 0; r--)
+        if (this.mask[r][c]) { this.exits.add(key([r, c])); break; }
+  }
+
+  isExit(r, c) {
+    return this.exits.has(key([r, c]));
+  }
+
+  // Take away ingredients sitting on an exit. Returns [{ candy, at }].
+  collectIngredients() {
+    const out = [];
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) {
+        const cand = this.grid[r][c];
+        if (cand?.special === INGREDIENT && this.isExit(r, c)) {
+          this.grid[r][c] = null;
+          out.push({ id: cand.id, candy: cand, at: [r, c] });
+        }
+      }
+    return out;
+  }
+
+  jellyCount() {
+    let n = 0;
+    for (const row of this.jelly) for (const j of row) if (j > 0) n++;
+    return n;
+  }
+
+  // End-of-level bonus: turn `n` plain candies into stripes, and prime them
+  // along with every special already on the board to fire in firePrimed().
+  // Returns a step for the renderer, or null if there's nothing to fire.
+  primeBonus(n) {
+    const plain = [], specials = [];
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) {
+        const cand = this.grid[r][c];
+        if (!cand || cand.special === INGREDIENT || cand.special === WRAPPED_LIT) continue;
+        (cand.special ? specials : plain).push([r, c]);
+      }
+    const converted = [];
+    for (let i = 0; i < n && plain.length; i++) {
+      const at = plain.splice(randInt(this.rng, plain.length), 1)[0];
+      const cand = this.get(...at);
+      cand.special = randInt(this.rng, 2) ? STRIPE_H : STRIPE_V;
+      converted.push({ at, candy: cand, special: cand.special });
+    }
+    const all = [...converted.map((x) => x.at), ...specials];
+    if (!all.length) return null;
+    all.forEach((at, i) => (this.get(...at).primed = i + 1));
+    return {
+      groups: [], cleared: [], lit: [], created: [], converted, blasts: [],
+      primed: true, jellyHit: [], points: 0, bonus: true,
+    };
   }
 
   findPossibleMove() {
@@ -535,7 +684,8 @@ export class Board {
   shuffle() {
     const cells = [];
     for (let r = 0; r < this.rows; r++)
-      for (let c = 0; c < this.cols; c++) if (this.grid[r][c]) cells.push([r, c]);
+      for (let c = 0; c < this.cols; c++)
+        if (this.grid[r][c] && this.grid[r][c].special !== INGREDIENT) cells.push([r, c]);
     const candies = cells.map(([r, c]) => ({ cell: this.grid[r][c], from: [r, c] }));
     for (let attempt = 0; attempt < 200; attempt++) {
       for (let i = candies.length - 1; i > 0; i--) {
