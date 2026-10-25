@@ -1,13 +1,13 @@
 // Background music: slow and calming, played live with Web Audio. A lazy
 // "um-pa-pa" in 3/4: a round bass on the beat, soft nylon-guitar chords on
-// the two after it, and a low, mellow tune. The map is just guitar, bass
-// and vibraphone; levels add electric piano on the "pa"s, a soft kick and
-// rim, and a melodica with a dub echo. Everything goes through a gentle
+// the two after it, electric piano on the "pa"s, a soft kick and rim, and
+// a low melodica tune with a dub echo. The same song plays on the map and
+// in levels, carrying on across the switch. Everything goes through a gentle
 // lowpass so nothing is shrill. Notes are scheduled a little ahead on a
 // timer, the usual way to keep Web Audio music in time.
 
 import { audioContext, musicOutput, onUnlock } from './sfx.js';
-import { pluck, epiano, vibes, reed, softBass, softened } from './synth.js';
+import { pluck, epiano, reed, softBass, softened } from './synth.js';
 
 const BPM = 84;
 const STEP = 60 / BPM / 2; // an eighth note
@@ -47,7 +47,6 @@ const ANSWER = [
 const hz = (semi, root) => root * 2 ** (semi / 12);
 const C2 = 65.41, C4 = 261.63;
 
-let mood = null;
 let timer = null;
 let nextTime = 0;
 let step = 0;
@@ -104,29 +103,25 @@ function scheduleStep(ctx, s, t) {
   const bar = Math.floor(s / BAR);
   const beat = s % BAR;
   const chord = CHORDS[bar % CHORDS.length];
-  const level = mood === 'level';
-  // Um: the bass on the downbeat, a softer fifth leading into the next bar.
-  if (beat === 0) softBass(ctx, out, hz(chord.bass, C2), t, { dur: 0.9, vol: 0.34 });
+  // Um: the bass and a soft kick on the downbeat, a softer fifth leading
+  // into the next bar.
+  if (beat === 0) {
+    softBass(ctx, out, hz(chord.bass, C2), t, { dur: 0.9, vol: 0.34 });
+    kick(ctx, t, 0.22);
+  }
   if (beat === 5) softBass(ctx, out, hz(chord.bass + 7, C2), t, { dur: 0.3, vol: 0.14 });
-  // Pa-pa: soft chords on beats two and three.
+  // Pa-pa: soft guitar and piano chords on beats two and three.
   if (beat === 2 || beat === 4) {
     chord.notes.forEach((n, i) => pluck(ctx, out, hz(n, C4), t + i * 0.015, { vol: beat === 2 ? 0.08 : 0.065, dur: 0.5, soft: 0.85 }));
-    if (level) chord.notes.forEach((n) => epiano(ctx, out, hz(n, C4), t, { dur: 0.45, vol: 0.035 }));
-  }
-  if (level) {
-    if (beat === 0) kick(ctx, t, 0.22);
-    if (beat === 2 || beat === 4) rim(ctx, t, 0.04);
+    chord.notes.forEach((n) => epiano(ctx, out, hz(n, C4), t, { dur: 0.45, vol: 0.035 }));
+    rim(ctx, t, 0.04);
   }
   // The tune, then a quieter answer the second time through.
   const second = Math.floor(bar / CHORDS.length) % 2 === 1;
   for (const [at, n] of (second ? ANSWER : MELODY)[bar % CHORDS.length]) {
     if (at !== beat) continue;
-    if (level) {
-      reed(ctx, out, hz(n, C4), t, { dur: STEP * 3, vol: second ? 0.03 : 0.045 });
-      reed(ctx, echo(ctx), hz(n, C4), t, { dur: STEP * 3, vol: 0.03 });
-    } else {
-      vibes(ctx, out, hz(n, C4), t, { dur: 2, vol: second ? 0.08 : 0.11 });
-    }
+    reed(ctx, out, hz(n, C4), t, { dur: STEP * 3, vol: second ? 0.03 : 0.045 });
+    reed(ctx, echo(ctx), hz(n, C4), t, { dur: STEP * 3, vol: 0.03 });
   }
 }
 
@@ -141,9 +136,9 @@ function tick() {
   }
 }
 
-// Start (or switch) the music: 'map' or 'level'. Waits for the first tap.
-export function playMusic(next) {
-  mood = next;
+// Start the music (the same song on every screen; it keeps going across
+// them). Waits for the first tap.
+export function playMusic() {
   onUnlock((ctx) => {
     bus ??= musicOutput();
     out ??= softened(ctx, bus, 2400);
@@ -159,12 +154,10 @@ export function stopMusic() {
   timer = null;
 }
 
-// Render `seconds` of music in a mood into an offline context (tools only).
-export function renderMusic(off, output, which, seconds) {
-  const saved = { mood, out };
-  mood = which;
+// Render `seconds` of music into an offline context (tools only).
+export function renderMusic(off, output, seconds) {
+  const saved = out;
   out = softened(off, output, 2400);
   for (let t = 0.05, s = 0; t < seconds; t += STEP, s++) scheduleStep(off, s, t);
-  mood = saved.mood;
-  out = saved.out;
+  out = saved;
 }

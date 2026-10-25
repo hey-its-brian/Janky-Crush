@@ -25,8 +25,9 @@
       a cascade; soft on top, quieter overall, sitting under the music;
       reverb and left/right placement; a deep announcer voice for the
       callouts (with its own switch); a slow, calm "um-pa-pa" in 3/4 with
-      guitar, bass and vibraphone (levels add piano, light drums and
-      melodica).
+      guitar, piano, bass, light drums and melodica, on every screen.
+      Happy marimba runs when specials go off. iPhone haptics on real taps
+      (buttons and the board), since newer iOS blocks haptics from code.
 - [ ] **Phase 4: Coins, lives and boosters.**
   - Coins earned from stars, level clears, leftover moves and a daily bonus.
   - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run

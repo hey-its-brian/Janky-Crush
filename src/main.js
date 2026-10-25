@@ -8,7 +8,7 @@ import { ducky, striped, wrapped, bomb } from './art/pieces.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic } from './audio/music.js';
 import { announce, primeVoice } from './audio/voice.js';
-import { haptic } from './audio/haptics.js';
+import { haptic, tactile } from './audio/haptics.js';
 import { getSetting, setSetting } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -47,7 +47,7 @@ function showMap() {
   $('game-screen').hidden = true;
   $('world').hidden = true;
   $('map-screen').hidden = false;
-  playMusic('map');
+  playMusic();
   const { current: next, y } = renderMap($('map'), LEVELS, progress, (level) => { tapFeedback(); showIntro(level); });
   $('total-stars').textContent = `${progress.totalStars()} / ${LEVELS.length * 3}`;
   $('play-btn').textContent = `Play ${next.id}`;
@@ -70,7 +70,7 @@ function showGame(level) {
   });
   setHost('idle');
   $('host-bubble').hidden = true;
-  playMusic('level');
+  playMusic();
   getGame().start(level);
 }
 
@@ -296,7 +296,7 @@ function showSettings(back = closeDialog) {
     toggle('sfx', 'Sound effects'),
     toggle('music', 'Music'),
     toggle('voice', 'Announcer voice', 'The phone\u2019s own voice; may speak even on silent'),
-    toggle('haptics', 'Haptics', 'On iPhone, a light tap (iOS 18 or newer)'),
+    toggle('haptics', 'Haptics', 'On iPhone, a light tick when you tap'),
   ], [button('Done', back)], { host: 'idle', stack: true });
 }
 
@@ -357,8 +357,10 @@ $('settings').addEventListener('click', () => {
 const wakeSound = () => { unlockAudio(); primeVoice(); };
 document.addEventListener('pointerdown', wakeSound, { capture: true });
 document.addEventListener('touchend', wakeSound, { capture: true });
+document.addEventListener('click', wakeSound, { capture: true });
 
 buildWorld($('world'));
+tactile($('board'));
 
 let resizeTimer;
 window.addEventListener('resize', () => {

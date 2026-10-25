@@ -187,6 +187,19 @@ const major = (step, root = 392) => root * 2 ** ((MAJOR[((step % 7) + 7) % 7] + 
 const C4 = 261.63;
 const semi = (n, root = C4) => root * 2 ** (n / 12);
 
+// A happy major run up the marimba (semitones above C5).
+function happy(notes, at = 0, gap = 0.05) {
+  notes.forEach((n, i) => mallet(semi(n, C4 * 2), at + i * gap, { dur: 0.55, vol: 0.12 }));
+}
+
+// A cheerful upward "whee" slide.
+function whee(at = 0) {
+  tone({ type: 'triangle', freq: 330, to: 780, dur: 0.22, vol: 0.1, at, attack: 0.02 });
+}
+
+let boltRun = 0;
+let boltLast = -1;
+
 // ---- the effects ------------------------------------------------------------------
 
 const RECIPES = {
@@ -231,7 +244,7 @@ const RECIPES = {
       mallet(semi(7), 0.1, { dur: 0.7, vol: 0.14 });
       bubbles({ at: 0.1, count: 3 });
     } else {
-      [0, 4, 7].forEach((n, i) => mallet(semi(n + 7), i * 0.06, { dur: 0.6, vol: 0.13 }));
+      [0, 4, 7, 12].forEach((n, i) => mallet(semi(n + 7), i * 0.06, { dur: 0.6, vol: 0.13 }));
     }
   },
   // A striped piece fires: a rush of water sweeping across.
@@ -241,10 +254,12 @@ const RECIPES = {
       dest.pan.setValueAtTime(-0.7, t);
       dest.pan.linearRampToValueAtTime(0.7, t + 0.35);
     }
-    wash({ dur: 0.42, vol: 0.3, from: 2600, to: 300, attack: 0.01 });
-    tone({ freq: 180, to: 70, dur: 0.25, vol: 0.2 });
-    knock(400, { vol: 0.12 });
-    bubbles({ at: 0.15, count: 3, vol: 0.06 });
+    wash({ dur: 0.42, vol: 0.26, from: 2600, to: 300, attack: 0.01 });
+    tone({ freq: 160, to: 70, dur: 0.22, vol: 0.16 });
+    knock(400, { vol: 0.1 });
+    whee(0.02);
+    happy([0, 4, 7, 12], 0.08, 0.05);
+    bubbles({ at: 0.2, count: 3, vol: 0.05 });
   },
   // The wrapped piece swells before it blows: a slow rising bubble.
   windup: () => {
@@ -253,15 +268,23 @@ const RECIPES = {
   },
   // Wrapped explosion: a deep "bloosh" like a cannonball into the pool.
   boom: () => {
-    tone({ freq: 120, to: 34, dur: 0.55, vol: 0.5 });
-    noise({ type: 'lowpass', freq: 1600, to: 120, dur: 0.7, vol: 0.4, attack: 0.004 });
-    knock(220, { vol: 0.2 });
-    bubbles({ at: 0.12, count: 6, spread: 0.45, vol: 0.07 });
+    tone({ freq: 120, to: 34, dur: 0.55, vol: 0.45 });
+    noise({ type: 'lowpass', freq: 1600, to: 120, dur: 0.7, vol: 0.34, attack: 0.004 });
+    knock(220, { vol: 0.18 });
+    happy([0, 4, 7, 12, 16], 0.1, 0.045);
+    [0, 4, 7].forEach((n) => mallet(semi(n + 12), 0.33, { dur: 0.9, vol: 0.08 }));
+    bubbles({ at: 0.15, count: 6, spread: 0.45, vol: 0.06 });
   },
   // One color-bomb bolt: a water drop "plip" and a tap.
+  // Each one lands a note higher up a happy scale, so a whole bomb plays a
+  // rising run.
   bolt: () => {
-    bloop(380 + Math.random() * 280, { vol: 0.12, dur: 0.06 });
-    knock(600 + Math.random() * 200, { vol: 0.06 });
+    const now = T();
+    boltRun = now - boltLast > 0.6 ? 0 : boltRun + 1;
+    boltLast = now;
+    const f = major(boltRun % 12, C4);
+    mallet(f, 0, { dur: 0.5, vol: 0.12 });
+    bloop(f * 0.75, { vol: 0.07, dur: 0.06 });
   },
   // A piece turning into a special: the marimba climbs, one step each.
   morph: ({ i = 0 } = {}) => {
