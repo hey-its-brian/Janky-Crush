@@ -68,9 +68,9 @@ async function renderEffects() {
 }
 
 async function renderSong(mood) {
-  const off = new OfflineAudioContext(2, RATE * 27, RATE);
+  const off = new OfflineAudioContext(2, RATE * 40, RATE);
   const bus = useOfflineContext(off);
-  renderMusic(off, bus, mood, 26.5);
+  renderMusic(off, bus, mood, 39.5);
   return wav(await off.startRendering());
 }
 

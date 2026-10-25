@@ -152,3 +152,92 @@ export function makeRoom(ctx, seconds = 1.6) {
   conv.buffer = buf;
   return conv;
 }
+
+// Electric piano (Rhodes-like): a soft FM tone, warm and round, with a
+// faint bell "tine" at the start.
+export function epiano(ctx, out, freq, t, { dur = 1.2, vol = 0.08 } = {}) {
+  bell(ctx, out, freq, t, { dur, vol, ratio: 1, index: 1.1 });
+  bell(ctx, out, freq, t, { dur: 0.25, vol: vol * 0.12, ratio: 14, index: 0.3 });
+}
+
+// Vibraphone: a pure tone with its fourth-harmonic shimmer and the slow
+// tremolo of the motor-driven fans.
+export function vibes(ctx, out, freq, t, { dur = 2, vol = 0.1 } = {}) {
+  const g = ctx.createGain();
+  const trem = ctx.createGain();
+  const lfo = ctx.createOscillator();
+  const depth = ctx.createGain();
+  lfo.frequency.value = 4.5;
+  depth.gain.value = 0.25;
+  trem.gain.value = 0.75;
+  lfo.connect(depth).connect(trem.gain);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  g.connect(trem).connect(out);
+  for (const [mult, v] of [[1, 1], [4, 0.12]]) {
+    const o = ctx.createOscillator();
+    const pg = ctx.createGain();
+    o.frequency.value = freq * mult;
+    pg.gain.value = v;
+    o.connect(pg).connect(g);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  }
+  lfo.start(t);
+  lfo.stop(t + dur + 0.05);
+}
+
+// Melodica: a reedy, breathy tone with a little vibrato.
+export function reed(ctx, out, freq, t, { dur = 0.6, vol = 0.05 } = {}) {
+  const f = ctx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 1700;
+  f.Q.value = 0.7;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.05);
+  g.gain.setValueAtTime(vol, t + dur * 0.75);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  f.connect(g).connect(out);
+  const lfo = ctx.createOscillator();
+  const depth = ctx.createGain();
+  lfo.frequency.value = 5;
+  depth.gain.value = 9;
+  for (const [type, v] of [['square', 0.6], ['sawtooth', 0.4]]) {
+    const o = ctx.createOscillator();
+    const og = ctx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    og.gain.value = v;
+    lfo.connect(depth).connect(o.detune);
+    o.connect(og).connect(f);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  }
+  lfo.start(t);
+  lfo.stop(t + dur + 0.05);
+}
+
+// A round, soft bass.
+export function softBass(ctx, out, freq, t, { dur = 0.6, vol = 0.3 } = {}) {
+  const f = ctx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 700;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+  g.gain.exponentialRampToValueAtTime(vol * 0.5, t + dur * 0.6);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  f.connect(g).connect(out);
+  for (const [type, mult, v] of [['sine', 1, 1], ['triangle', 2, 0.35]]) {
+    const o = ctx.createOscillator();
+    const og = ctx.createGain();
+    o.type = type;
+    o.frequency.value = freq * mult;
+    og.gain.value = v;
+    o.connect(og).connect(f);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  }
+}

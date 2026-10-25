@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v19';
+const VERSION = 'jc-v20';
 const ASSETS = [
   './',
   './index.html',

@@ -19,7 +19,7 @@ let base = 0; // extra start offset, used when rendering a preview offline
 
 // Loud enough for a phone speaker; the limiter catches big explosions.
 const SFX_LEVEL = 2.2;
-const MUSIC_LEVEL = 0.5;
+const MUSIC_LEVEL = 0.36;
 const unlockListeners = [];
 
 export function audioContext() {

@@ -23,8 +23,8 @@
 - [x] **Sweet-shop sound pass.** Glassy chimes and a candy crunch for every
       match, climbing the scale through a cascade; new sounds for each
       special forming and firing; reverb and left/right placement; a deep
-      announcer voice for the callouts (with its own switch); a pizzicato
-      and glockenspiel waltz for the music.
+      announcer voice for the callouts (with its own switch); slow,
+      calm music: bossa nova on the map, slow reggae one-drop in levels.
 - [ ] **Phase 4: Coins, lives and boosters.**
   - Coins earned from stars, level clears, leftover moves and a daily bonus.
   - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run
