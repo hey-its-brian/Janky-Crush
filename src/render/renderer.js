@@ -88,6 +88,9 @@ export class Renderer {
     this.particles = [];
     this.effects = [];
     this.jiggling = new Set();
+    // Sound and haptic cues, timed with the animations: cue(name, opts).
+    // The game plugs in the audio; by default it's silent.
+    this.cue = () => {};
     // Jelly layers still showing while their candy hasn't popped yet.
     this.jellyShown = new Map();
     this.selected = null;
@@ -210,6 +213,7 @@ export class Renderer {
   }
 
   async animateSwap(a, b) {
+    this.cue('swap');
     const move = this.swapMover(a, b);
     await this.tween(190, move);
     move.settle();
@@ -217,6 +221,7 @@ export class Renderer {
 
   // Swap there and back, for a swap that doesn't match.
   async animateBadSwap(a, b) {
+    this.cue('boing');
     const move = this.swapMover(a, b);
     await this.tween(190, move);
     move.settle();
@@ -228,8 +233,9 @@ export class Renderer {
   // Animate one resolution step from Board.resolveStep / comboStep /
   // firePrimed. Blasts go off one after another so chain reactions ripple,
   // and each candy pops when the blast that hit it arrives.
-  async animateStep(step, points) {
+  async animateStep(step, points, chain = 1) {
     const t0 = performance.now();
+    const later = (ms, name, opts) => setTimeout(() => this.cue(name, opts), Math.max(0, ms));
     const n = step.blasts.length;
     const gap = n > 1 ? Math.min(CHAIN_GAP_MAX, CHAIN_TOTAL_MAX / n) : 0;
     const boltGap = (b) => Math.min(BOLT_GAP_MAX, BOLT_TOTAL_MAX / Math.max(1, b.targets.length));
@@ -247,13 +253,16 @@ export class Renderer {
 
     step.blasts.forEach((b, i) => {
       if (b.kind === 'bolts') {
-        b.targets.forEach((to, j) =>
-          this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 480 }));
+        b.targets.forEach((to, j) => {
+          this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 480 });
+          later(blastAt[i] + j * boltGap(b), 'bolt');
+        });
       } else if (b.kind === 'area') {
         this.effects.push({ ...b, born: t0 + blastAt[i] + WINDUP_MS, life: EXPLOSION_MS });
         jobs.push(this.detonate(b, blastAt[i]));
       } else {
         this.effects.push({ ...b, born: t0 + blastAt[i], life: b.kind === 'board' ? 500 : BEAM_MS });
+        later(blastAt[i], b.kind === 'board' ? 'boom' : 'zap');
       }
     });
     this.requestDraw();
@@ -282,7 +291,10 @@ export class Renderer {
           : n * bonusGap;
         last = Math.max(last, at);
         if (!b) this.effects.push({ kind: 'spark', at: c.at, born: t0 + at, life: 420 });
-        jobs.push(sleep(at).then(() => this.morph(v)));
+        jobs.push(sleep(at).then(() => {
+          this.cue('morph', { i: n });
+          return this.morph(v);
+        }));
       });
       // Let every new special sit on screen before they go off.
       jobs.push(sleep(last + MORPH_MS + PRIMED_HOLD_MS));
@@ -322,6 +334,7 @@ export class Renderer {
       jobs.push(sleep(delayFor(x)).then(() => {
         const { x: px, y: py } = this.center(...x.at);
         this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 4 : 8);
+        this.cue('pop', { chain, size: step.cleared.length / 3 });
         if (!v) return;
         // Squish, flash white and swell, then shrink away.
         this.jiggle(v, 0.14);
@@ -348,6 +361,7 @@ export class Renderer {
       jobs.push(sleep(x ? delayFor(x) : 0).then(() => {
         this.jellyShown.delete(k);
         this.effects.push({ kind: 'jelly', at: h.at, left: h.left, born: performance.now(), life: 480 });
+        this.cue('foam');
         this.requestDraw();
       }));
     }
@@ -356,6 +370,7 @@ export class Renderer {
     for (const m of step.created) {
       const v = this.visuals.get(m.candy.id);
       if (v) jobs.push(this.pop(v));
+      this.cue('sparkle');
     }
 
     await Promise.all(jobs);
@@ -370,6 +385,8 @@ export class Renderer {
       const v = this.visuals.get(it.id);
       const { x, y } = this.center(...it.at);
       for (let i = 0; i < 14; i++) this.burst(x, y, i % 2 ? '#ffe14d' : '#ffffff', 1, 0.08 + Math.random() * 0.12);
+      this.cue('splash');
+      if (it.candy.kind === 'duck') setTimeout(() => this.cue('quack'), 120);
       this.particles.push({ text: `+${points / items.length}`, x, y: y - 6, vx: 0, vy: -0.03, life: 1100, born: performance.now(), color: '#fff6b0', stroke: '#b06a00' });
       if (!v) return null;
       this.jiggle(v, -0.2);
@@ -406,7 +423,9 @@ export class Renderer {
     await sleep(delay);
     const cand = this.board.get(...blast.at);
     const v = cand && this.visuals.get(cand.id);
+    this.cue('windup');
     if (v) await this.tween(WINDUP_MS, (k) => (v.scale = 1 + 0.4 * k), ease.inQuad);
+    this.cue('boom');
     if (v && v.candy.special === 'wrappedLit') v.scale = 1;
     const { x, y } = this.center(...blast.at);
     const colors = ['#ffffff', '#ff3d8b', '#ff8a1f', '#ffe14d'];
@@ -494,6 +513,7 @@ export class Renderer {
       v.stretch = 0;
       // Squash sized to how hard it hit.
       this.jiggle(v, Math.min(0.26, 0.05 + 0.006 * impact));
+      this.cue('land', { hard: Math.min(1, impact / 30) });
       const below = landed.get(`${j.to + 1},${v.col}`);
       if (below) this.jiggle(below, Math.min(0.1, 0.002 * impact + 0.02));
       landed.set(`${j.to},${v.col}`, v);
@@ -516,6 +536,7 @@ export class Renderer {
   }
 
   animateShuffle(moves) {
+    this.cue('shuffle');
     if (!moves) {
       this.sync();
       return Promise.resolve();

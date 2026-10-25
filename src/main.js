@@ -5,6 +5,10 @@ import { buildWorld } from './ui/world.js';
 import { renderMap } from './ui/map.js';
 import { capy } from './art/capy.js';
 import { ducky, striped, wrapped, bomb } from './art/pieces.js';
+import { unlockAudio, play } from './audio/sfx.js';
+import { playMusic } from './audio/music.js';
+import { haptic } from './audio/haptics.js';
+import { getSetting, setSetting } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => n.toLocaleString('en-US');
@@ -42,10 +46,11 @@ function showMap() {
   $('game-screen').hidden = true;
   $('world').hidden = true;
   $('map-screen').hidden = false;
-  const { current: next, y } = renderMap($('map'), LEVELS, progress, showIntro);
+  playMusic('map');
+  const { current: next, y } = renderMap($('map'), LEVELS, progress, (level) => { tapFeedback(); showIntro(level); });
   $('total-stars').textContent = `${progress.totalStars()} / ${LEVELS.length * 3}`;
   $('play-btn').textContent = `Play ${next.id}`;
-  $('play-btn').onclick = () => showIntro(next);
+  $('play-btn').onclick = () => { tapFeedback(); showIntro(next); };
   // Bring the next level to play into view, low on the screen.
   const scroller = $('map-scroll');
   scroller.scrollTop = Math.max(0, y - scroller.clientHeight * 0.6);
@@ -64,6 +69,7 @@ function showGame(level) {
   });
   setHost('idle');
   $('host-bubble').hidden = true;
+  playMusic('level');
   getGame().start(level);
 }
 
@@ -94,7 +100,12 @@ function cheer(text) {
   }, 1800);
 }
 
+// Callout words get bigger jingles as they get rarer.
+const CHEER_TIER = { 'Juicy!': 1, 'Fresh!': 2, 'Tropical!': 3, 'Smoothie!': 4 };
+
 function callout(text) {
+  play('cheer', { tier: CHEER_TIER[text] ?? 1 });
+  haptic(1);
   const c = $('callout');
   c.textContent = text;
   c.hidden = false;
@@ -107,6 +118,8 @@ function callout(text) {
 }
 
 function showBanner(text) {
+  play('fanfare');
+  haptic(2);
   const b = $('banner');
   b.textContent = text;
   b.hidden = false;
@@ -162,8 +175,13 @@ function closeDialog() {
   $('confetti').replaceChildren();
 }
 
+function tapFeedback() {
+  play('click');
+  haptic(1);
+}
+
 function button(text, onclick, color = 'green') {
-  return el('button', { class: `btn ${color} toon`, type: 'button', text, onclick });
+  return el('button', { class: `btn ${color} toon`, type: 'button', text, onclick: () => { tapFeedback(); onclick(); } });
 }
 
 function showIntro(level) {
@@ -204,6 +222,8 @@ function showResult(r) {
     ].filter(Boolean);
     const score = el('div', { class: 'final toon', text: '0' });
     countUp(score, r.score);
+    play('win');
+    for (let i = 0; i < r.stars; i++) setTimeout(() => { play('star', { i }); haptic(1); }, 250 + i * 250 + 300);
     openDialog(`Level ${level.id}`, [
       bigStars(r.stars),
       score,
@@ -218,6 +238,7 @@ function showResult(r) {
     const why = r.goal === 'jelly' ? `${r.jellyLeft} foam left to clear`
       : r.goal === 'ingredients' ? `${r.ingredientsLeft} friend${r.ingredientsLeft === 1 ? '' : 's'} still up top`
       : `Needed ${fmt(r.target)} points`;
+    play('lose');
     openDialog(`Level ${level.id}`, [
       el('div', { class: 'big-text toon', text: 'Out of moves!' }),
       el('p', { class: 'goal-text', text: why }),
@@ -235,7 +256,10 @@ function countUp(node, to) {
   const step = (now) => {
     const k = Math.min(1, (now - t0) / 1100);
     node.textContent = fmt(Math.round(to * (1 - (1 - k) ** 3)));
-    if (k < 1) requestAnimationFrame(step);
+    if (k < 1) {
+      play('tick');
+      requestAnimationFrame(step);
+    }
   };
   requestAnimationFrame(step);
 }
@@ -246,8 +270,30 @@ function showPause() {
   ], [
     button('Resume', closeDialog),
     button('Restart', () => { if (game && !game.busy) showGame(current); }, 'orange'),
+    button('Settings', () => showSettings(showPause), 'orange'),
     button('Quit to map', showMap, 'orange'),
   ], { host: 'idle', stack: true });
+}
+
+// Sound, music and haptics switches. `back` reopens whatever came before.
+function showSettings(back = closeDialog) {
+  const toggle = (key, name, note) => {
+    const btn = el('button', { class: 'toggle', type: 'button', 'aria-pressed': String(getSetting(key)) },
+      el('span', { class: 'name' }, name, note ? el('small', { text: note }) : null),
+      el('span', { class: 'knob', 'aria-hidden': 'true' }));
+    btn.addEventListener('click', () => {
+      const on = !getSetting(key);
+      setSetting(key, on);
+      btn.setAttribute('aria-pressed', String(on));
+      tapFeedback();
+    });
+    return btn;
+  };
+  openDialog('Settings', [
+    toggle('sfx', 'Sound effects'),
+    toggle('music', 'Music'),
+    toggle('haptics', 'Haptics', 'On iPhone, a light tap (iOS 18 or newer)'),
+  ], [button('Done', back)], { host: 'idle', stack: true });
 }
 
 // ---- the game --------------------------------------------------------------
@@ -293,8 +339,19 @@ function updateHud(h) {
 }
 
 $('pause').addEventListener('click', () => {
-  if (current) showPause();
+  if (!current) return;
+  tapFeedback();
+  showPause();
 });
+$('settings').addEventListener('click', () => {
+  tapFeedback();
+  showSettings();
+});
+
+// iPhones only allow sound after a tap, so wake the audio on the first one
+// (and after the app comes back from the background).
+document.addEventListener('pointerdown', unlockAudio, { capture: true });
+document.addEventListener('touchend', unlockAudio, { capture: true });
 
 buildWorld($('world'));
 

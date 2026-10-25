@@ -70,6 +70,8 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/engine/level.js` | Level setup from a layout, and goal tracking. |
 | `src/engine/turn.js` | A turn (and the end-of-level bonus) as a sequence of events. |
 | `src/save.js` | Progress saved on the phone, per save file. |
+| `src/settings.js` | Sound, music and haptics switches. |
+| `src/audio/` | Synthesized sound effects, the music loop, and haptic taps. |
 | `src/art/` | All the art, drawn as SVG in code: fruits and specials, the capybara host, scenery. |
 | `src/render/sprites.js` | Turns the piece art into canvas sprites for the board. |
 | `src/render/renderer.js` | Canvas drawing and animations. |
@@ -79,7 +81,7 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/levels.js`, `src/level-tuning.js` | Level designs, and their tuned moves and stars. |
 | `tools/tune.mjs` | The level tuner. |
 | `styles.css` | Capybara Hot Springs theme and layout. |
-| `preview/` | Look-and-feel mockup and art sheet (not part of the game). |
+| `preview/` | Look-and-feel mockup, art sheet, and `sounds.html` (renders every sound to WAV). Not part of the game. |
 | `sw.js`, `manifest.webmanifest` | Offline support and home-screen install. |
 
 The Lilita One and Fredoka fonts are bundled under the SIL Open Font

@@ -7,6 +7,11 @@ import { setupBoard, LevelState } from './engine/level.js';
 import { playTurn, bonusRound } from './engine/turn.js';
 import { Renderer, BONUS_GAP_MAX, BONUS_TOTAL_MAX } from './render/renderer.js';
 import { makeRng } from './rng.js';
+import { play } from './audio/sfx.js';
+import { haptic } from './audio/haptics.js';
+
+// Which sounds also get a haptic tap, and how strong.
+const HAPTIC = { swap: 1, boing: 1, zap: 1, boom: 2, bolt: 1, splash: 2, sparkle: 1 };
 
 const HINT_AFTER_MS = 6000;
 // Callouts as a chain grows (cascade number → word).
@@ -42,6 +47,10 @@ export class Game {
       this.renderer.sync();
     } else {
       this.renderer = new Renderer(this.canvas, this.board);
+      this.renderer.cue = (name, opts) => {
+        play(name, opts);
+        if (HAPTIC[name]) haptic(HAPTIC[name]);
+      };
     }
     this.over = false;
     this.selected = null;
@@ -115,7 +124,7 @@ export class Game {
         case 'step':
           if (ev.step.bonus) this.countDownMoves(ev.step.converted.length);
           this.shout(ev);
-          await r.animateStep(ev.step, ev.points);
+          await r.animateStep(ev.step, ev.points, ev.cascade);
           break;
         case 'fall':
           await r.animateFall(ev.falls, ev.spawns);

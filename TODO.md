@@ -16,9 +16,10 @@
       specials, glass board over an animated scene, bath foam, duckies and
       pups, the capybara host with callouts, score meter with star marks,
       end-of-level review, a lively map, new app icon.
-- [ ] **Sound.** Pops that climb in pitch through a chain, a sound for
-      each special and combo, win and lose jingles, background music, and
-      separate on/off switches. All generated in code.
+- [x] **Sound and haptics.** Synthesized effects (pops that climb through a
+      chain, zaps, booms, lightning, splashes, quacks, jingles, win and lose
+      tunes), a tropical music loop (calmer on the map), haptic taps (iOS 18+
+      switch trick, vibration on Android), and Settings switches for each.
 - [ ] **Phase 4: Coins, lives and boosters.**
   - Coins earned from stars, level clears, leftover moves and a daily bonus.
   - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run
@@ -43,7 +44,7 @@
 ## Polish ideas
 
 - [ ] Richer match effects (sparkle trails, screen shake on big combos).
-- [ ] Haptics, if iOS ever exposes them to web apps.
+- [ ] Stronger haptics if iOS ever gives web apps a real vibration API.
 
 ## Tuning to revisit
 
