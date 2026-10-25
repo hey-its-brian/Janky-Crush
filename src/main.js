@@ -7,6 +7,7 @@ import { capy } from './art/capy.js';
 import { ducky, striped, wrapped, bomb } from './art/pieces.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic } from './audio/music.js';
+import { announce, primeVoice } from './audio/voice.js';
 import { haptic } from './audio/haptics.js';
 import { getSetting, setSetting } from './settings.js';
 
@@ -105,6 +106,7 @@ const CHEER_TIER = { 'Juicy!': 1, 'Fresh!': 2, 'Tropical!': 3, 'Smoothie!': 4 };
 
 function callout(text) {
   play('cheer', { tier: CHEER_TIER[text] ?? 1 });
+  announce(text);
   haptic(1);
   const c = $('callout');
   c.textContent = text;
@@ -119,6 +121,7 @@ function callout(text) {
 
 function showBanner(text) {
   play('fanfare');
+  announce(text);
   haptic(2);
   const b = $('banner');
   b.textContent = text;
@@ -275,7 +278,7 @@ function showPause() {
   ], { host: 'idle', stack: true });
 }
 
-// Sound, music and haptics switches. `back` reopens whatever came before.
+// Sound, music, voice and haptics switches. `back` reopens whatever came before.
 function showSettings(back = closeDialog) {
   const toggle = (key, name, note) => {
     const btn = el('button', { class: 'toggle', type: 'button', 'aria-pressed': String(getSetting(key)) },
@@ -292,6 +295,7 @@ function showSettings(back = closeDialog) {
   openDialog('Settings', [
     toggle('sfx', 'Sound effects'),
     toggle('music', 'Music'),
+    toggle('voice', 'Announcer voice', 'The phone\u2019s own voice; may speak even on silent'),
     toggle('haptics', 'Haptics', 'On iPhone, a light tap (iOS 18 or newer)'),
   ], [button('Done', back)], { host: 'idle', stack: true });
 }
@@ -350,8 +354,9 @@ $('settings').addEventListener('click', () => {
 
 // iPhones only allow sound after a tap, so wake the audio on the first one
 // (and after the app comes back from the background).
-document.addEventListener('pointerdown', unlockAudio, { capture: true });
-document.addEventListener('touchend', unlockAudio, { capture: true });
+const wakeSound = () => { unlockAudio(); primeVoice(); };
+document.addEventListener('pointerdown', wakeSound, { capture: true });
+document.addEventListener('touchend', wakeSound, { capture: true });
 
 buildWorld($('world'));
 

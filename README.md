@@ -70,8 +70,8 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/engine/level.js` | Level setup from a layout, and goal tracking. |
 | `src/engine/turn.js` | A turn (and the end-of-level bonus) as a sequence of events. |
 | `src/save.js` | Progress saved on the phone, per save file. |
-| `src/settings.js` | Sound, music and haptics switches. |
-| `src/audio/` | Synthesized sound effects, the music loop, and haptic taps. |
+| `src/settings.js` | Sound, music, announcer voice and haptics switches. |
+| `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
 | `src/art/` | All the art, drawn as SVG in code: fruits and specials, the capybara host, scenery. |
 | `src/render/sprites.js` | Turns the piece art into canvas sprites for the board. |
 | `src/render/renderer.js` | Canvas drawing and animations. |

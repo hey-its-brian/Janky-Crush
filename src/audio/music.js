@@ -1,31 +1,41 @@
-// Background music: a sunny tropical loop played live with Web Audio.
-// Marimba chords, a bouncy bass, shaker and a steel-drum melody over
-// C – Am – F – G. 'map' mood is mellow (no kick, sparser melody); 'level'
-// is fuller. Notes are scheduled a little ahead on a timer, the usual way
-// to keep Web Audio music in time.
+// Background music: a bouncy, whimsical sweet-shop waltz played live with
+// Web Audio. Pizzicato strings go "oom-pah-pah" in 6/8 under a glockenspiel
+// tune. 'map' mood is light (pizzicato and bells); 'level' adds a string
+// pad, a celesta an octave up, a counter-line and soft percussion. Notes
+// are scheduled a little ahead on a timer, the usual way to keep Web Audio
+// music in time.
 
 import { audioContext, musicOutput, onUnlock } from './sfx.js';
+import { glock, pluck, pad, bell } from './synth.js';
 
-const BPM = 108;
-const STEP = 60 / BPM / 4; // a 16th note
+const BPM = 74; // dotted quarters
+const STEP = 60 / BPM / 3; // an eighth note
+const BAR = 6; // eighths in a bar of 6/8
 const AHEAD = 0.15;
 
-// Chords as semitones above C4; bass root below.
-const CHORDS = [
-  { notes: [0, 4, 7], bass: -24 },    // C
-  { notes: [-3, 0, 4], bass: -27 },   // Am
-  { notes: [-7, -3, 0], bass: -31 },  // F
-  { notes: [-5, -1, 2], bass: -29 },  // G
-];
-// Two-bar melody phrases (16th steps → semitones above C5, null = rest).
-const PHRASES = [
-  [7, null, 9, null, 12, null, 9, 7, null, 4, null, 7, null, null, 4, null,
-    2, null, 4, null, 7, null, null, 4, 2, null, 0, null, null, null, null, null],
-  [12, null, null, 9, null, 7, null, 9, null, 12, null, 14, 12, null, 9, null,
-    7, null, 9, null, 4, null, 7, null, null, null, 2, null, 4, null, null, null],
-];
+// Sixteen bars. Chord tones and the bass root are semitones from C4 / C3.
+const C = { notes: [0, 4, 7], bass: 0 };
+const Am = { notes: [-3, 0, 4], bass: -3 };
+const F = { notes: [-3, 0, 5], bass: -7 };
+const G7 = { notes: [-1, 2, 5], bass: -5 };
+const E7 = { notes: [-4, -1, 2], bass: -8 };
+const Dm = { notes: [2, 5, 9], bass: 2 };
+const A7 = { notes: [1, 4, 7], bass: -3 };
+const CHORDS = [C, Am, F, G7, C, E7, F, G7, F, C, Dm, G7, C, A7, Dm, G7];
 
-const hz = (semi, base = 261.63) => base * 2 ** (semi / 12);
+// The tune: one bar per row, eighths as semitones above C5 (null = rest).
+const _ = null;
+const MELODY = [
+  [4, _, 7, 12, _, 11], [12, _, 9, 4, _, _], [5, _, 9, 12, _, 14], [14, 12, 11, 7, _, _],
+  [4, _, 7, 12, _, 16], [16, _, 14, 11, _, 8], [9, _, 12, 17, _, 16], [14, _, 11, 12, _, _],
+  [9, _, 12, 9, _, 5], [7, _, 4, 7, _, 12], [14, _, 12, 9, _, 5], [7, _, 5, 2, _, _],
+  [4, _, 7, 12, _, 16], [16, _, 13, 9, _, 7], [5, _, 9, 14, _, 12], [11, _, 14, 12, 11, 7],
+];
+// A lower answering line for the level mood: long notes on beat two.
+const COUNTER = [7, 4, 0, 2, 7, 8, 9, 11, 5, 4, 5, 2, 7, 9, 5, 2];
+
+const hz = (semi, root) => root * 2 ** (semi / 12);
+const C3 = 130.81, C4 = 261.63, C5 = 523.25;
 
 let mood = null;
 let timer = null;
@@ -33,106 +43,64 @@ let nextTime = 0;
 let step = 0;
 let out = null;
 
-function marimba(ctx, freq, t, vol) {
-  const o = ctx.createOscillator();
-  const o2 = ctx.createOscillator();
-  const g = ctx.createGain();
-  const g2 = ctx.createGain();
-  o.type = 'sine';
-  o.frequency.value = freq;
-  o2.type = 'sine';
-  o2.frequency.value = freq * 4; // the wooden "tock" overtone
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
-  g2.gain.setValueAtTime(0.0001, t);
-  g2.gain.exponentialRampToValueAtTime(vol * 0.35, t + 0.002);
-  g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-  o.connect(g).connect(out);
-  o2.connect(g2).connect(out);
-  o.start(t); o2.start(t);
-  o.stop(t + 0.5); o2.stop(t + 0.1);
-}
-
-function steelDrum(ctx, freq, t, vol) {
-  for (const [mult, v, d] of [[1, 1, 0.5], [2.01, 0.4, 0.3], [3.02, 0.15, 0.18]]) {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.value = freq * mult;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol * v, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
-    o.connect(g).connect(out);
-    o.start(t);
-    o.stop(t + d + 0.05);
-  }
-}
-
-function bass(ctx, freq, t, vol) {
-  const o = ctx.createOscillator();
-  const g = ctx.createGain();
-  o.type = 'triangle';
-  o.frequency.value = freq;
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
-  o.connect(g).connect(out);
-  o.start(t);
-  o.stop(t + 0.35);
-}
-
 let shakerBuf = null;
 function shaker(ctx, t, vol) {
-  if (!shakerBuf) {
-    shakerBuf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+  if (!shakerBuf || shakerBuf.sampleRate !== ctx.sampleRate) {
+    shakerBuf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
     const d = shakerBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
   }
   const src = ctx.createBufferSource();
   src.buffer = shakerBuf;
   const f = ctx.createBiquadFilter();
   f.type = 'highpass';
-  f.frequency.value = 7000;
+  f.frequency.value = 6500;
   const g = ctx.createGain();
   g.gain.value = vol;
   src.connect(f).connect(g).connect(out);
   src.start(t);
 }
 
-function kick(ctx, t, vol) {
+function thump(ctx, t, vol) {
   const o = ctx.createOscillator();
   const g = ctx.createGain();
-  o.frequency.setValueAtTime(130, t);
-  o.frequency.exponentialRampToValueAtTime(45, t + 0.14);
+  o.frequency.setValueAtTime(120, t);
+  o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
   g.gain.setValueAtTime(vol, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
   o.connect(g).connect(out);
   o.start(t);
   o.stop(t + 0.2);
 }
 
 function scheduleStep(ctx, s, t) {
-  const bar = Math.floor(s / 16) % 4;
-  const beat = s % 16;
-  const chord = CHORDS[bar];
+  const barNo = Math.floor(s / BAR) % CHORDS.length;
+  const beat = s % BAR;
+  const chord = CHORDS[barNo];
   const full = mood === 'level';
-  // Marimba: offbeat chord stabs, plus a rolled chord on the downbeat.
-  if (beat === 0) chord.notes.forEach((n, i) => marimba(ctx, hz(n), t + i * 0.02, 0.18));
-  if (beat === 6 || beat === 10 || (full && beat === 14)) chord.notes.forEach((n) => marimba(ctx, hz(n + 12), t, 0.1));
-  // Bass: root on 1, fifth on the "and" of 2, root again on 4.
-  if (beat === 0 || beat === 12) bass(ctx, hz(chord.bass), t, 0.32);
-  if (beat === 6) bass(ctx, hz(chord.bass + 7), t, 0.26);
-  // Shaker on the offbeat 8ths, louder in levels.
-  if (beat % 4 === 2) shaker(ctx, t, full ? 0.16 : 0.08);
-  if (full && beat % 4 === 0) shaker(ctx, t, 0.05);
-  if (full && (beat === 0 || beat === 8)) kick(ctx, t, 0.35);
-  // Melody: a phrase every other two bars in the map, every two bars in levels.
-  const phraseBar = Math.floor(s / 32) % 4;
-  if (full || phraseBar % 2 === 0) {
-    const phrase = PHRASES[phraseBar % 2];
-    const n = phrase[s % 32];
-    if (n !== null) steelDrum(ctx, hz(n, 523.25), t, full ? 0.13 : 0.1);
+  // Oom: the bass on each dotted-quarter beat (root, then fifth).
+  if (beat === 0) pluck(ctx, out, hz(chord.bass, C3), t, { vol: 0.34, dur: 0.5, soft: 0.6 });
+  if (beat === 3) pluck(ctx, out, hz(chord.bass + 7, C3), t, { vol: 0.26, dur: 0.45, soft: 0.6 });
+  // Pah-pah: chord plucks on the other eighths.
+  if (beat !== 0 && beat !== 3) {
+    chord.notes.forEach((n, i) => pluck(ctx, out, hz(n, C4), t + i * 0.006, { vol: 0.09, dur: 0.22, soft: 0.5 }));
+  }
+  // The tune on glockenspiel (every phrase in levels, every other in the map).
+  const n = MELODY[barNo][beat];
+  const phrase = Math.floor(s / (BAR * 8)) % 2;
+  if (n !== null && (full || phrase === 0)) {
+    glock(ctx, out, hz(n, C5), t, { vol: full ? 0.12 : 0.1, dur: 1.1 });
+    if (full) bell(ctx, out, hz(n, C5 * 2), t, { vol: 0.025, dur: 0.5, ratio: 4, index: 1 });
+  }
+  // Map, second phrase: just a gentle celesta answer on the downbeats.
+  if (!full && phrase === 1 && beat === 0) glock(ctx, out, hz(chord.notes[2] + 12, C4), t, { vol: 0.07, dur: 1.2 });
+  if (full) {
+    if (beat === 0) {
+      chord.notes.forEach((x) => pad(ctx, out, hz(x, C4), t, { dur: STEP * BAR + 0.1, vol: 0.022 }));
+      thump(ctx, t, 0.3);
+    }
+    if (beat === 3) pluck(ctx, out, hz(COUNTER[barNo], C4), t, { vol: 0.12, dur: 0.6, soft: 0.35 });
+    shaker(ctx, t, beat === 0 || beat === 3 ? 0.07 : 0.035);
   }
 }
 

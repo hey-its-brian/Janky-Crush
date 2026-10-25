@@ -20,6 +20,11 @@
       chain, zaps, booms, lightning, splashes, quacks, jingles, win and lose
       tunes), a tropical music loop (calmer on the map), haptic taps (iOS 18+
       switch trick, vibration on Android), and Settings switches for each.
+- [x] **Sweet-shop sound pass.** Glassy chimes and a candy crunch for every
+      match, climbing the scale through a cascade; new sounds for each
+      special forming and firing; reverb and left/right placement; a deep
+      announcer voice for the callouts (with its own switch); a pizzicato
+      and glockenspiel waltz for the music.
 - [ ] **Phase 4: Coins, lives and boosters.**
   - Coins earned from stars, level clears, leftover moves and a daily bonus.
   - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run

@@ -11,7 +11,7 @@ import { play } from './audio/sfx.js';
 import { haptic } from './audio/haptics.js';
 
 // Which sounds also get a haptic tap, and how strong.
-const HAPTIC = { swap: 1, boing: 1, zap: 1, boom: 2, bolt: 1, splash: 2, sparkle: 1 };
+const HAPTIC = { match: 1, swap: 1, boing: 1, zap: 1, boom: 2, bolt: 1, splash: 2, sparkle: 1 };
 
 const HINT_AFTER_MS = 6000;
 // Callouts as a chain grows (cascade number → word).

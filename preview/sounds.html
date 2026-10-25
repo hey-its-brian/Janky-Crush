@@ -8,13 +8,16 @@ import { renderMusic } from '../src/audio/music.js';
 
 const RATE = 44100;
 
+// Interleave the two channels into a 16-bit stereo WAV.
 function wav(buffer) {
-  const data = buffer.getChannelData(0);
+  const L = buffer.getChannelData(0), R = buffer.getChannelData(1);
+  const data = new Float32Array(L.length * 2);
+  for (let i = 0; i < L.length; i++) { data[i * 2] = L[i]; data[i * 2 + 1] = R[i]; }
   const out = new DataView(new ArrayBuffer(44 + data.length * 2));
   const str = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
   str(0, 'RIFF'); out.setUint32(4, 36 + data.length * 2, true); str(8, 'WAVE');
-  str(12, 'fmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
-  out.setUint32(24, RATE, true); out.setUint32(28, RATE * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true);
+  str(12, 'fmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 2, true);
+  out.setUint32(24, RATE, true); out.setUint32(28, RATE * 4, true); out.setUint16(32, 4, true); out.setUint16(34, 16, true);
   str(36, 'data'); out.setUint32(40, data.length * 2, true);
   let peak = 0, sum = 0;
   for (let i = 0; i < data.length; i++) {
@@ -29,29 +32,45 @@ function wav(buffer) {
 async function renderEffects() {
   const report = {};
   for (const name of EFFECT_NAMES) {
-    const off = new OfflineAudioContext(1, RATE * 2, RATE);
+    const off = new OfflineAudioContext(2, RATE * 2, RATE);
     useOfflineContext(off);
-    playAtTime(name, 0.02, { chain: 3, tier: 3, i: 1, hard: 0.8 });
+    playAtTime(name, 0.02, { chain: 6, size: 5, tier: 4, i: 2, hard: 0.8, kind: 'bomb' });
     const buf = await off.startRendering();
-    const d = buf.getChannelData(0);
-    let peak = 0; for (const v of d) peak = Math.max(peak, Math.abs(v));
+    let peak = 0;
+    for (let ch = 0; ch < 2; ch++) for (const v of buf.getChannelData(ch)) peak = Math.max(peak, Math.abs(v));
     report[name] = +peak.toFixed(3);
   }
   const plan = [];
   let t = 0.3;
-  for (const name of EFFECT_NAMES) { plan.push([name, t, {}]); t += name === 'win' || name === 'fanfare' || name === 'lose' ? 2 : 1; }
-  // A climbing chain of pops, as in a cascade.
-  for (let c = 1; c <= 8; c++) { plan.push(['pop', t, { chain: c }]); t += 0.22; }
-  const off = new OfflineAudioContext(1, Math.ceil(RATE * (t + 1)), RATE);
+  const variants = {
+    match: [{ size: 3 }, { size: 4 }, { size: 5 }],
+    sparkle: [{ kind: 'stripe' }, { kind: 'wrapped' }, { kind: 'bomb' }],
+    zap: [{ dir: 'row' }, { dir: 'col' }],
+    cheer: [{ tier: 1 }, { tier: 2 }, { tier: 3 }, { tier: 4 }],
+    star: [{ i: 0 }, { i: 1 }, { i: 2 }],
+  };
+  for (const name of EFFECT_NAMES) {
+    for (const opts of variants[name] ?? [{}]) {
+      plan.push([name, t, opts]);
+      t += name === 'win' || name === 'fanfare' || name === 'lose' ? 2.2 : name === 'cheer' ? 1.4 : 0.9;
+    }
+  }
+  // A cascade: matches climbing the scale, pops panned across the board.
+  for (let c = 1; c <= 8; c++) {
+    plan.push(['match', t, { chain: c, x: (c % 3) - 1 }]);
+    for (let k = 0; k < 3; k++) plan.push(['pop', t + k * 0.035, { x: (c % 3) - 1 }]);
+    t += 0.42;
+  }
+  const off = new OfflineAudioContext(2, Math.ceil(RATE * (t + 1)), RATE);
   useOfflineContext(off);
   for (const [name, at, opts] of plan) playAtTime(name, at, opts);
-  return { report, order: plan.map((p) => `${p[1].toFixed(1)}s ${p[0]}`), file: wav(await off.startRendering()) };
+  return { report, order: plan.map((p) => `${p[1].toFixed(1)}s ${p[0]}${Object.keys(p[2]).length ? ' ' + JSON.stringify(p[2]) : ''}`), file: wav(await off.startRendering()) };
 }
 
 async function renderSong(mood) {
-  const off = new OfflineAudioContext(1, RATE * 20, RATE);
+  const off = new OfflineAudioContext(2, RATE * 27, RATE);
   const bus = useOfflineContext(off);
-  renderMusic(off, bus, mood, 19.5);
+  renderMusic(off, bus, mood, 26.5);
   return wav(await off.startRendering());
 }
 

@@ -250,19 +250,27 @@ export class Renderer {
       else blastAt.push(blastAt[i - 1] + gap);
     });
     const jobs = [];
+    // Stereo position of a cell for the sound: -1 left edge, 1 right edge.
+    const panAt = (at) => (this.board.cols > 1 ? (at[1] / (this.board.cols - 1)) * 2 - 1 : 0);
+
+    // One chime per step for the matches, climbing with the cascade.
+    if (step.groups.length) {
+      const size = Math.max(...step.groups.map((g) => g.cells.length));
+      this.cue('match', { chain, size, x: panAt(step.groups[0].cells[1] ?? step.groups[0].cells[0]) });
+    }
 
     step.blasts.forEach((b, i) => {
       if (b.kind === 'bolts') {
         b.targets.forEach((to, j) => {
           this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 480 });
-          later(blastAt[i] + j * boltGap(b), 'bolt');
+          later(blastAt[i] + j * boltGap(b), 'bolt', { x: panAt(to) });
         });
       } else if (b.kind === 'area') {
         this.effects.push({ ...b, born: t0 + blastAt[i] + WINDUP_MS, life: EXPLOSION_MS });
         jobs.push(this.detonate(b, blastAt[i]));
       } else {
         this.effects.push({ ...b, born: t0 + blastAt[i], life: b.kind === 'board' ? 500 : BEAM_MS });
-        later(blastAt[i], b.kind === 'board' ? 'boom' : 'zap');
+        later(blastAt[i], b.kind === 'board' ? 'boom' : 'zap', { dir: b.kind, x: b.at ? panAt(b.at) : 0 });
       }
     });
     this.requestDraw();
@@ -292,7 +300,7 @@ export class Renderer {
         last = Math.max(last, at);
         if (!b) this.effects.push({ kind: 'spark', at: c.at, born: t0 + at, life: 420 });
         jobs.push(sleep(at).then(() => {
-          this.cue('morph', { i: n });
+          this.cue('morph', { i: n, x: panAt(c.at) });
           return this.morph(v);
         }));
       });
@@ -334,7 +342,7 @@ export class Renderer {
       jobs.push(sleep(delayFor(x)).then(() => {
         const { x: px, y: py } = this.center(...x.at);
         this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 4 : 8);
-        this.cue('pop', { chain, size: step.cleared.length / 3 });
+        this.cue('pop', { x: panAt(x.at) });
         if (!v) return;
         // Squish, flash white and swell, then shrink away.
         this.jiggle(v, 0.14);
@@ -361,7 +369,7 @@ export class Renderer {
       jobs.push(sleep(x ? delayFor(x) : 0).then(() => {
         this.jellyShown.delete(k);
         this.effects.push({ kind: 'jelly', at: h.at, left: h.left, born: performance.now(), life: 480 });
-        this.cue('foam');
+        this.cue('foam', { x: panAt(h.at) });
         this.requestDraw();
       }));
     }
@@ -370,7 +378,7 @@ export class Renderer {
     for (const m of step.created) {
       const v = this.visuals.get(m.candy.id);
       if (v) jobs.push(this.pop(v));
-      this.cue('sparkle');
+      this.cue('sparkle', { kind: m.special === 'bomb' ? 'bomb' : m.special === 'wrapped' ? 'wrapped' : 'stripe', x: panAt(m.at) });
     }
 
     await Promise.all(jobs);
@@ -423,13 +431,14 @@ export class Renderer {
     await sleep(delay);
     const cand = this.board.get(...blast.at);
     const v = cand && this.visuals.get(cand.id);
-    this.cue('windup');
+    const x = this.board.cols > 1 ? (blast.at[1] / (this.board.cols - 1)) * 2 - 1 : 0;
+    this.cue('windup', { x });
     if (v) await this.tween(WINDUP_MS, (k) => (v.scale = 1 + 0.4 * k), ease.inQuad);
-    this.cue('boom');
+    this.cue('boom', { x });
     if (v && v.candy.special === 'wrappedLit') v.scale = 1;
-    const { x, y } = this.center(...blast.at);
+    const { x: px, y } = this.center(...blast.at);
     const colors = ['#ffffff', '#ff3d8b', '#ff8a1f', '#ffe14d'];
-    for (let i = 0; i < 26; i++) this.burst(x, y, colors[i % colors.length], 1, 0.12 + Math.random() * 0.16);
+    for (let i = 0; i < 26; i++) this.burst(px, y, colors[i % colors.length], 1, 0.12 + Math.random() * 0.16);
     this.shake = { born: performance.now(), life: 320, amp: 3 + blast.radius * 2 };
     this.requestDraw();
   }
