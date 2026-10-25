@@ -397,16 +397,24 @@ const RECIPES = {
   tick: () => {
     knock(900, { vol: 0.03 });
   },
-  // Level won: a sunny marimba and plucked tune that lands on a chord.
+  // Level won: a bright rising "da-da-da-DA, da-da-da-DAA" that lands on
+  // a big, open C major chord with a marimba roll.
   win: () => {
-    const mel = [[0, 0], [4, 0.15], [7, 0.3], [12, 0.45], [9, 0.66], [12, 0.81], [16, 0.96]];
+    const mel = [[0, 0], [4, 0.12], [7, 0.24], [12, 0.36], [7, 0.54], [12, 0.66], [16, 0.78], [19, 0.9]];
     for (const [n, at] of mel) {
       mallet(semi(n), at, { dur: 0.6, vol: 0.13 });
-      pizz(semi(n - 12), at, { vol: 0.14 });
+      pizz(semi(n - 12), at, { vol: 0.12 });
     }
-    [0, 4, 7].forEach((n) => horn(semi(n - 12), 0.96, { dur: 1.2, vol: 0.05 }));
-    pizz(65.41, 0.96, { vol: 0.3, dur: 0.8 });
-    bubbles({ at: 1, count: 5, spread: 0.5 });
+    const land = 1.08;
+    // A marimba roll on the chord, fading out.
+    for (let k = 0; k < 9; k++) {
+      [12, 16, 19, 24].forEach((n, i) => mallet(semi(n), land + k * 0.07 + i * 0.012, { dur: 0.4, vol: 0.09 * (1 - k / 10) }));
+    }
+    // Horns spread wide with the major third on top, so it rings bright.
+    [-12, -5, 0, 4, 7].forEach((n) => horn(semi(n), land, { dur: 1.3, vol: 0.045, bright: 1800 }));
+    pizz(semi(-24), land, { vol: 0.28, dur: 0.9 });
+    pizz(semi(-12), land, { vol: 0.16, dur: 0.9 });
+    bubbles({ at: land + 0.1, count: 6, spread: 0.6 });
   },
   // Out of moves: a droopy, gentle "aww" — slipping down in minor.
   lose: () => {

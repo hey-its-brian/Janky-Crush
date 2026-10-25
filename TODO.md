@@ -63,6 +63,10 @@
 
 ## Tuning to revisit
 
+- [ ] Announcer voice: on hold. Silent on the iPhone home-screen app so
+      far; Settings has a Test voice button to check it. Should work in the
+      native app.
+
 - [ ] The host hopping along the map to the next level after a win.
 
 - [ ] Gravity, bounce and jelly wobble feel right for now (constants at
