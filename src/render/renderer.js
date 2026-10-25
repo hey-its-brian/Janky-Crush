@@ -835,7 +835,7 @@ export class Renderer {
         if (!board.mask[r][c]) continue;
         const x = PAD + c * this.pitch, y = PAD + r * this.pitch;
         // Frosted glass tiles: the scene behind shows through the board.
-        ctx.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.34)';
+        ctx.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.24)';
         ctx.beginPath();
         ctx.roundRect(x, y, this.cell, this.cell, 9);
         ctx.fill();

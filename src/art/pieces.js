@@ -66,9 +66,12 @@ const FRUITS = {
   // Green apple
   g: () => {
     const g = id('ap');
-    return svg(shade(g, '#eaffb8', '#74d63c', '#2b8212'),
+    // Deeper green with a bright yellow-green highlight and a dark outline,
+    // so it doesn't melt into the green hills behind the glass.
+    return svg(shade(g, '#f4ffa8', '#3fbf2a', '#0f5c08'),
       SHADOW +
-      `<path d="M50 34 C44 26 30 24 21 32 C11 42 13 63 21 75 C29 87 41 91 50 87 C59 91 71 87 79 75 C87 63 89 42 79 32 C70 24 56 26 50 34Z" fill="url(#${g})" stroke="#1d6b0c" stroke-width="2.5"/>` +
+      `<path d="M50 34 C44 26 30 24 21 32 C11 42 13 63 21 75 C29 87 41 91 50 87 C59 91 71 87 79 75 C87 63 89 42 79 32 C70 24 56 26 50 34Z" fill="url(#${g})" stroke="#0b4506" stroke-width="3.2"/>` +
+      `<path d="M66 76 C72 70 76 62 77 54" stroke="#0f5c08" stroke-width="3" fill="none" stroke-linecap="round" opacity=".35"/>` +
       `<path d="M50 34 C50 26 52 20 56 15" stroke="#6b3d14" stroke-width="4" fill="none" stroke-linecap="round"/>` +
       leaf('M55 22 C62 11 77 13 79 19 C71 26 61 28 55 22Z') +
       gloss(32, 50, 7, 12, -20));
@@ -219,7 +222,8 @@ export function pup() {
     `<ellipse cx="50" cy="66" rx="27" ry="17" fill="url(#${sn})"/>` +
     `<rect x="38" y="55" width="24" height="10" rx="5" fill="#4a2512"/>` +
     `<ellipse cx="46" cy="57" rx="4" ry="1.5" fill="#fff" opacity=".35"/>` +
-    `<path d="M45 72 Q47.5 75 50 72 Q52.5 75 55 72" stroke="#5a2a10" stroke-width="1.8" fill="none" stroke-linecap="round"/>` +
+    `<path d="M43 71 Q50 73.5 57 71 Q56 79 50 79 Q44 79 43 71Z" fill="#b8344d" stroke="#5a2a10" stroke-width="1.5" stroke-linejoin="round"/>` +
+    `<path d="M46 76.5 Q50 74.5 54 76.5 Q52.5 78.5 50 78.5 Q47.5 78.5 46 76.5Z" fill="#ff8fa6"/>` +
     eye(31) + eye(69) +
     `<ellipse cx="22" cy="62" rx="7" ry="4.2" fill="#ff8fae" opacity=".55"/>` +
     `<ellipse cx="78" cy="62" rx="7" ry="4.2" fill="#ff8fae" opacity=".55"/>` +

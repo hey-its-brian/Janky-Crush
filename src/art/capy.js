@@ -47,7 +47,9 @@ export function capy(pose = 'idle') {
       `<path d="M103 132 Q110 128 117 132 Q114 137 110 137 Q106 137 103 132Z" fill="#ff8fa6"/>`
     : worried
       ? `<path d="M100 128 Q105 124 110 128 Q115 132 120 128" stroke="#5a2a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>`
-      : `<path d="M100 122 Q105 128 110 122 Q115 128 120 122" stroke="#5a2a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+      // A wide, happy open smile (a tiny mouth read as a frown).
+      : `<path d="M95 120 Q110 125 125 120 Q123 135 110 135 Q97 135 95 120Z" fill="#b8344d" stroke="#5a2a10" stroke-width="2.5" stroke-linejoin="round"/>` +
+        `<path d="M101 129.5 Q110 125.5 119 129.5 Q116 134 110 134 Q104 134 101 129.5Z" fill="#ff8fa6"/>`;
 
   // A stubby tapered limb from a shoulder (hidden under the head) out to a
   // round paw, so it grows out of the body instead of sitting on top.
