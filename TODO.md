@@ -20,11 +20,13 @@
       chain, zaps, booms, lightning, splashes, quacks, jingles, win and lose
       tunes), a tropical music loop (calmer on the map), haptic taps (iOS 18+
       switch trick, vibration on Android), and Settings switches for each.
-- [x] **Sweet-shop sound pass.** Glassy chimes and a candy crunch for every
-      match, climbing the scale through a cascade; new sounds for each
-      special forming and firing; reverb and left/right placement; a deep
-      announcer voice for the callouts (with its own switch); slow,
-      calm music: bossa nova on the map, slow reggae one-drop in levels.
+- [x] **Island sound pass.** Coconut knocks, marimba and water (bubbles,
+      splashes, rushes) for matches and specials, climbing the scale through
+      a cascade; soft on top, quieter overall, sitting under the music;
+      reverb and left/right placement; a deep announcer voice for the
+      callouts (with its own switch); a slow, calm "um-pa-pa" in 3/4 with
+      guitar, bass and vibraphone (levels add piano, light drums and
+      melodica).
 - [ ] **Phase 4: Coins, lives and boosters.**
   - Coins earned from stars, level clears, leftover moves and a daily bonus.
   - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run

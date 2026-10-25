@@ -175,7 +175,7 @@ export function vibes(ctx, out, freq, t, { dur = 2, vol = 0.1 } = {}) {
   g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   g.connect(trem).connect(out);
-  for (const [mult, v] of [[1, 1], [4, 0.12]]) {
+  for (const [mult, v] of [[1, 1], [4, 0.05]]) {
     const o = ctx.createOscillator();
     const pg = ctx.createGain();
     o.frequency.value = freq * mult;
@@ -240,4 +240,35 @@ export function softBass(ctx, out, freq, t, { dur = 0.6, vol = 0.3 } = {}) {
     o.start(t);
     o.stop(t + dur + 0.05);
   }
+}
+
+// Marimba: a warm wooden bar, a pure tone with a short hollow "tock".
+export function marimba(ctx, out, freq, t, { dur = 0.6, vol = 0.15 } = {}) {
+  for (const [mult, v, d] of [[1, 1, 1], [4, 0.25, 0.12]]) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.value = freq * mult;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol * v, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur * d);
+    o.connect(g).connect(out);
+    o.start(t);
+    o.stop(t + dur * d + 0.05);
+  }
+}
+
+// A lowpass in front of an output: keeps a whole bus warm and soft.
+const softeners = new WeakMap();
+export function softened(ctx, out, cutoff) {
+  let m = softeners.get(out);
+  if (!m) softeners.set(out, (m = new Map()));
+  if (!m.has(cutoff)) {
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = cutoff;
+    f.Q.value = 0.5;
+    f.connect(out);
+    m.set(cutoff, f);
+  }
+  return m.get(cutoff);
 }
