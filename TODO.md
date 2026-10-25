@@ -42,9 +42,10 @@
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
       feature-complete. Wrap it with Capacitor so the same code runs as a
       real app, and install through TestFlight internal testing (no App
-      Review; each build lasts 90 days, so upload a fresh one before then). Brings full haptics on matches and explosions,
-      saves that don't vanish with the home-screen icon, and a proper app
-      icon and launch screen.
+      Review; each build lasts 90 days, so upload a fresh one before then).
+      Brings full haptics on matches and explosions, saves that don't
+      vanish with the home-screen icon, and a proper app icon and launch
+      screen.
 
 ## Themes
 
