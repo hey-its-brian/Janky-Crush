@@ -440,3 +440,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .tap-switch.hidden-switch { position: fixed; inset: auto; left: -10px; top: -10px; width: 1px; height: 1px; pointer-events: none; }
 .tap-label { display: block; }
 .no-haptics .tap-switch { pointer-events: none; }
+
+.voice-test { display: flex; align-items: center; gap: 12px; margin: -2px 4px 8px; }
+.btn.small { min-height: 42px; font-size: 17px; padding: 0 14px; border-width: 3px; border-radius: 16px; flex: none; box-shadow: 0 4px 0 #a35300; }
+.voice-info { font-size: 13px; line-height: 1.3; text-align: left; }

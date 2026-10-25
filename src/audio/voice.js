@@ -1,7 +1,11 @@
 // The announcer: the phone's own text-to-speech, pitched low and slowed
 // down so the callouts sound big and dramatic. Picks a deep English voice
-// if the phone has one. Like audio, iPhones only let it speak after a tap,
-// so primeVoice() runs on the first touch.
+// if the phone has one.
+//
+// iPhones only let a page speak once it has spoken during a tap, so
+// primeVoice() speaks a silent word on touches until one has really
+// started. Safari also drops an utterance spoken right after cancel(), and
+// can lose one that nothing holds on to, so both are guarded against.
 
 import { getSetting } from '../settings.js';
 
@@ -11,6 +15,8 @@ const PREFER = ['Rocko', 'Reed', 'Daniel', 'Aaron', 'Fred', 'Ralph', 'Eddy', 'Ar
 
 let voice = null;
 let primed = false;
+let current = null; // keeps the utterance alive until it finishes
+let lastError = '';
 
 function pickVoice() {
   const all = synth.getVoices().filter((v) => /^en/i.test(v.lang));
@@ -24,23 +30,53 @@ function pickVoice() {
 if (synth) synth.addEventListener?.('voiceschanged', () => (voice = null));
 
 export function primeVoice() {
-  if (primed || !synth) return;
-  primed = true;
-  const u = new SpeechSynthesisUtterance(' ');
+  if (primed || !synth || current) return;
+  const u = new SpeechSynthesisUtterance('ready');
   u.volume = 0;
+  u.onstart = u.onend = () => {
+    primed = true;
+    current = null;
+  };
+  u.onerror = () => (current = null);
+  current = u;
   synth.speak(u);
 }
 
-export function announce(text) {
-  if (!synth || !getSetting('voice')) return;
-  synth.cancel();
+function say(text) {
   voice ??= pickVoice();
   const u = new SpeechSynthesisUtterance(text);
   if (voice) u.voice = voice;
+  u.lang = voice?.lang ?? 'en-US';
   u.pitch = 0.5;
   u.rate = 0.8;
   u.volume = 1;
+  u.onstart = () => (primed = true);
+  u.onend = () => current === u && (current = null);
+  u.onerror = (e) => {
+    lastError = e.error || 'error';
+    if (current === u) current = null;
+  };
+  current = u;
   synth.speak(u);
+}
+
+// Speak a callout. `force` ignores the Settings switch (for the test button).
+export function announce(text, force = false) {
+  if (!synth || (!force && !getSetting('voice'))) return;
+  if (synth.speaking || synth.pending) {
+    synth.cancel();
+    setTimeout(() => say(text), 80);
+  } else {
+    say(text);
+  }
+}
+
+// What the announcer is using, for the Settings screen.
+export function voiceInfo() {
+  if (!synth) return 'This browser has no speech';
+  voice ??= pickVoice();
+  const v = voice ? `${voice.name} (${voice.lang})` : 'no English voice found';
+  return `Voice: ${v}${lastError ? ` · last error: ${lastError}` : ''}`;
 }
 
 // Don't keep talking while the app is in the background.

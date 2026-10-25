@@ -7,7 +7,7 @@ import { capy } from './art/capy.js';
 import { ducky, striped, wrapped, bomb } from './art/pieces.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic } from './audio/music.js';
-import { announce, primeVoice } from './audio/voice.js';
+import { announce, primeVoice, voiceInfo } from './audio/voice.js';
 import { haptic, tactile } from './audio/haptics.js';
 import { getSetting, setSetting } from './settings.js';
 
@@ -278,6 +278,18 @@ function showPause() {
   ], { host: 'idle', stack: true });
 }
 
+// Says a callout right away (inside the tap, which iPhones like best) and
+// shows which voice is in use, to check the announcer works.
+function voiceTest() {
+  const info = el('small', { class: 'muted voice-info', text: voiceInfo() });
+  const btn = el('button', { class: 'btn orange toon small', type: 'button', text: 'Test voice' });
+  btn.addEventListener('click', () => {
+    announce('Juicy!', true);
+    setTimeout(() => (info.textContent = voiceInfo()), 1500);
+  });
+  return el('div', { class: 'voice-test' }, btn, info);
+}
+
 // Sound, music, voice and haptics switches. `back` reopens whatever came before.
 function showSettings(back = closeDialog) {
   const toggle = (key, name, note) => {
@@ -295,7 +307,8 @@ function showSettings(back = closeDialog) {
   openDialog('Settings', [
     toggle('sfx', 'Sound effects'),
     toggle('music', 'Music'),
-    toggle('voice', 'Announcer voice', 'The phone\u2019s own voice; may speak even on silent'),
+    toggle('voice', 'Announcer voice', 'Uses the phone\u2019s built-in voice'),
+    voiceTest(),
     toggle('haptics', 'Haptics', 'On iPhone, a light tick when you tap'),
   ], [button('Done', back)], { host: 'idle', stack: true });
 }
