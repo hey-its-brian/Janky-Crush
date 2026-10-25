@@ -197,6 +197,39 @@ function whee(at = 0) {
   tone({ type: 'triangle', freq: 330, to: 780, dur: 0.22, vol: 0.1, at, attack: 0.02 });
 }
 
+// Electric crackle: a burst of tiny sparks of noise.
+function crackle({ at = 0, vol = 0.15, count = 6, spread = 0.09 } = {}) {
+  for (let i = 0; i < count; i++) {
+    noise({ type: 'bandpass', freq: 1400 + Math.random() * 2400, q: 3, dur: 0.008 + Math.random() * 0.014, vol: vol * (0.5 + Math.random() * 0.5), attack: 0.001, at: at + Math.random() * spread });
+  }
+}
+
+// A buzzing electric zap: a sawtooth diving in pitch while a fast square
+// wave rattles it, like a spark jumping.
+function zapBuzz(freq, { at = 0, vol = 0.14, dur = 0.14 } = {}) {
+  const t = T(at);
+  const o = ctx.createOscillator();
+  const buzz = ctx.createOscillator();
+  const depth = ctx.createGain();
+  const f = ctx.createBiquadFilter();
+  const g = ctx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(freq * 3, t);
+  o.frequency.exponentialRampToValueAtTime(freq, t + dur);
+  buzz.type = 'square';
+  buzz.frequency.value = 70 + Math.random() * 30;
+  depth.gain.value = freq * 0.6;
+  buzz.connect(depth).connect(o.frequency);
+  f.type = 'lowpass';
+  f.frequency.value = 3200;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(f).connect(g).connect(dest);
+  o.start(t); buzz.start(t);
+  o.stop(t + dur + 0.05); buzz.stop(t + dur + 0.05);
+}
+
 let boltRun = 0;
 let boltLast = -1;
 
@@ -276,15 +309,17 @@ const RECIPES = {
     bubbles({ at: 0.15, count: 6, spread: 0.45, vol: 0.06 });
   },
   // One color-bomb bolt: a water drop "plip" and a tap.
-  // Each one lands a note higher up a happy scale, so a whole bomb plays a
-  // rising run.
+  // One color-bomb lightning bolt: a buzzing electric zap with crackle and
+  // a low jolt. Each lands a step higher, so a whole bomb climbs a scale.
   bolt: () => {
     const now = T();
     boltRun = now - boltLast > 0.6 ? 0 : boltRun + 1;
     boltLast = now;
     const f = major(boltRun % 12, C4);
-    mallet(f, 0, { dur: 0.5, vol: 0.12 });
-    bloop(f * 0.75, { vol: 0.07, dur: 0.06 });
+    zapBuzz(f, { vol: 0.19 });
+    crackle({ vol: 0.2 });
+    tone({ type: 'square', freq: 120, to: 50, dur: 0.1, vol: 0.07 });
+    mallet(f, 0.02, { dur: 0.4, vol: 0.07 });
   },
   // A piece turning into a special: the marimba climbs, one step each.
   morph: ({ i = 0 } = {}) => {
