@@ -37,14 +37,14 @@
   - Start screen with two save files: **Normal** and **Easy**. The mode is
     picked when a save starts and can't be changed later. Easy has
     unlimited lives. Each save keeps its own levels, coins and boosters.
-- [ ] **Native iPhone app (not listed in any store).** Wrap the game with
-      Capacitor so the same code runs as a real app. Install with Xcode on
-      the Mac, or through TestFlight internal testing (no App Review; each
-      build lasts 90 days). Brings full haptics on matches and explosions,
-      saves that don't vanish with the home-screen icon, and a proper app
-      icon and launch screen.
 - [ ] **Phase 5+: Level packs** of 15–30, each adding a blocker (frosting,
       chocolate, licorice, bombs, portals, conveyors).
+- [ ] **Native iPhone app (not listed in any store)**, once the game is
+      feature-complete. Wrap it with Capacitor so the same code runs as a
+      real app, and install through TestFlight internal testing (no App
+      Review; each build lasts 90 days, so upload a fresh one before then). Brings full haptics on matches and explosions,
+      saves that don't vanish with the home-screen icon, and a proper app
+      icon and launch screen.
 
 ## Themes
 
