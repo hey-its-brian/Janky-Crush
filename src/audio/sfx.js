@@ -325,6 +325,21 @@ const RECIPES = {
   morph: ({ i = 0 } = {}) => {
     mallet(major(i % 10, C4), 0, { dur: 0.5, vol: 0.13 });
   },
+  // The Smash booster: a big wooden mallet "THOK" on a coconut.
+  smash: () => {
+    knock(180, { vol: 0.32 });
+    knock(360, { vol: 0.14, at: 0.01 });
+    tone({ freq: 110, to: 45, dur: 0.25, vol: 0.35 });
+    noise({ type: 'lowpass', freq: 1400, to: 200, dur: 0.25, vol: 0.2, attack: 0.002 });
+    bubbles({ at: 0.1, count: 3 });
+  },
+  // Buying something: two bright coin clinks.
+  coin: () => {
+    knock(1050, { vol: 0.12 });
+    mallet(semi(19), 0.01, { dur: 0.5, vol: 0.12 });
+    knock(1250, { vol: 0.1, at: 0.09 });
+    mallet(semi(24), 0.1, { dur: 0.7, vol: 0.12 });
+  },
   // Foam bursting: a soft bubble.
   foam: () => {
     bloop(240 + Math.random() * 120, { vol: 0.16, dur: 0.08 });

@@ -19,6 +19,25 @@ export function* playTurn(board, state, a, b) {
   yield* settle(board, state, step);
 }
 
+// Boosters. None of them uses up a move.
+
+// Smash one piece (checked with board.smashStep returning a step).
+export function* playSmash(board, state, at) {
+  const step = board.smashStep(at);
+  if (!step) return;
+  yield* settle(board, state, step);
+}
+
+// Swap any two neighbors. If they make a match or a combo it resolves as
+// usual; if not, they just trade places.
+export function* playSwitch(board, state, a, b) {
+  const combo = board.isComboSwap(a, b);
+  board.swap(a, b);
+  const step = combo ? board.comboStep(a, b) : board.resolveStep({ from: a, to: b });
+  if (step) yield* settle(board, state, step);
+  else if (!board.findPossibleMove()) yield { type: 'shuffle', moves: board.shuffle() };
+}
+
 // The end-of-level bonus: every leftover move becomes a striped candy, and
 // every special on the board fires, until nothing special is left.
 export function* bonusRound(board, state) {

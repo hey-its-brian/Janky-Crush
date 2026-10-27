@@ -17,12 +17,32 @@
 </head>
 <body>
 
+<!-- Start screen: pick a save file -->
+<section id="title-screen" class="title-screen" aria-label="Choose a save" hidden>
+  <div class="title-inner">
+    <h1 class="logo toon"><span>Janky</span><span>Crush</span></h1>
+    <div id="title-host" class="title-host" aria-hidden="true"></div>
+    <div id="save-cards" class="save-cards"></div>
+  </div>
+</section>
+
 <!-- Level map -->
 <section id="map-screen" class="map-screen" aria-label="Level map">
   <div id="map-scroll" class="map-scroll">
     <div id="map" class="map-world"></div>
   </div>
   <header class="topbar">
+    <button id="home" class="round-btn small-round" type="button" aria-label="Save files">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5 12 4l8.5 7.5" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 10v9.5h11V10" fill="none" stroke="#fff" stroke-width="2.8" stroke-linejoin="round"/></svg>
+    </button>
+    <button id="lives-pill" class="pill pill-btn" type="button" aria-label="Lives">
+      <i class="pill-icon" id="heart-icon" aria-hidden="true"></i>
+      <span class="pill-stack"><b id="lives-count">5</b><small id="lives-timer">Full</small></span>
+    </button>
+    <button id="coins-pill" class="pill pill-btn" type="button" aria-label="Coins and shop">
+      <i class="pill-icon" id="coin-icon" aria-hidden="true"></i>
+      <span id="coins-count">0</span>
+    </button>
     <div class="pill" aria-label="Stars collected">
       <i class="star-icon" aria-hidden="true"></i>
       <span id="total-stars">0</span>
@@ -75,6 +95,7 @@
   <div class="host-row">
     <div id="host" class="host"></div>
     <div id="host-bubble" class="bubble" hidden></div>
+    <div id="boosters" class="boosters" aria-label="Boosters"></div>
   </div>
 </main>
 

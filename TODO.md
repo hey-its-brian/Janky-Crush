@@ -28,15 +28,13 @@
       guitar, piano, bass, light drums and melodica, on every screen.
       Happy marimba runs when specials go off. iPhone haptics on real taps
       (buttons and the board), since newer iOS blocks haptics from code.
-- [ ] **Phase 4: Coins, lives and boosters.**
-  - Coins earned from stars, level clears, leftover moves and a daily bonus.
-  - Spend coins on boosters (Smash, Switch, Shuffle), +5 moves when you run
-    out, and early life refills.
-  - Lives work like the original: lose one on a failed level, refill on a
-    timer.
-  - Start screen with two save files: **Normal** and **Easy**. The mode is
-    picked when a save starts and can't be changed later. Easy has
-    unlimited lives. Each save keeps its own levels, coins and boosters.
+- [x] **Phase 4: Coins, lives and boosters.** Start screen with separate
+      Normal and Easy save files (Easy has unlimited lives). Coins from
+      wins, new stars, leftover moves and a daily bonus; spent on Smash,
+      Switch and Shuffle boosters, +5 moves when you run out, and life
+      refills. Lives like the original: five, one back every 30 minutes,
+      lost on a failed level or on giving up after a move. Prices and
+      payouts are at the top of `src/save.js`.
 - [ ] **Phase 5+: Level packs** of 15–30, each adding a blocker (frosting,
       chocolate, licorice, bombs, portals, conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
@@ -62,6 +60,9 @@
 - [ ] Full haptics on matches and explosions (comes with the native app).
 
 ## Tuning to revisit
+
+- [ ] Coin prices and payouts (top of `src/save.js`): check after some
+      real play that coins feel neither tight nor endless.
 
 - [ ] Announcer voice: on hold. Silent on the iPhone home-screen app so
       far; Settings has a Test voice button to check it. Should work in the

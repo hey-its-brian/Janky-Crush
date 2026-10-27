@@ -1,17 +1,18 @@
 // Plays one level: takes swaps, runs each turn's events (from
 // engine/turn.js) through the renderer one at a time, and ends the level
-// with the bonus round. Also owns touch input.
+// with the bonus round. Also owns touch input and the in-level boosters
+// (Smash, Switch, Shuffle); paying for things is up to the caller.
 
 import { Board } from './engine/board.js';
 import { setupBoard, LevelState } from './engine/level.js';
-import { playTurn, bonusRound } from './engine/turn.js';
+import { playTurn, bonusRound, playSmash, playSwitch } from './engine/turn.js';
 import { Renderer, BONUS_GAP_MAX, BONUS_TOTAL_MAX } from './render/renderer.js';
 import { makeRng } from './rng.js';
 import { play } from './audio/sfx.js';
 import { haptic } from './audio/haptics.js';
 
 // Which sounds also get a haptic tap, and how strong.
-const HAPTIC = { match: 1, swap: 1, boing: 1, zap: 1, boom: 2, bolt: 1, splash: 2, sparkle: 1 };
+const HAPTIC = { smash: 2, match: 1, swap: 1, boing: 1, zap: 1, boom: 2, bolt: 1, splash: 2, sparkle: 1 };
 
 const HINT_AFTER_MS = 6000;
 // Callouts as a chain grows (cascade number → word).
@@ -21,13 +22,17 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export class Game {
   // onChange(hud) after anything the HUD shows changes; onBanner(text) to
   // flash a big message; onCallout(text) for a combo shout; onEnd(result)
-  // when the level is over.
-  constructor(canvas, { onChange, onBanner, onCallout = () => {}, onEnd }) {
+  // when the level is over. onOutOfMoves() resolves to a number of extra
+  // moves (0 to give up). onBooster(name) after a booster has been used.
+  constructor(canvas, { onChange, onBanner, onCallout = () => {}, onEnd, onOutOfMoves = async () => 0, onBooster = () => {} }) {
     this.canvas = canvas;
     this.onChange = onChange;
     this.onBanner = onBanner;
     this.onCallout = onCallout;
     this.onEnd = onEnd;
+    this.onOutOfMoves = onOutOfMoves;
+    this.onBooster = onBooster;
+    this.armed = null; // 'smash' or 'switch' while waiting for the player to aim it
     this.busy = false;
     this.over = true;
     this.bindInput();
@@ -53,6 +58,8 @@ export class Game {
       };
     }
     this.over = false;
+    this.started = false; // has a move been made (quitting then costs a life)
+    this.armed = null;
     this.selected = null;
     this.movesShown = null;
     this.emit();
@@ -103,16 +110,89 @@ export class Game {
     }
 
     if (this.board.isComboSwap(a, b)) this.comboShout = true;
+    this.started = true;
     await r.animateSwap(a, b);
     await this.run(playTurn(this.board, this.state, a, b));
+    await this.afterTurn();
+  }
 
-    if (this.state.isOver()) {
+  // After a turn or a booster: out of moves means offering more, then
+  // finishing; otherwise wait for the next swap.
+  async afterTurn() {
+    const s = this.state;
+    if (s.moves <= 0 && !s.isComplete() && !(s.goal.type === 'score' && s.score >= s.level.stars[0])) {
+      const extra = await this.onOutOfMoves();
+      if (extra > 0) {
+        s.moves += extra;
+        this.emit();
+      }
+    }
+    if (s.isOver()) {
       await this.finish();
       this.busy = false;
       return;
     }
     this.busy = false;
     this.armHint();
+  }
+
+  // ---- boosters -------------------------------------------------------------
+
+  // Get a booster ready. Shuffle goes straight away; Smash and Switch wait
+  // for the player to aim them (call again with null to cancel). Returns
+  // whether it was accepted.
+  arm(name) {
+    if (this.busy || this.over) return false;
+    this.select(null);
+    this.renderer.setHint(null);
+    if (name === 'shuffle') {
+      this.armed = null;
+      this.useShuffle();
+      return true;
+    }
+    this.armed = name;
+    this.renderer.setAiming(name);
+    return true;
+  }
+
+  disarm() {
+    this.armed = null;
+    this.renderer?.setAiming(null);
+  }
+
+  async useShuffle() {
+    this.busy = true;
+    clearTimeout(this.hintTimer);
+    await this.renderer.animateShuffle(this.board.shuffle());
+    this.onBooster('shuffle');
+    this.busy = false;
+    this.armHint();
+  }
+
+  async useSmash(at) {
+    const probe = this.board.get(...at);
+    if (!probe || probe.special === 'ingredient') return;
+    this.busy = true;
+    this.disarm();
+    clearTimeout(this.hintTimer);
+    this.started = true;
+    await this.run(playSmash(this.board, this.state, at));
+    this.onBooster('smash');
+    await this.afterTurn();
+  }
+
+  async useSwitch(a, b) {
+    if (!this.board.canSwitch(a, b)) return;
+    this.busy = true;
+    this.disarm();
+    this.select(null);
+    clearTimeout(this.hintTimer);
+    this.started = true;
+    if (this.board.isComboSwap(a, b)) this.comboShout = true;
+    await this.renderer.animateSwap(a, b);
+    await this.run(playSwitch(this.board, this.state, a, b));
+    this.onBooster('switch');
+    await this.afterTurn();
   }
 
   // Animate each event before letting the engine compute the next.
@@ -172,7 +252,9 @@ export class Game {
   // moves into stripes and fire everything, then report the result.
   async finish() {
     this.over = true;
+    this.disarm();
     const s = this.state;
+    const movesLeft = s.moves;
     const celebrate = s.isComplete() || (s.goal.type === 'score' && s.score >= s.level.stars[0]);
     if (celebrate) {
       this.onBanner('Janky Crush!');
@@ -190,6 +272,7 @@ export class Game {
       collected: s.collected,
       target: s.level.stars[0],
       stats: s.stats,
+      movesLeft,
     });
   }
 
@@ -203,6 +286,7 @@ export class Game {
   stop() {
     clearTimeout(this.hintTimer);
     this.over = true;
+    this.disarm();
     this.renderer?.setHint(null);
     this.renderer?.setSelected(null);
   }
@@ -243,7 +327,9 @@ export class Game {
       start.swiped = true;
       const [r, col] = start.cell;
       const target = Math.abs(dx) > Math.abs(dy) ? [r, col + Math.sign(dx)] : [r + Math.sign(dy), col];
-      if (this.board.playable(...target)) this.attemptSwap(start.cell, target);
+      if (this.armed === 'smash' || !this.board.playable(...target)) return;
+      if (this.armed === 'switch') this.useSwitch(start.cell, target);
+      else this.attemptSwap(start.cell, target);
     });
 
     const end = () => {
@@ -251,9 +337,12 @@ export class Game {
       if (!start.swiped) {
         const cell = start.cell;
         const sel = this.selected;
-        if (sel && sel[0] === cell[0] && sel[1] === cell[1]) this.select(null);
-        else if (sel && Board.adjacent(sel, cell)) this.attemptSwap(sel, cell);
-        else this.select(cell);
+        if (this.armed === 'smash') this.useSmash(cell);
+        else if (sel && sel[0] === cell[0] && sel[1] === cell[1]) this.select(null);
+        else if (sel && Board.adjacent(sel, cell)) {
+          if (this.armed === 'switch') this.useSwitch(sel, cell);
+          else this.attemptSwap(sel, cell);
+        } else this.select(cell);
       }
       start = null;
     };

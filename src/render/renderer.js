@@ -95,6 +95,7 @@ export class Renderer {
     this.jellyShown = new Map();
     this.selected = null;
     this.hint = null;
+    this.aiming = null; // a booster waiting for a target: the board glows
     this.running = false;
     this.resize();
     this.sync();
@@ -184,7 +185,7 @@ export class Renderer {
     const shaking = this.shake && now - this.shake.born < this.shake.life;
     // Specials pulse, so keep drawing while any are on the board.
     const lit = [...this.visuals.values()].some((v) => v.candy.special && v.candy.special !== 'ingredient');
-    const busy = this.jiggling.size || shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint;
+    const busy = this.jiggling.size || shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint || this.aiming;
     if (busy) requestAnimationFrame((t) => this.frame(t));
     else this.running = false;
   }
@@ -268,6 +269,11 @@ export class Renderer {
       } else if (b.kind === 'area') {
         this.effects.push({ ...b, born: t0 + blastAt[i] + WINDUP_MS, life: EXPLOSION_MS });
         jobs.push(this.detonate(b, blastAt[i]));
+      } else if (b.kind === 'smash') {
+        // The mallet: a flash and a little shake where it lands.
+        this.effects.push({ kind: 'spark', at: b.at, born: t0 + blastAt[i], life: 420 });
+        this.shake = { born: t0 + blastAt[i], life: 220, amp: 3 };
+        later(blastAt[i], 'smash', { x: panAt(b.at) });
       } else {
         this.effects.push({ ...b, born: t0 + blastAt[i], life: b.kind === 'board' ? 500 : BEAM_MS });
         later(blastAt[i], b.kind === 'board' ? 'boom' : 'zap', { dir: b.kind, x: b.at ? panAt(b.at) : 0 });
@@ -567,6 +573,11 @@ export class Renderer {
 
   setSelected(cell) {
     this.selected = cell;
+    this.requestDraw();
+  }
+
+  setAiming(name) {
+    this.aiming = name;
     this.requestDraw();
   }
 
@@ -873,6 +884,20 @@ export class Renderer {
         if (layers > 0) this.drawJelly(x, y, layers);
         if (board.isExit(r, c)) this.drawExit(x, y, now);
       }
+
+    if (this.aiming) {
+      // A golden glow around the board while a booster waits for a target.
+      const pulse = 0.5 + 0.5 * Math.sin(now / 180);
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,207,58,${0.6 + 0.4 * pulse})`;
+      ctx.shadowColor = '#ffcf3a';
+      ctx.shadowBlur = 10 + 10 * pulse;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.roundRect(3, 3, this.width - 6, this.height - 6, 22);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (this.selected) {
       const [r, c] = this.selected;

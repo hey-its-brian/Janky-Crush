@@ -5,6 +5,9 @@ screen. No real-money purchases, no ads, no accounts, no tracking: the game
 makes no network requests beyond loading its own files, and everything is
 saved on the phone.
 
+Coins are earned in the game only: from wins, new stars, leftover moves and
+a daily bonus. They buy boosters, +5 moves and life refills.
+
 Built for the iPhone 17 Pro Max. See [TODO.md](TODO.md) for the roadmap.
 
 ## Play it on your iPhone
@@ -68,15 +71,15 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | --- | --- |
 | `src/engine/board.js` | Pure board logic: matching, specials, jelly, ingredients, gravity, refill, shuffle. Tested in `test/`. |
 | `src/engine/level.js` | Level setup from a layout, and goal tracking. |
-| `src/engine/turn.js` | A turn (and the end-of-level bonus) as a sequence of events. |
-| `src/save.js` | Progress saved on the phone, per save file. |
+| `src/engine/turn.js` | A turn, a booster (Smash, Switch) and the end-of-level bonus, as sequences of events. |
+| `src/save.js` | The Normal and Easy save files: levels, coins, boosters, lives and the daily bonus, plus the coin prices and payouts. Tested in `test/save.test.js`. |
 | `src/settings.js` | Sound, music, announcer voice and haptics switches. |
 | `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
-| `src/art/` | All the art, drawn as SVG in code: fruits and specials, the capybara host, scenery. |
+| `src/art/` | All the art, drawn as SVG in code: fruits and specials, the capybara host, scenery, coin, heart and booster icons. |
 | `src/render/sprites.js` | Turns the piece art into canvas sprites for the board. |
 | `src/render/renderer.js` | Canvas drawing and animations. |
-| `src/game.js` | Plays a level: runs each turn's events through the renderer, and touch input. |
-| `src/main.js` | Screens: dialogs, HUD, the host's reactions. |
+| `src/game.js` | Plays a level: runs each turn's events through the renderer, touch input, boosters, and asking for +5 moves. |
+| `src/main.js` | Screens: start screen, map bar, shop, lives, dialogs, HUD, the host's reactions. |
 | `src/ui/` | The level map and the animated hot-spring scene. |
 | `src/levels.js`, `src/level-tuning.js` | Level designs, and their tuned moves and stars. |
 | `tools/tune.mjs` | The level tuner. |

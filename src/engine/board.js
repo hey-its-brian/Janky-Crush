@@ -639,6 +639,24 @@ export class Board {
     return n;
   }
 
+  // The Smash booster: knock out one piece. A special hit this way goes
+  // off as if a blast caught it. Returns a step, or null for a cell that
+  // can't be smashed (empty, off the board, or an ingredient).
+  smashStep(at) {
+    const cand = this.get(...at);
+    if (!cand || cand.special === INGREDIENT) return null;
+    const pass = this.newPass();
+    this.startBlast(pass, { kind: 'smash', at: [...at] });
+    this.mark(pass, ...at);
+    this.runPass(pass);
+    return this.commit(pass, []);
+  }
+
+  // The Switch booster: swap any two neighbors, match or not.
+  canSwitch(a, b) {
+    return Board.adjacent(a, b) && !!this.get(...a) && !!this.get(...b);
+  }
+
   // End-of-level bonus: turn `n` plain candies into stripes, and prime them
   // along with every special already on the board to fire in firePrimed().
   // Returns a step for the renderer, or null if there's nothing to fire.
