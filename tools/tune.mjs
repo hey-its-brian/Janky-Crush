@@ -30,7 +30,8 @@ export function targetWinRate(id) {
   if (id <= 15) return 0.78;
   if (id <= 20) return 0.72;
   if (id <= 25) return 0.65;
-  return 0.58;
+  if (id <= 32) return 0.6;
+  return 0.55;
 }
 
 // ---- the computer player ---------------------------------------------------
@@ -53,14 +54,17 @@ function ingredientDepth(board) {
 }
 
 // Plays like a person: judges each move only by what you can see before
-// making it (the match, any special it makes or sets off, jelly it clears,
-// how far ingredients would drop), not by cascades that follow.
+// making it (the match, any special it makes or sets off, jelly and
+// coconuts it hits, fruit it gathers, how far ingredients would drop), not
+// by cascades that follow.
 function botMove(level, board, state, rng) {
   const before = {
     jelly: board.jellyCount(),
+    blocks: board.blockCount(),
     depth: ingredientDepth(board),
     specials: specialsValue(board),
   };
+  const wanted = state.collectLeft();
   let best = null, bestValue = -Infinity;
   for (let r = 0; r < board.rows; r++)
     for (let c = 0; c < board.cols; c++)
@@ -70,15 +74,23 @@ function botMove(level, board, state, rng) {
         const copy = board.clone(makeRng(Math.floor(rng() * 2 ** 32)));
         const combo = copy.isComboSwap(a, b);
         copy.swap(a, b);
-        let step = combo ? copy.comboStep(a, b) : copy.resolveStep({ from: a, to: b });
+        const step = combo ? copy.comboStep(a, b) : copy.resolveStep({ from: a, to: b });
         let points = step?.points ?? 0;
-        if (step?.primed) points += copy.firePrimed()?.points ?? 0;
+        const cleared = [...(step?.cleared ?? [])];
+        if (step?.primed) {
+          const fired = copy.firePrimed();
+          points += fired?.points ?? 0;
+          cleared.push(...(fired?.cleared ?? []));
+        }
         copy.applyGravity();
+        const gathered = cleared.filter((x) => wanted[x.color] > 0).length;
         // The last few jellies are worth chasing harder, as a person would.
         const jellyWeight = 400 * (1 + 6 / (before.jelly + 1));
         const value =
           points +
           jellyWeight * (before.jelly - copy.jellyCount()) +
+          350 * (1 + 4 / (before.blocks + 1)) * (before.blocks - copy.blockCount()) +
+          90 * gathered +
           250 * (ingredientDepth(copy) - before.depth) +
           (specialsValue(copy) - before.specials) +
           rng() * 40;

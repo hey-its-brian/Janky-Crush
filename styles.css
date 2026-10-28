@@ -217,6 +217,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   box-shadow: 0 10px 30px rgba(20, 70, 110, .3), inset 0 0 0 2px rgba(255, 255, 255, .35);
   touch-action: none;
 }
+/* A board with holes: the glass is cut to its shape (see Renderer.buildShape). */
+.board.shaped { border: none; border-radius: 0; box-shadow: none; }
 .callout {
   position: absolute; left: -20px; right: -20px; top: 36%; z-index: 3;
   text-align: center; pointer-events: none; font-size: 64px;
@@ -510,3 +512,15 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .price-btn[disabled] { filter: grayscale(.7); opacity: .7; }
 .balance { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 24px; }
 .coins-earned { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 26px; color: var(--ink); }
+
+/* ---- collect goals --------------------------------------------------------------- */
+
+.goal-fruits { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; row-gap: 0; }
+.goal-fruits.many { gap: 6px; }
+.goal-fruits.many .goal-icon.small { width: 26px; height: 26px; }
+.goal-fruits.many .count { font-size: 18px; }
+.goal-fruit { display: flex; align-items: center; gap: 2px; }
+.goal-icon.small { width: 34px; height: 34px; }
+.goal-fruit .count { font-family: var(--display); font-size: 24px; color: var(--ink); }
+.goal-fruit.done .count { color: var(--green); }
+.goal-fruit.done .goal-icon { animation: pulse .6s ease-in-out 1; }

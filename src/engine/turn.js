@@ -74,13 +74,19 @@ function* fall(board, state) {
   for (;;) {
     const falls = board.applyGravity();
     const spawns = board.refill();
-    yield { type: 'fall', falls, spawns };
+    const moved = falls.length || spawns.length;
+    if (moved) yield { type: 'fall', falls, spawns };
     const items = board.collectIngredients();
-    if (!items.length) return;
-    const points = items.length * POINTS_PER_INGREDIENT;
-    state.collected += items.length;
-    state.score += points;
-    yield { type: 'collect', items, points };
+    if (items.length) {
+      const points = items.length * POINTS_PER_INGREDIENT;
+      state.collected += items.length;
+      state.score += points;
+      yield { type: 'collect', items, points };
+      continue;
+    }
+    // New pieces may now be able to slide around coconuts into gaps.
+    if (moved && board.hasGaps()) continue;
+    return;
   }
 }
 

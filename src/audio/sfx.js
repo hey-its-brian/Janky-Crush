@@ -340,6 +340,17 @@ const RECIPES = {
     knock(1250, { vol: 0.1, at: 0.09 });
     mallet(semi(24), 0.1, { dur: 0.7, vol: 0.12 });
   },
+  // A coconut taking a hit: a hollow knock and a crunch; the last hit
+  // splits it with a splash.
+  crack: ({ last = false } = {}) => {
+    knock(260, { vol: 0.22 });
+    knock(390, { vol: 0.1, at: 0.015 });
+    noise({ type: 'bandpass', freq: 1800, q: 1.5, dur: 0.06, vol: 0.12, attack: 0.002 });
+    if (last) {
+      noise({ type: 'lowpass', freq: 2000, to: 300, dur: 0.3, vol: 0.18, at: 0.04 });
+      bubbles({ at: 0.06, count: 3 });
+    }
+  },
   // Foam bursting: a soft bubble.
   foam: () => {
     bloop(240 + Math.random() * 120, { vol: 0.16, dur: 0.08 });
@@ -440,7 +451,7 @@ const RECIPES = {
 };
 
 // Rate limits (ms) for effects that can pile up.
-const LIMIT = { pop: 30, land: 35, foam: 50, bolt: 30, tick: 40, morph: 30, match: 40 };
+const LIMIT = { crack: 40, pop: 30, land: 35, foam: 50, bolt: 30, tick: 40, morph: 30, match: 40 };
 const lastPlayed = {};
 
 export function play(name, opts) {

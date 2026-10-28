@@ -93,6 +93,8 @@ export class Renderer {
     this.cue = () => {};
     // Jelly layers still showing while their candy hasn't popped yet.
     this.jellyShown = new Map();
+    // Coconut layers still showing until the hit that cracks them lands.
+    this.blockShown = new Map();
     this.selected = null;
     this.hint = null;
     this.aiming = null; // a booster waiting for a target: the board glows
@@ -103,6 +105,10 @@ export class Renderer {
 
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    // Boards with holes or notches get their glass cut to the shape.
+    const b = this.board;
+    this.shaped = b.mask.some((row) => row.some((m) => !m));
+    this.canvas.classList.toggle('shaped', this.shaped);
     const w = this.canvas.clientWidth;
     const cols = this.board.cols, rows = this.board.rows;
     this.pitch = (w - PAD * 2 + GAP) / cols;
@@ -114,6 +120,7 @@ export class Renderer {
     this.width = w;
     this.height = h;
     this.dpr = dpr;
+    this.buildShape();
     if (this.spriteDpr !== dpr) {
       // Sprites are drawn a bit larger than 1:1 when the cell is bigger than
       // the design size, so scale the backing resolution with it.
@@ -126,6 +133,42 @@ export class Renderer {
       this.spriteDpr = dpr;
     }
     this.requestDraw();
+  }
+
+  // For a shaped board: a mask that cuts the glass to the cells (each cell
+  // grown a little so they merge into one smooth shape), and a white rim
+  // drawn around it.
+  buildShape() {
+    const { canvas, board, dpr } = this;
+    if (!this.shaped) {
+      this.outline = null;
+      canvas.style.webkitMaskImage = canvas.style.maskImage = '';
+      return;
+    }
+    const blob = (grow, radius) => {
+      const off = document.createElement('canvas');
+      off.width = canvas.width;
+      off.height = canvas.height;
+      const c = off.getContext('2d');
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      c.fillStyle = '#fff';
+      c.beginPath();
+      for (let r = 0; r < board.rows; r++)
+        for (let col = 0; col < board.cols; col++)
+          if (board.mask[r][col]) c.roundRect(PAD + col * this.pitch - grow, PAD + r * this.pitch - grow, this.cell + grow * 2, this.cell + grow * 2, radius);
+      c.fill();
+      return off;
+    };
+    const outer = blob(6, 14);
+    const url = `url(${outer.toDataURL()})`;
+    canvas.style.webkitMaskImage = canvas.style.maskImage = url;
+    canvas.style.webkitMaskSize = canvas.style.maskSize = '100% 100%';
+    // The rim: the outer shape minus a slightly smaller one.
+    const ring = blob(6, 14);
+    const rc = ring.getContext('2d');
+    rc.globalCompositeOperation = 'destination-out';
+    rc.drawImage(blob(2.5, 11), 0, 0);
+    this.outline = ring;
   }
 
   // Snap every candy's visual to its board position.
@@ -382,6 +425,16 @@ export class Renderer {
       }));
     }
 
+    // Coconuts crack when the match beside them pops or a blast reaches them.
+    for (const h of step.blocksHit ?? []) {
+      const k = h.at[0] * 100 + h.at[1];
+      this.blockShown.set(k, h.left + 1);
+      jobs.push(sleep(delayFor({ at: h.at, cause: h.cause })).then(() => {
+        this.blockShown.delete(k);
+        this.crack(h);
+      }));
+    }
+
     // New specials pop in where they formed.
     for (const m of step.created) {
       const v = this.visuals.get(m.candy.id);
@@ -393,6 +446,30 @@ export class Renderer {
     // Let the last bolts and beams finish before things fall.
     const tail = Math.max(0, ...this.effects.map((e) => e.born + e.life * 0.6)) - performance.now();
     if (tail > 0) await sleep(tail);
+  }
+
+  // A coconut taking a hit: shell chips fly; the last hit splits it with a
+  // splash of coconut milk.
+  crack(h) {
+    const { x, y } = this.center(...h.at);
+    const now = performance.now();
+    const chips = h.left === 0 ? 16 : 9;
+    for (let i = 0; i < chips; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 0.1 + Math.random() * 0.16;
+      this.particles.push({
+        kind: 'confetti', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 0.12, g: 0.0009,
+        life: 600 + Math.random() * 300, born: now, color: ['#6b3a16', '#8a5226', '#3b1f0b', '#c98a52'][i % 4],
+        size: 4 + Math.random() * 4, spin: (Math.random() - 0.5) * 0.04, angle: Math.random() * 6,
+      });
+    }
+    if (h.left === 0) {
+      for (let i = 0; i < 10; i++) this.burst(x, y, '#fffaf0', 1, 0.08 + Math.random() * 0.14);
+      this.effects.push({ kind: 'ring', x, y, color: '#fff4dc', born: now, life: 360 });
+    }
+    this.shake = { born: now, life: 140, amp: h.left === 0 ? 3 : 2 };
+    this.cue('crack', { x: this.board.cols > 1 ? (h.at[1] / (this.board.cols - 1)) * 2 - 1 : 0, last: h.left === 0 });
+    this.requestDraw();
   }
 
   // Ingredients drop out through the exit with a golden burst.
@@ -494,8 +571,8 @@ export class Renderer {
     for (const s of spawns)
       this.visuals.set(s.id, { candy: s.candy, row: s.fromRow, col: s.to[1], scale: 1, alpha: 1 });
     const jobs = [
-      ...moves.map((m) => ({ v: this.visuals.get(m.id), from: m.from[0], to: m.to[0] })),
-      ...spawns.map((s) => ({ v: this.visuals.get(s.id), from: s.fromRow, to: s.to[0] })),
+      ...moves.map((m) => ({ v: this.visuals.get(m.id), from: m.from[0], to: m.to[0], fromCol: m.from[1], toCol: m.to[1] })),
+      ...spawns.map((s) => ({ v: this.visuals.get(s.id), from: s.fromRow, to: s.to[0], fromCol: s.to[1], toCol: s.to[1] })),
     ].filter((j) => j.v);
     const landed = new Map(); // "row,col" -> visual, for the jiggle below
     for (const v of this.visuals.values()) if (Number.isInteger(v.row)) landed.set(`${v.row},${v.col}`, v);
@@ -506,8 +583,8 @@ export class Renderer {
     const stack = new Map();
     jobs.sort((p, q) => q.to - p.to);
     for (const j of jobs) {
-      const n = stack.get(j.v.col) ?? 0;
-      stack.set(j.v.col, n + 1);
+      const n = stack.get(j.toCol) ?? 0;
+      stack.set(j.toCol, n + 1);
       j.delay = n * STACK_DELAY_MS;
     }
     return Promise.all(jobs.map((j) => sleep(j.delay).then(() => this.drop(j, landed))));
@@ -532,6 +609,7 @@ export class Renderer {
       // Squash sized to how hard it hit.
       this.jiggle(v, Math.min(0.26, 0.05 + 0.006 * impact));
       this.cue('land', { hard: Math.min(1, impact / 30) });
+      v.col = j.toCol;
       const below = landed.get(`${j.to + 1},${v.col}`);
       if (below) this.jiggle(below, Math.min(0.1, 0.002 * impact + 0.02));
       landed.set(`${j.to},${v.col}`, v);
@@ -540,6 +618,8 @@ export class Renderer {
       const sec = (t * total) / 1000;
       if (sec < tFall) {
         v.row = j.from + v0 * sec + 0.5 * GRAVITY * sec * sec;
+        // Sliding around a coconut: drift sideways over the last cell.
+        if (j.toCol !== j.fromCol) v.col = j.fromCol + (j.toCol - j.fromCol) * Math.max(0, Math.min(1, v.row - (j.to - 1)));
         v.stretch = -Math.min(0.12, 0.004 * (v0 + GRAVITY * sec)); // drawn out by speed
       } else {
         land();
@@ -549,6 +629,7 @@ export class Renderer {
     }, (t) => t).then(() => {
       land();
       v.row = j.to;
+      v.col = j.toCol;
       v.stretch = 0;
     });
   }
@@ -969,6 +1050,13 @@ export class Renderer {
     const { ctx, dpr, board } = this;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, this.width, this.height);
+    if (this.outline) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(this.outline, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
 
     for (let r = 0; r < board.rows; r++)
       for (let c = 0; c < board.cols; c++) {
@@ -982,6 +1070,12 @@ export class Renderer {
         const layers = this.jellyShown.get(r * 100 + c) ?? board.jelly[r][c];
         if (layers > 0) this.drawJelly(x, y, layers);
         if (board.isExit(r, c)) this.drawExit(x, y, now);
+        const shell = this.blockShown.get(r * 100 + c) ?? board.block[r][c];
+        if (shell > 0 && this.sprites) {
+          const size = SPRITE * (this.cell / BASE_CELL);
+          const cx = x + this.cell / 2, cy = y + this.cell / 2;
+          ctx.drawImage(this.sprites[`coco:${Math.min(2, shell)}`], cx - size / 2, cy - size / 2, size, size);
+        }
       }
 
     if (this.aiming) {

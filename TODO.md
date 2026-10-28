@@ -35,8 +35,13 @@
       refills. Lives like the original: five, one back every 30 minutes,
       lost on a failed level or on giving up after a move. Prices and
       payouts are at the top of `src/save.js`.
-- [ ] **Phase 5+: Level packs** of 15–30, each adding a blocker (frosting,
-      chocolate, licorice, bombs, portals, conveyors).
+- [x] **Phase 4.5: Juice and variety.** Faster everything, confetti
+      bursts, brighter specials. Coconut blockers (one or two layers;
+      pieces slide diagonally around them), collect-the-fruit goals, ten
+      new board shapes with the glass cut to the shape, and levels 31–40.
+      All 40 levels retuned.
+- [ ] **Phase 5+: Level packs** of 15–30, each adding a blocker
+      (chocolate, licorice, bombs, portals, conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
       feature-complete. Wrap it with Capacitor so the same code runs as a
       real app, and install through TestFlight internal testing (no App

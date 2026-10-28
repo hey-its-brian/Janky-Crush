@@ -4,7 +4,7 @@
 // (The old Night Arcade candies are in git history; they'll come back as an
 // optional theme.)
 
-import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup } from '../art/pieces.js';
+import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup, coconut } from '../art/pieces.js';
 
 // Particle and effect colors per fruit: [main, light, deep].
 export const PALETTE = {
@@ -19,7 +19,7 @@ export const PALETTE = {
 // Sprite box in CSS px for a 42px cell. Everything is drawn centered in
 // it; specials fill more of the box so their glow spills past the cell.
 export const SPRITE = 64;
-const FILL = { fruit: 0.7, special: 0.94, ingredient: 0.74 };
+const FILL = { fruit: 0.7, special: 0.94, ingredient: 0.74, coconut: 0.78 };
 
 export function spriteKey(candy) {
   if (candy.special === 'bomb') return 'bomb';
@@ -39,6 +39,8 @@ function sources() {
   out.push(['bomb', bomb(), FILL.special]);
   out.push(['ing:duck', ducky(), FILL.ingredient]);
   out.push(['ing:pup', pup(), FILL.ingredient]);
+  out.push(['coco:1', coconut(1), FILL.coconut]);
+  out.push(['coco:2', coconut(2), FILL.coconut]);
   return out;
 }
 

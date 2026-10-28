@@ -4,7 +4,7 @@ import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES } from 
 import { buildWorld } from './ui/world.js';
 import { renderMap } from './ui/map.js';
 import { capy } from './art/capy.js';
-import { ducky, striped, wrapped, bomb } from './art/pieces.js';
+import { ducky, striped, wrapped, bomb, fruit, coconut } from './art/pieces.js';
 import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic } from './audio/music.js';
@@ -225,20 +225,32 @@ function showBanner(text) {
 
 // ---- dialogs ---------------------------------------------------------------
 
+// "a", "a and b", "a, b and c".
+const listing = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
+const FRUIT_NAMES = { r: 'strawberries', o: 'oranges', y: 'lemons', g: 'apples', b: 'blueberries', p: 'grapes' };
+
 function goalText(level) {
   switch (level.goal.type) {
     case 'jelly':
       return 'Clear all the bath foam';
     case 'ingredients':
       return `Bring ${level.goal.count} friends down to the spring`;
+    case 'coconuts':
+      return 'Crack open every coconut';
+    case 'collect':
+      return `Collect ${listing(Object.entries(level.goal.targets).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`))}`;
     default:
       return `Score ${fmt(level.stars[0])} points`;
   }
 }
 
-function goalIcon(type) {
+function goalIcon(type, level = current) {
   const icon = el('i', { class: `goal-icon ${type}`, 'aria-hidden': 'true' });
-  if (type === 'ingredients') icon.innerHTML = ducky(); // our own SVG art
+  // Our own SVG art.
+  if (type === 'ingredients') icon.innerHTML = ducky();
+  if (type === 'coconuts') icon.innerHTML = coconut(2);
+  if (type === 'collect') icon.innerHTML = fruit(Object.keys(level.goal.targets)[0]);
   return icon;
 }
 
@@ -286,13 +298,25 @@ function showIntro(level) {
   const best = progress.level(level.id);
   openDialog(`Level ${level.id}`, [
     bigStars(best.stars),
-    el('p', { class: 'goal-text' }, goalIcon(level.goal.type), goalText(level)),
+    el('p', { class: 'goal-text' }, goalIcon(level.goal.type, level), goalText(level)),
     el('p', { class: 'muted', text: `in ${level.moves} moves` }),
     best.best ? el('p', { class: 'muted', text: `Best score ${fmt(best.best)}` }) : null,
   ], [
     button('Back', closeDialog, 'orange'),
     button('Play!', () => showGame(level)),
   ], { host: 'idle' });
+}
+
+// What was still missing when a level was lost.
+function goalShortfall(r) {
+  switch (r.goal) {
+    case 'jelly': return `${r.jellyLeft} foam left to clear`;
+    case 'ingredients': return `${r.ingredientsLeft} friend${r.ingredientsLeft === 1 ? '' : 's'} still up top`;
+    case 'coconuts': return `${r.coconutsLeft} coconut${r.coconutsLeft === 1 ? '' : 's'} still whole`;
+    case 'collect':
+      return `Still needed ${Object.entries(r.collectLeft).filter(([, n]) => n).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`).join(', ')}`;
+    default: return `Needed ${fmt(r.target)} points`;
+  }
 }
 
 function statRow(name, value, icon = null) {
@@ -315,6 +339,7 @@ function showResult(r) {
       s.striped + s.wrapped + s.bomb ? statRow('Specials made', specials) : null,
       s.bestCascade > 1 ? statRow('Biggest chain', el('span', { class: 'val', text: `×${s.bestCascade}` })) : null,
       s.foamCleared ? statRow('Foam cleared', el('span', { class: 'val', text: fmt(s.foamCleared) }), el('i', { class: 'foam-icon goal-icon', style: 'width:30px;height:30px' })) : null,
+      s.coconuts ? statRow('Coconuts cracked', el('span', { class: 'val', text: String(s.coconuts) }), el('i', { class: 'goal-icon', svg: coconut(1), style: 'width:32px;height:32px' })) : null,
       r.collected ? statRow('Friends rescued', el('span', { class: 'val', text: String(r.collected) }), el('i', { class: 'goal-icon', svg: ducky(), style: 'width:32px;height:32px' })) : null,
       s.bonus ? statRow('Leftover moves bonus', el('span', { class: 'val', text: `+${fmt(s.bonus)}` })) : null,
       statRow('Coins earned', el('span', { class: 'val' }, icon(coin()), `+${coins.total}`)),
@@ -334,9 +359,7 @@ function showResult(r) {
         : button('Map', showMap),
     ], { host: 'cheer', confetti: true });
   } else {
-    const why = r.goal === 'jelly' ? `${r.jellyLeft} foam left to clear`
-      : r.goal === 'ingredients' ? `${r.ingredientsLeft} friend${r.ingredientsLeft === 1 ? '' : 's'} still up top`
-      : `Needed ${fmt(r.target)} points`;
+    const why = goalShortfall(r);
     play('lose');
     progress.loseLife();
     const lives = progress.lives();
@@ -516,6 +539,8 @@ function offerMoves() {
     const s = game.state;
     const why = s.goal.type === 'jelly' ? `${s.jellyLeft()} foam left to clear`
       : s.goal.type === 'ingredients' ? `${s.ingredientsLeft()} still to bring down`
+      : s.goal.type === 'coconuts' ? `${s.coconutsLeft()} coconut${s.coconutsLeft() === 1 ? '' : 's'} to crack`
+      : s.goal.type === 'collect' ? `${Object.entries(s.collectLeft()).filter(([, n]) => n).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`).join(', ')} to go`
       : `${fmt(s.level.stars[0] - s.score)} points to go`;
     play('boing');
     openDialog('Out of moves!', [
@@ -599,12 +624,30 @@ function updateHud(h) {
   $('meter').setAttribute('aria-valuenow', String(Math.round(pct)));
   [...document.querySelectorAll('.meter-star')].forEach((s, i) => s.classList.toggle('on', i < h.stars));
   const icon = $('goal-icon');
-  if (icon.dataset.type !== h.goal) {
-    icon.dataset.type = h.goal;
-    icon.className = `goal-icon ${h.goal === 'score' ? 'score' : h.goal}`;
-    icon.innerHTML = h.goal === 'ingredients' ? ducky() : ''; // our own SVG art
+  const goalKey = `${level.id}:${h.goal}`;
+  if (icon.dataset.type !== goalKey) {
+    icon.dataset.type = goalKey;
+    icon.className = `goal-icon ${h.goal}`;
+    icon.innerHTML = h.goal === 'ingredients' ? ducky() : h.goal === 'coconuts' ? coconut(2) : ''; // our own SVG art
+    // Collect goals list each fruit with its own count.
+    $('goal-fruits').replaceChildren(...Object.keys(h.collectLeft).map((c) =>
+      el('span', { class: 'goal-fruit', 'data-color': c }, el('i', { class: 'goal-icon small', svg: fruit(c) }), el('b', { class: 'count' }))));
   }
-  if (h.goal === 'jelly') {
+  const collecting = h.goal === 'collect';
+  $('goal-fruits').hidden = !collecting;
+  $('goal-fruits').classList.toggle('many', Object.keys(h.collectLeft).length > 2);
+  icon.hidden = collecting;
+  $('goal-single').hidden = collecting;
+  if (collecting) {
+    for (const span of $('goal-fruits').children) {
+      const left = h.collectLeft[span.dataset.color];
+      span.querySelector('b').textContent = left > 0 ? String(left) : '\u2713';
+      span.classList.toggle('done', left === 0);
+    }
+  } else if (h.goal === 'coconuts') {
+    $('goal-label').textContent = 'Crack coconuts';
+    $('goal-value').textContent = `${h.coconutsLeft} left`;
+  } else if (h.goal === 'jelly') {
     $('goal-label').textContent = 'Clear the foam';
     $('goal-value').textContent = `${h.jellyLeft} left`;
   } else if (h.goal === 'ingredients') {

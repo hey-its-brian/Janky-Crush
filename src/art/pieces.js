@@ -231,3 +231,24 @@ export function pup() {
     `<path d="M51 11 C55 5 63 6 64 9 C60 13 55 13 51 11Z" fill="#5fd35a" stroke="#2a8a2a" stroke-width="1.2"/>` +
     `<ellipse cx="46.5" cy="15.5" rx="3" ry="1.8" transform="rotate(-30 46.5 15.5)" fill="#fff" opacity=".75"/>`);
 }
+
+// Coconut blocker. Two layers: a whole coconut tied with a rope band.
+// One layer: the same coconut, cracked and ready to split.
+export function coconut(layers) {
+  const g = id('cc');
+  const fibers = [
+    'M30 34 Q36 30 42 33', 'M58 28 Q64 26 70 30', 'M24 56 Q28 50 33 52', 'M70 60 Q76 56 80 60',
+    'M40 74 Q46 70 52 73', 'M62 76 Q68 72 73 75', 'M46 44 Q50 41 55 43',
+  ].map((d) => `<path d="${d}" stroke="#3b1f0b" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>`).join('');
+  const eyes = `<ellipse cx="42" cy="38" rx="4.2" ry="5" fill="#2a1406"/><ellipse cx="56" cy="38" rx="4.2" ry="5" fill="#2a1406"/><ellipse cx="49" cy="49" rx="4" ry="4.6" fill="#2a1406"/>`;
+  const body = `<circle cx="50" cy="53" r="35" fill="url(#${g})" stroke="#3b1f0b" stroke-width="3"/>`;
+  const rope = `<path d="M16 58 Q50 70 84 58" stroke="#7a4a1c" stroke-width="9" fill="none" stroke-linecap="round"/>` +
+    `<path d="M16 58 Q50 70 84 58" stroke="#e6b86a" stroke-width="5.5" fill="none" stroke-linecap="round"/>` +
+    `<path d="M24 60 l4 -5 M34 63 l4 -5 M44 65 l4 -5 M54 65 l4 -5 M64 63 l4 -5 M74 60 l4 -5" stroke="#b07a34" stroke-width="2" stroke-linecap="round"/>` +
+    `<circle cx="50" cy="65" r="6" fill="#e6b86a" stroke="#7a4a1c" stroke-width="2.5"/>`;
+  const cracks = `<path d="M50 18 L45 32 L53 40 L44 52 L52 62 L46 76 L50 88" stroke="#1e0d03" stroke-width="3.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `<path d="M45 32 L36 30 M53 40 L64 36 M52 62 L64 66" stroke="#1e0d03" stroke-width="2.5" fill="none" stroke-linecap="round"/>` +
+    `<path d="M51 19 L46 32 L54 40 L45 52 L53 62 L47 76" stroke="#fff4dc" stroke-width="1.2" fill="none" opacity=".6"/>`;
+  return svg(shade(g, '#c98a52', '#8a5226', '#4a2810'),
+    SHADOW + body + fibers + eyes + (layers > 1 ? rope : cracks) + gloss(34, 30, 9, 5, -35, 0.45));
+}

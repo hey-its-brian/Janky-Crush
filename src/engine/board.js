@@ -22,6 +22,7 @@ const isStriped = (s) => s === STRIPE_H || s === STRIPE_V;
 const POINTS_PER_SPECIAL_MADE = 60;
 const POINTS_PER_BLASTED_CANDY = 30;
 const POINTS_PER_JELLY = 100;
+const POINTS_PER_COCONUT_HIT = 80;
 
 let nextId = 1;
 
@@ -36,6 +37,10 @@ export class Board {
     this.grid = Array.from({ length: rows }, () => Array(cols).fill(null));
     // Jelly layers under each cell (0, 1 or 2).
     this.jelly = Array.from({ length: rows }, () => Array(cols).fill(0));
+    // Coconut blockers: layers left on each cell (0 = none). A coconut
+    // takes up the cell (no piece there), doesn't fall, and cracks a layer
+    // when a match lands next to it or a blast hits it.
+    this.block = Array.from({ length: rows }, () => Array(cols).fill(0));
     // Cells where ingredients leave the board (keys from key()).
     this.exits = new Set();
     // { remaining, maxOnBoard, chance } on ingredient levels.
@@ -49,6 +54,7 @@ export class Board {
     b.colors = [...this.colors];
     b.grid = this.grid.map((row) => row.map((c) => (c ? { ...c } : null)));
     b.jelly = this.jelly.map((row) => [...row]);
+    b.block = this.block.map((row) => [...row]);
     b.exits = new Set(this.exits);
     b.spawner = this.spawner ? { ...this.spawner } : null;
     return b;
@@ -87,7 +93,7 @@ export class Board {
     for (let attempt = 0; attempt < 100; attempt++) {
       for (let r = 0; r < this.rows; r++) {
         for (let c = 0; c < this.cols; c++) {
-          if (!this.mask[r][c] || this.grid[r][c]?.special === INGREDIENT) continue;
+          if (!this.mask[r][c] || this.block[r][c] || this.grid[r][c]?.special === INGREDIENT) continue;
           const banned = new Set();
           const l1 = this.get(r, c - 1), l2 = this.get(r, c - 2);
           if (l1 && l2 && l1.color === l2.color) banned.add(l1.color);
@@ -107,15 +113,17 @@ export class Board {
   //   R O Y G B P   horizontal striped      (vertical: set .special by hand)
   //   *             color bomb
   //   @             ingredient
+  //   k K           coconut with one or two layers
   //   .             empty playable cell
   //   (space)       outside the board
   load(rowsOfChars) {
     this.rows = rowsOfChars.length;
     this.cols = rowsOfChars[0].length;
     this.mask = rowsOfChars.map((row) => [...row].map((ch) => ch !== ' '));
+    this.block = rowsOfChars.map((row) => [...row].map((ch) => (ch === 'k' ? 1 : ch === 'K' ? 2 : 0)));
     this.grid = rowsOfChars.map((row) =>
       [...row].map((ch) => {
-        if (ch === ' ' || ch === '.') return null;
+        if (ch === ' ' || ch === '.' || ch === 'k' || ch === 'K') return null;
         if (ch === '*') return this.newCandy(null, BOMB);
         if (ch === '@') return this.newIngredient('duck');
         if (ch !== ch.toLowerCase()) return this.newCandy(ch.toLowerCase(), STRIPE_H);
@@ -131,6 +139,7 @@ export class Board {
       row
         .map((cell, c) => {
           if (!this.mask[r][c]) return ' ';
+          if (this.block[r][c]) return this.block[r][c] > 1 ? 'K' : 'k';
           if (!cell) return '.';
           if (cell.special === BOMB) return '*';
           if (cell.special === INGREDIENT) return '@';
@@ -248,6 +257,8 @@ export class Board {
         pass.created.push(made);
       }
       for (const cell of cluster.cells) this.mark(pass, ...cell);
+      for (const [r, c] of cluster.cells)
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) this.hitBlock(pass, r + dr, c + dc, -1);
     }
 
     if (!pass.clear.size && !pass.light.size && !pass.created.length) return null;
@@ -273,8 +284,10 @@ export class Board {
         remove(from);
         remove(to);
         for (let i = 0; i < this.rows; i++)
-          for (let j = 0; j < this.cols; j++)
+          for (let j = 0; j < this.cols; j++) {
             if (this.grid[i][j] && this.grid[i][j].special !== INGREDIENT) remove([i, j]);
+            this.hitBlock(pass, i, j, 0);
+          }
       } else {
         remove(bomb);
         const targets = this.cellsOfColor(other.color).filter((p) => key(p) !== key(otherAt));
@@ -349,6 +362,7 @@ export class Board {
       created: [],        // { at, color, special }
       converted: [],      // { at, candy, special } (bomb + special combos)
       blasts: [],         // effects for the renderer, in firing order
+      blockHit: new Map(), // key -> { at, cause } coconuts cracked this step
       cause: new Map(),   // key -> index of the blast that cleared it (-1: the match)
       current: -1,
       primed: false,
@@ -357,6 +371,10 @@ export class Board {
 
   // Mark a cell for clearing. A special caught this way fires.
   mark(pass, r, c) {
+    if (this.playable(r, c) && this.block[r][c]) {
+      this.hitBlock(pass, r, c, pass.current);
+      return;
+    }
     const cand = this.get(r, c);
     const k = key([r, c]);
     if (!cand || cand.special === INGREDIENT) return;
@@ -369,6 +387,13 @@ export class Board {
     }
     pass.clear.set(k, [r, c]);
     if (cand.special) pass.queue.push([r, c]);
+  }
+
+  // A coconut takes at most one hit per step.
+  hitBlock(pass, r, c, cause) {
+    if (!this.playable(r, c) || !this.block[r][c]) return;
+    const k = key([r, c]);
+    if (!pass.blockHit.has(k)) pass.blockHit.set(k, { at: [r, c], cause });
   }
 
   // Record a blast; cells marked until the next one count as its victims.
@@ -454,13 +479,21 @@ export class Board {
       jellyHit.push({ at: [r, c], left: this.jelly[r][c] });
     }
 
+    const blocksHit = [];
+    for (const { at, cause } of pass.blockHit.values()) {
+      const [r, c] = at;
+      this.block[r][c]--;
+      blocksHit.push({ at, cause, left: this.block[r][c] });
+    }
+
     const matched = new Set(groups.flatMap((g) => g.cells.map(key)));
     const blasted = cleared.filter((x) => !matched.has(key(x.at))).length;
     const points =
       scoreFor(groups, 1) +
       pass.created.length * POINTS_PER_SPECIAL_MADE +
       blasted * POINTS_PER_BLASTED_CANDY +
-      jellyHit.length * POINTS_PER_JELLY;
+      jellyHit.length * POINTS_PER_JELLY +
+      blocksHit.length * POINTS_PER_COCONUT_HIT;
     return {
       groups,
       cleared,
@@ -470,6 +503,7 @@ export class Board {
       blasts: pass.blasts,
       primed: pass.primed,
       jellyHit,
+      blocksHit,
       points,
     };
   }
@@ -528,25 +562,89 @@ export class Board {
 
   // Drop candies straight down into empty cells, skipping cells outside the
   // board. Returns [{ id, from, to }] for the renderer.
+  // Pieces fall straight down, but never through a coconut. A gap under a
+  // coconut can't be fed from the top, so a piece slides into it
+  // diagonally from a neighboring column. Returns one move per piece that
+  // moved, from where it was to where it ended up.
   applyGravity() {
-    const moves = [];
+    const moved = new Map();
+    const move = (cell, from, to) => {
+      const m = moved.get(cell.id);
+      if (m) m.to = to;
+      else moved.set(cell.id, { id: cell.id, from, to });
+    };
+    for (let guard = 0; guard < 1000; guard++) {
+      this.compact(move);
+      if (!this.slideOne(move)) break;
+    }
+    return [...moved.values()].filter((m) => m.from[0] !== m.to[0] || m.from[1] !== m.to[1]);
+  }
+
+  // Straight down within each stretch of a column between coconuts. Cells
+  // off the board are see-through, so pieces drop past gaps in the shape.
+  compact(move) {
     for (let c = 0; c < this.cols; c++) {
-      const slots = [];
-      for (let r = this.rows - 1; r >= 0; r--) if (this.mask[r][c]) slots.push(r);
-      let write = 0;
-      for (let read = 0; read < slots.length; read++) {
-        const r = slots[read];
-        const cell = this.grid[r][c];
-        if (!cell) continue;
-        const target = slots[write++];
-        if (target !== r) {
-          this.grid[target][c] = cell;
-          this.grid[r][c] = null;
-          moves.push({ id: cell.id, from: [r, c], to: [target, c] });
+      let seg = [];
+      const flush = () => {
+        let write = 0;
+        for (const r of seg) {
+          const cell = this.grid[r][c];
+          if (!cell) continue;
+          const target = seg[write++];
+          if (target !== r) {
+            this.grid[target][c] = cell;
+            this.grid[r][c] = null;
+            move(cell, [r, c], [target, c]);
+          }
+        }
+        seg = [];
+      };
+      for (let r = this.rows - 1; r >= 0; r--) {
+        if (!this.mask[r][c]) continue;
+        if (this.block[r][c]) flush();
+        else seg.push(r);
+      }
+      flush();
+    }
+  }
+
+  // Can new pieces drop into this cell from above the board?
+  fed(r, c) {
+    for (let i = r - 1; i >= 0; i--) if (this.mask[i][c] && this.block[i][c]) return false;
+    return true;
+  }
+
+  // Slide one piece diagonally down into the lowest gap that can't be fed.
+  slideOne(move) {
+    for (let r = this.rows - 1; r > 0; r--)
+      for (let c = 0; c < this.cols; c++) {
+        if (!this.mask[r][c] || this.block[r][c] || this.grid[r][c] || this.fed(r, c)) continue;
+        for (const dc of [-1, 1]) {
+          const sr = r - 1, sc = c + dc;
+          if (!this.playable(sr, sc) || this.block[sr][sc]) continue;
+          const cell = this.grid[sr][sc];
+          if (!cell) continue;
+          this.grid[r][c] = cell;
+          this.grid[sr][sc] = null;
+          move(cell, [sr, sc], [r, c]);
+          return true;
         }
       }
-    }
-    return moves;
+    return false;
+  }
+
+  // Empty cells that new pieces can drop into.
+  hasGaps() {
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++)
+        if (this.mask[r][c] && !this.block[r][c] && !this.grid[r][c]) return true;
+    return false;
+  }
+
+  blockCount() {
+    let n = 0;
+    for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) if (this.mask[r][c]) n += this.block[r][c];
+    return n;
   }
 
   // Fill empty cells from the top. Each spawn says how many rows above the
@@ -556,7 +654,7 @@ export class Board {
     const ingredientCol = this.pickIngredientColumn();
     for (let c = 0; c < this.cols; c++) {
       const empty = [];
-      for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.grid[r][c]) empty.push(r);
+      for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.block[r][c] && !this.grid[r][c] && this.fed(r, c)) empty.push(r);
       empty.forEach((r, i) => {
         const cell = c === ingredientCol && i === 0
           ? this.newIngredient(this.nextIngredientKind())
@@ -575,7 +673,7 @@ export class Board {
     if (this.rng() >= sp.chance) return -1;
     const cols = [];
     for (let c = 0; c < this.cols; c++)
-      for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.grid[r][c]) { cols.push(c); break; }
+      for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.block[r][c] && !this.grid[r][c] && this.fed(r, c)) { cols.push(c); break; }
     if (!cols.length) return -1;
     sp.remaining--;
     return cols[randInt(this.rng, cols.length)];
@@ -595,7 +693,7 @@ export class Board {
   // Put `n` ingredients along the top at the start of a level.
   placeIngredients(n) {
     const cols = [];
-    for (let c = 0; c < this.cols; c++) if (this.topRow(c) >= 0) cols.push(c);
+    for (let c = 0; c < this.cols; c++) if (this.topRow(c) >= 0 && !this.block[this.topRow(c)][c]) cols.push(c);
     for (let i = 0; i < n && cols.length; i++) {
       const c = cols.splice(randInt(this.rng, cols.length), 1)[0];
       this.grid[this.topRow(c)][c] = this.newIngredient(this.nextIngredientKind());
@@ -644,7 +742,8 @@ export class Board {
   // can't be smashed (empty, off the board, or an ingredient).
   smashStep(at) {
     const cand = this.get(...at);
-    if (!cand || cand.special === INGREDIENT) return null;
+    const coconut = this.playable(...at) && this.block[at[0]][at[1]] > 0;
+    if (!coconut && (!cand || cand.special === INGREDIENT)) return null;
     const pass = this.newPass();
     this.startBlast(pass, { kind: 'smash', at: [...at] });
     this.mark(pass, ...at);

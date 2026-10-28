@@ -69,7 +69,7 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 
 | Path | What it is |
 | --- | --- |
-| `src/engine/board.js` | Pure board logic: matching, specials, jelly, ingredients, gravity, refill, shuffle. Tested in `test/`. |
+| `src/engine/board.js` | Pure board logic: matching, specials, jelly, coconuts, ingredients, gravity (with diagonal slides), refill, shuffle. Tested in `test/`. |
 | `src/engine/level.js` | Level setup from a layout, and goal tracking. |
 | `src/engine/turn.js` | A turn, a booster (Smash, Switch) and the end-of-level bonus, as sequences of events. |
 | `src/save.js` | The Normal and Easy save files: levels, coins, boosters, lives and the daily bonus, plus the coin prices and payouts. Tested in `test/save.test.js`. |
@@ -81,7 +81,7 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/game.js` | Plays a level: runs each turn's events through the renderer, touch input, boosters, and asking for +5 moves. |
 | `src/main.js` | Screens: start screen, map bar, shop, lives, dialogs, HUD, the host's reactions. |
 | `src/ui/` | The level map and the animated hot-spring scene. |
-| `src/levels.js`, `src/level-tuning.js` | Level designs, and their tuned moves and stars. |
+| `src/levels.js`, `src/level-tuning.js` | Level designs (layouts, goals, colors), and their tuned moves and stars. `test/levels.test.js` checks every open cell can be refilled. |
 | `tools/tune.mjs` | The level tuner. |
 | `styles.css` | Capybara Hot Springs theme and layout. |
 | `preview/` | Look-and-feel mockup, art sheet, and `sounds.html` (renders every sound to WAV). Not part of the game. |
