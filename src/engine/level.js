@@ -1,7 +1,7 @@
 // Level setup and goal tracking. Pure logic, shared by the game and the
 // level-tuning simulator.
 
-import { Board } from './board.js';
+import { Board, GUMMY } from './board.js';
 
 // Layout characters, one per cell (9 strings of 9):
 //   ' '  not part of the board
@@ -10,18 +10,27 @@ import { Board } from './board.js';
 //   '2'  two layers of jelly
 //   'k'  a coconut (one layer)
 //   'K'  a big coconut (two layers)
+//   'm'  a mochi (one layer)
+//   'M'  a double mochi (two layers)
+//   'u'  a gummy cube (falls like a piece)
 export function parseLayout(layout) {
-  const mask = layout.map((row) => [...row].map((ch) => ch !== ' '));
-  const jelly = layout.map((row) => [...row].map((ch) => (ch === '1' ? 1 : ch === '2' ? 2 : 0)));
-  const block = layout.map((row) => [...row].map((ch) => (ch === 'k' ? 1 : ch === 'K' ? 2 : 0)));
-  return { rows: layout.length, cols: layout[0].length, mask, jelly, block };
+  const grid = (f) => layout.map((row) => [...row].map(f));
+  const mask = grid((ch) => ch !== ' ');
+  const jelly = grid((ch) => (ch === '1' ? 1 : ch === '2' ? 2 : 0));
+  const block = grid((ch) => ({ k: 1, K: 2, m: 1, M: 2 })[ch] ?? 0);
+  const blockType = grid((ch) => ('kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : null));
+  const gummy = grid((ch) => ch === 'u');
+  return { rows: layout.length, cols: layout[0].length, mask, jelly, block, blockType, gummy };
 }
 
 export function setupBoard(level, rng) {
-  const { rows, cols, mask, jelly, block } = parseLayout(level.layout);
+  const { rows, cols, mask, jelly, block, blockType, gummy } = parseLayout(level.layout);
   const board = new Board({ rows, cols, mask, colors: level.colors, rng });
   board.jelly = jelly;
   board.block = block;
+  board.blockType = blockType;
+  board.dispensers = (level.dispensers ?? []).map((d) => ({ ...d, n: 0 }));
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (gummy[r][c]) board.grid[r][c] = board.newCandy(null, GUMMY);
   board.fillInitial();
   if (level.goal.type === 'ingredients') {
     const { count } = level.goal;
@@ -44,7 +53,7 @@ export class LevelState {
     this.score = 0;
     this.collected = 0;
     // For the end-of-level review.
-    this.stats = { striped: 0, wrapped: 0, bomb: 0, bestCascade: 0, foamCleared: 0, coconuts: 0, bonus: 0 };
+    this.stats = { striped: 0, wrapped: 0, bomb: 0, bestCascade: 0, foamCleared: 0, blockers: 0, bonus: 0 };
     this.inBonus = false;
     // Fruit gathered toward a 'collect' goal, by color.
     this.gathered = {};
@@ -55,7 +64,8 @@ export class LevelState {
   noteStep(step, cascade, points) {
     const st = this.stats;
     st.foamCleared += step.jellyHit.length;
-    st.coconuts += (step.blocksHit ?? []).filter((h) => h.left === 0).length;
+    st.blockers += (step.blocksHit ?? []).filter((h) => h.left === 0).length +
+      step.cleared.filter((x) => x.special === GUMMY).length;
     if (this.inBonus) {
       st.bonus += points;
       return;
@@ -77,12 +87,14 @@ export class LevelState {
     return this.board.jellyCount();
   }
 
-  // Coconuts still on the board (a big one counts once, however many hits
-  // it still needs).
-  coconutsLeft() {
+  // Blockers still on the board: coconuts and mochi (a two-layer one
+  // counts once, however many hits it still needs) and gummy cubes.
+  blockersLeft() {
     const b = this.board;
     let n = 0;
-    for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.cols; c++) if (b.mask[r][c] && b.block[r][c] > 0) n++;
+    for (let r = 0; r < b.rows; r++)
+      for (let c = 0; c < b.cols; c++)
+        if (b.mask[r][c] && (b.block[r][c] > 0 || b.grid[r][c]?.special === GUMMY)) n++;
     return n;
   }
 
@@ -106,8 +118,8 @@ export class LevelState {
         return this.jellyLeft() === 0;
       case 'ingredients':
         return this.ingredientsLeft() <= 0;
-      case 'coconuts':
-        return this.coconutsLeft() === 0;
+      case 'blockers':
+        return this.blockersLeft() === 0;
       case 'collect':
         return Object.values(this.collectLeft()).every((n) => n === 0);
       default:

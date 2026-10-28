@@ -43,3 +43,13 @@ test('coconut levels have coconuts, collect levels have targets', () => {
     if (level.goal.type === 'collect') assert.ok(Object.keys(level.goal.targets).length, `level ${level.id}`);
   }
 });
+
+test('every level can start with a legal move', async () => {
+  const { setupBoard } = await import('../src/engine/level.js');
+  const { makeRng } = await import('../src/rng.js');
+  for (const level of LEVEL_DESIGNS)
+    for (let seed = 1; seed <= 5; seed++) {
+      const b = setupBoard({ ...level, stars: [1, 2, 3], moves: 20 }, makeRng(seed));
+      assert.ok(b.findPossibleMove(), `level ${level.id} seed ${seed}`);
+    }
+});

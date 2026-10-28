@@ -4,7 +4,7 @@
 // (The old Night Arcade candies are in git history; they'll come back as an
 // optional theme.)
 
-import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup, coconut } from '../art/pieces.js';
+import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup, coconut, mochi, gummy } from '../art/pieces.js';
 
 // Particle and effect colors per fruit: [main, light, deep].
 export const PALETTE = {
@@ -24,6 +24,7 @@ const FILL = { fruit: 0.7, special: 0.94, ingredient: 0.74, coconut: 0.78 };
 export function spriteKey(candy) {
   if (candy.special === 'bomb') return 'bomb';
   if (candy.special === 'ingredient') return `ing:${candy.kind}`;
+  if (candy.special === 'gummy') return 'gummy';
   if (!candy.special) return candy.color;
   return `${candy.color}:${candy.special === 'wrappedLit' ? 'wrapped' : candy.special}`;
 }
@@ -41,6 +42,9 @@ function sources() {
   out.push(['ing:pup', pup(), FILL.ingredient]);
   out.push(['coco:1', coconut(1), FILL.coconut]);
   out.push(['coco:2', coconut(2), FILL.coconut]);
+  out.push(['mochi:1', mochi(1), FILL.coconut]);
+  out.push(['mochi:2', mochi(2), FILL.coconut]);
+  out.push(['gummy', gummy(), FILL.coconut]);
   return out;
 }
 

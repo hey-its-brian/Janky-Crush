@@ -60,7 +60,7 @@ function ingredientDepth(board) {
 function botMove(level, board, state, rng) {
   const before = {
     jelly: board.jellyCount(),
-    blocks: board.blockCount(),
+    blocks: board.blockCount() + board.gummyCount(),
     depth: ingredientDepth(board),
     specials: specialsValue(board),
   };
@@ -89,7 +89,7 @@ function botMove(level, board, state, rng) {
         const value =
           points +
           jellyWeight * (before.jelly - copy.jellyCount()) +
-          350 * (1 + 4 / (before.blocks + 1)) * (before.blocks - copy.blockCount()) +
+          350 * (1 + 4 / (before.blocks + 1)) * (before.blocks - copy.blockCount() - copy.gummyCount()) +
           90 * gathered +
           250 * (ingredientDepth(copy) - before.depth) +
           (specialsValue(copy) - before.specials) +

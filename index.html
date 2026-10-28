@@ -57,46 +57,45 @@
 <!-- Playing a level -->
 <div id="world" class="world" aria-hidden="true" hidden></div>
 <main id="game-screen" class="screen" hidden>
-  <div class="hud">
+  <header class="game-top">
     <div class="moves" aria-label="Moves left">
-      <small>MOVES</small>
       <b id="moves" class="toon">0</b>
+      <small>MOVES</small>
     </div>
-    <div class="panel goal">
-      <i id="goal-icon" class="goal-icon" aria-hidden="true"></i>
-      <div id="goal-single">
-        <div class="label" id="goal-label">Score</div>
-        <div class="count" id="goal-value">0</div>
+    <div class="top-mid">
+      <div class="meter" role="meter" aria-label="Score toward three stars" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="meter">
+        <div id="meter-fill" class="meter-fill"></div>
+        <div class="meter-star"><i></i></div>
+        <div class="meter-star"><i></i></div>
+        <div class="meter-star"><i></i></div>
+        <b id="score" class="meter-score">0</b>
       </div>
-      <div id="goal-fruits" class="goal-fruits" hidden></div>
+      <div class="goal">
+        <i id="goal-icon" class="goal-icon" aria-hidden="true"></i>
+        <div id="goal-single">
+          <div class="label" id="goal-label">Score</div>
+          <div class="count" id="goal-value">0</div>
+        </div>
+        <div id="goal-fruits" class="goal-fruits" hidden></div>
+      </div>
     </div>
-    <button id="pause" class="round-btn" type="button" aria-label="Pause">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="#fff"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="#fff"/></svg>
-    </button>
-  </div>
-
-  <div class="panel meter-wrap">
-    <div class="score-line"><span class="label">SCORE</span><b id="score">0</b></div>
-    <div class="meter" role="meter" aria-label="Score toward three stars" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="meter">
-      <div id="meter-fill" class="meter-fill"></div>
-      <div class="meter-star"><i></i></div>
-      <div class="meter-star"><i></i></div>
-      <div class="meter-star"><i></i></div>
-    </div>
-  </div>
+    <div class="portrait"><div id="host" class="host"></div></div>
+    <div id="host-bubble" class="bubble" hidden></div>
+  </header>
 
   <div class="spacer"></div>
   <div class="board-wrap">
     <canvas id="board" class="board"></canvas>
     <div id="callout" class="callout toon" aria-live="polite" hidden></div>
   </div>
-
   <div class="spacer"></div>
-  <div class="host-row">
-    <div id="host" class="host"></div>
-    <div id="host-bubble" class="bubble" hidden></div>
+
+  <footer class="booster-bar">
+    <button id="pause" class="round-btn pause-btn" type="button" aria-label="Pause">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="#fff"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="#fff"/></svg>
+    </button>
     <div id="boosters" class="boosters" aria-label="Boosters"></div>
-  </div>
+  </footer>
 </main>
 
 <div id="banner" class="banner toon" hidden aria-live="polite"></div>

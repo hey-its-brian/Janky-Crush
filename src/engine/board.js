@@ -15,6 +15,11 @@ export const BOMB = 'bomb'; // color bomb: has no color of its own
 // Ingredients can't be matched or blasted; they ride down to an exit.
 export const INGREDIENT = 'ingredient';
 export const INGREDIENT_KINDS = ['duck', 'pup'];
+// A gummy cube: a blocker that falls like a piece but can't be swapped or
+// matched. A match next to it or a blast pops it.
+export const GUMMY = 'gummy';
+// Pieces that stay put when the board is shuffled or primed.
+const fixedPiece = (cell) => cell?.special === INGREDIENT || cell?.special === GUMMY;
 
 const isStriped = (s) => s === STRIPE_H || s === STRIPE_V;
 
@@ -41,6 +46,11 @@ export class Board {
     // takes up the cell (no piece there), doesn't fall, and cracks a layer
     // when a match lands next to it or a blast hits it.
     this.block = Array.from({ length: rows }, () => Array(cols).fill(0));
+    // What each blocker is: 'coconut' or 'mochi' (same rules, own look).
+    this.blockType = Array.from({ length: rows }, () => Array(cols).fill(null));
+    // Spouts above columns that drop in a special or a gummy every few
+    // refills: [{ col, kind: 'bomb' | 'stripe' | 'wrapped' | 'gummy', every, n }].
+    this.dispensers = [];
     // Cells where ingredients leave the board (keys from key()).
     this.exits = new Set();
     // { remaining, maxOnBoard, chance } on ingredient levels.
@@ -55,6 +65,8 @@ export class Board {
     b.grid = this.grid.map((row) => row.map((c) => (c ? { ...c } : null)));
     b.jelly = this.jelly.map((row) => [...row]);
     b.block = this.block.map((row) => [...row]);
+    b.blockType = this.blockType.map((row) => [...row]);
+    b.dispensers = this.dispensers.map((d) => ({ ...d }));
     b.exits = new Set(this.exits);
     b.spawner = this.spawner ? { ...this.spawner } : null;
     return b;
@@ -71,12 +83,12 @@ export class Board {
   // The color a candy matches as, or null if it can't be part of a match.
   matchColor(r, c) {
     const cell = this.get(r, c);
-    if (!cell || cell.special === BOMB || cell.special === WRAPPED_LIT || cell.special === INGREDIENT) return null;
+    if (!cell || cell.special === BOMB || cell.special === WRAPPED_LIT || fixedPiece(cell)) return null;
     return cell.color;
   }
 
   newCandy(color, special = null) {
-    return { id: nextId++, color: special === BOMB || special === INGREDIENT ? null : color, special };
+    return { id: nextId++, color: special === BOMB || special === INGREDIENT || special === GUMMY ? null : color, special };
   }
 
   newIngredient(kind) {
@@ -93,7 +105,7 @@ export class Board {
     for (let attempt = 0; attempt < 100; attempt++) {
       for (let r = 0; r < this.rows; r++) {
         for (let c = 0; c < this.cols; c++) {
-          if (!this.mask[r][c] || this.block[r][c] || this.grid[r][c]?.special === INGREDIENT) continue;
+          if (!this.mask[r][c] || this.block[r][c] || fixedPiece(this.grid[r][c])) continue;
           const banned = new Set();
           const l1 = this.get(r, c - 1), l2 = this.get(r, c - 2);
           if (l1 && l2 && l1.color === l2.color) banned.add(l1.color);
@@ -114,16 +126,20 @@ export class Board {
   //   *             color bomb
   //   @             ingredient
   //   k K           coconut with one or two layers
+  //   m M           mochi with one or two layers
+  //   u             gummy cube
   //   .             empty playable cell
   //   (space)       outside the board
   load(rowsOfChars) {
     this.rows = rowsOfChars.length;
     this.cols = rowsOfChars[0].length;
     this.mask = rowsOfChars.map((row) => [...row].map((ch) => ch !== ' '));
-    this.block = rowsOfChars.map((row) => [...row].map((ch) => (ch === 'k' ? 1 : ch === 'K' ? 2 : 0)));
+    this.block = rowsOfChars.map((row) => [...row].map((ch) => ({ k: 1, K: 2, m: 1, M: 2 })[ch] ?? 0));
+    this.blockType = rowsOfChars.map((row) => [...row].map((ch) => ('kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : null)));
     this.grid = rowsOfChars.map((row) =>
       [...row].map((ch) => {
-        if (ch === ' ' || ch === '.' || ch === 'k' || ch === 'K') return null;
+        if (' .kKmM'.includes(ch)) return null;
+        if (ch === 'u') return this.newCandy(null, GUMMY);
         if (ch === '*') return this.newCandy(null, BOMB);
         if (ch === '@') return this.newIngredient('duck');
         if (ch !== ch.toLowerCase()) return this.newCandy(ch.toLowerCase(), STRIPE_H);
@@ -139,7 +155,11 @@ export class Board {
       row
         .map((cell, c) => {
           if (!this.mask[r][c]) return ' ';
-          if (this.block[r][c]) return this.block[r][c] > 1 ? 'K' : 'k';
+          if (this.block[r][c]) {
+            const ch = this.blockType[r][c] === 'mochi' ? 'm' : 'k';
+            return this.block[r][c] > 1 ? ch.toUpperCase() : ch;
+          }
+          if (cell?.special === GUMMY) return 'u';
           if (!cell) return '.';
           if (cell.special === BOMB) return '*';
           if (cell.special === INGREDIENT) return '@';
@@ -203,7 +223,7 @@ export class Board {
   isComboSwap(a, b) {
     const x = this.get(...a), y = this.get(...b);
     if (!x || !y) return false;
-    if (x.special === INGREDIENT || y.special === INGREDIENT) return false;
+    if (fixedPiece(x) || fixedPiece(y)) return false;
     if (x.special === BOMB || y.special === BOMB) return true;
     return Boolean(x.special && y.special);
   }
@@ -380,6 +400,10 @@ export class Board {
     if (!cand || cand.special === INGREDIENT) return;
     if (pass.keep.has(k) || pass.clear.has(k) || pass.light.has(k)) return;
     if (!pass.cause.has(k)) pass.cause.set(k, pass.current);
+    if (cand.special === GUMMY) {
+      pass.clear.set(k, [r, c]);
+      return;
+    }
     if (cand.special === WRAPPED) {
       pass.light.set(k, [r, c]);
       pass.queue.push([r, c]);
@@ -389,9 +413,19 @@ export class Board {
     if (cand.special) pass.queue.push([r, c]);
   }
 
-  // A coconut takes at most one hit per step.
+  // A coconut or mochi takes at most one hit per step. A match beside a
+  // gummy cube pops it.
   hitBlock(pass, r, c, cause) {
-    if (!this.playable(r, c) || !this.block[r][c]) return;
+    if (!this.playable(r, c)) return;
+    if (this.grid[r][c]?.special === GUMMY) {
+      const k = key([r, c]);
+      if (!pass.clear.has(k)) {
+        pass.clear.set(k, [r, c]);
+        pass.cause.set(k, cause);
+      }
+      return;
+    }
+    if (!this.block[r][c]) return;
     const k = key([r, c]);
     if (!pass.blockHit.has(k)) pass.blockHit.set(k, { at: [r, c], cause });
   }
@@ -483,7 +517,8 @@ export class Board {
     for (const { at, cause } of pass.blockHit.values()) {
       const [r, c] = at;
       this.block[r][c]--;
-      blocksHit.push({ at, cause, left: this.block[r][c] });
+      blocksHit.push({ at, cause, left: this.block[r][c], type: this.blockType[r][c] });
+      if (!this.block[r][c]) this.blockType[r][c] = null;
     }
 
     const matched = new Set(groups.flatMap((g) => g.cells.map(key)));
@@ -655,15 +690,38 @@ export class Board {
     for (let c = 0; c < this.cols; c++) {
       const empty = [];
       for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.block[r][c] && !this.grid[r][c] && this.fed(r, c)) empty.push(r);
+      const spout = empty.length ? this.dispensers.find((d) => d.col === c) : null;
+      let dispensed = null;
+      if (spout) {
+        spout.n = (spout.n ?? 0) + 1;
+        if (spout.n % spout.every === 0) dispensed = this.dispense(spout.kind);
+      }
       empty.forEach((r, i) => {
-        const cell = c === ingredientCol && i === 0
-          ? this.newIngredient(this.nextIngredientKind())
+        // The last piece in drops first, so it leads the column down.
+        const cell = dispensed && i === empty.length - 1 ? dispensed
+          : c === ingredientCol && i === 0 ? this.newIngredient(this.nextIngredientKind())
           : this.newCandy(this.randomColor());
         this.grid[r][c] = cell;
-        spawns.push({ id: cell.id, candy: cell, color: cell.color, to: [r, c], fromRow: i - empty.length });
+        spawns.push({ id: cell.id, candy: cell, color: cell.color, to: [r, c], fromRow: i - empty.length, dispensed: cell === dispensed });
       });
     }
     return spawns;
+  }
+
+  // What a dispenser drops in.
+  dispense(kind) {
+    switch (kind) {
+      case 'bomb': return this.newCandy(null, BOMB);
+      case 'wrapped': return this.newCandy(this.randomColor(), WRAPPED);
+      case 'gummy': return this.newCandy(null, GUMMY);
+      default: return this.newCandy(this.randomColor(), randInt(this.rng, 2) ? STRIPE_H : STRIPE_V);
+    }
+  }
+
+  gummyCount() {
+    let n = 0;
+    for (const row of this.grid) for (const c of row) if (c?.special === GUMMY) n++;
+    return n;
   }
 
   // On ingredient levels, sometimes drop a new one in with the refill.
@@ -764,7 +822,7 @@ export class Board {
     for (let r = 0; r < this.rows; r++)
       for (let c = 0; c < this.cols; c++) {
         const cand = this.grid[r][c];
-        if (!cand || cand.special === INGREDIENT || cand.special === WRAPPED_LIT) continue;
+        if (!cand || fixedPiece(cand) || cand.special === WRAPPED_LIT) continue;
         (cand.special ? specials : plain).push([r, c]);
       }
     const converted = [];
@@ -802,7 +860,7 @@ export class Board {
     const cells = [];
     for (let r = 0; r < this.rows; r++)
       for (let c = 0; c < this.cols; c++)
-        if (this.grid[r][c] && this.grid[r][c].special !== INGREDIENT) cells.push([r, c]);
+        if (this.grid[r][c] && !fixedPiece(this.grid[r][c])) cells.push([r, c]);
     const candies = cells.map(([r, c]) => ({ cell: this.grid[r][c], from: [r, c] }));
     for (let attempt = 0; attempt < 200; attempt++) {
       for (let i = candies.length - 1; i > 0; i--) {

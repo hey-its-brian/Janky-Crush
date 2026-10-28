@@ -4,7 +4,7 @@ import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES } from 
 import { buildWorld } from './ui/world.js';
 import { renderMap } from './ui/map.js';
 import { capy } from './art/capy.js';
-import { ducky, striped, wrapped, bomb, fruit, coconut } from './art/pieces.js';
+import { ducky, striped, wrapped, bomb, fruit, coconut, mochi, gummy } from './art/pieces.js';
 import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic } from './audio/music.js';
@@ -249,14 +249,29 @@ const listing = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join('
 
 const FRUIT_NAMES = { r: 'strawberries', o: 'oranges', y: 'lemons', g: 'apples', b: 'blueberries', p: 'grapes' };
 
+// Which blockers a level has, in the order they first appear.
+function blockerKinds(level) {
+  const kinds = [];
+  for (const ch of level.layout.join('')) {
+    const k = 'kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : ch === 'u' ? 'gummy' : null;
+    if (k && !kinds.includes(k)) kinds.push(k);
+  }
+  for (const d of level.dispensers ?? []) if (d.kind === 'gummy' && !kinds.includes('gummy')) kinds.push('gummy');
+  return kinds;
+}
+const BLOCKER_ART = { coconut: () => coconut(2), mochi: () => mochi(2), gummy: () => gummy() };
+const BLOCKER_GOAL = { coconut: 'Crack open every coconut', mochi: 'Squish every mochi', gummy: 'Pop every gummy cube' };
+
 function goalText(level) {
   switch (level.goal.type) {
     case 'jelly':
       return 'Clear all the bath foam';
     case 'ingredients':
       return `Bring ${level.goal.count} friends down to the spring`;
-    case 'coconuts':
-      return 'Crack open every coconut';
+    case 'blockers': {
+      const kinds = blockerKinds(level);
+      return kinds.length === 1 ? BLOCKER_GOAL[kinds[0]] : 'Clear every blocker';
+    }
     case 'collect':
       return `Collect ${listing(Object.entries(level.goal.targets).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`))}`;
     default:
@@ -268,7 +283,7 @@ function goalIcon(type, level = current) {
   const icon = el('i', { class: `goal-icon ${type}`, 'aria-hidden': 'true' });
   // Our own SVG art.
   if (type === 'ingredients') icon.innerHTML = ducky();
-  if (type === 'coconuts') icon.innerHTML = coconut(2);
+  if (type === 'blockers') icon.innerHTML = BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']();
   if (type === 'collect') icon.innerHTML = fruit(Object.keys(level.goal.targets)[0]);
   return icon;
 }
@@ -331,7 +346,7 @@ function goalShortfall(r) {
   switch (r.goal) {
     case 'jelly': return `${r.jellyLeft} foam left to clear`;
     case 'ingredients': return `${r.ingredientsLeft} friend${r.ingredientsLeft === 1 ? '' : 's'} still up top`;
-    case 'coconuts': return `${r.coconutsLeft} coconut${r.coconutsLeft === 1 ? '' : 's'} still whole`;
+    case 'blockers': return `${r.blockersLeft} blocker${r.blockersLeft === 1 ? '' : 's'} still in the way`;
     case 'collect':
       return `Still needed ${Object.entries(r.collectLeft).filter(([, n]) => n).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`).join(', ')}`;
     default: return `Needed ${fmt(r.target)} points`;
@@ -358,7 +373,7 @@ function showResult(r) {
       s.striped + s.wrapped + s.bomb ? statRow('Specials made', specials) : null,
       s.bestCascade > 1 ? statRow('Biggest chain', el('span', { class: 'val', text: `×${s.bestCascade}` })) : null,
       s.foamCleared ? statRow('Foam cleared', el('span', { class: 'val', text: fmt(s.foamCleared) }), el('i', { class: 'foam-icon goal-icon', style: 'width:30px;height:30px' })) : null,
-      s.coconuts ? statRow('Coconuts cracked', el('span', { class: 'val', text: String(s.coconuts) }), el('i', { class: 'goal-icon', svg: coconut(1), style: 'width:32px;height:32px' })) : null,
+      s.blockers ? statRow('Blockers cleared', el('span', { class: 'val', text: String(s.blockers) }), el('i', { class: 'goal-icon', svg: coconut(1), style: 'width:32px;height:32px' })) : null,
       r.collected ? statRow('Friends rescued', el('span', { class: 'val', text: String(r.collected) }), el('i', { class: 'goal-icon', svg: ducky(), style: 'width:32px;height:32px' })) : null,
       s.bonus ? statRow('Leftover moves bonus', el('span', { class: 'val', text: `+${fmt(s.bonus)}` })) : null,
       statRow('Coins earned', el('span', { class: 'val' }, icon(coin()), `+${coins.total}`)),
@@ -558,7 +573,7 @@ function offerMoves() {
     const s = game.state;
     const why = s.goal.type === 'jelly' ? `${s.jellyLeft()} foam left to clear`
       : s.goal.type === 'ingredients' ? `${s.ingredientsLeft()} still to bring down`
-      : s.goal.type === 'coconuts' ? `${s.coconutsLeft()} coconut${s.coconutsLeft() === 1 ? '' : 's'} to crack`
+      : s.goal.type === 'blockers' ? `${s.blockersLeft()} blocker${s.blockersLeft() === 1 ? '' : 's'} to clear`
       : s.goal.type === 'collect' ? `${Object.entries(s.collectLeft()).filter(([, n]) => n).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`).join(', ')} to go`
       : `${fmt(s.level.stars[0] - s.score)} points to go`;
     play('boing');
@@ -647,7 +662,7 @@ function updateHud(h) {
   if (icon.dataset.type !== goalKey) {
     icon.dataset.type = goalKey;
     icon.className = `goal-icon ${h.goal}`;
-    icon.innerHTML = h.goal === 'ingredients' ? ducky() : h.goal === 'coconuts' ? coconut(2) : ''; // our own SVG art
+    icon.innerHTML = h.goal === 'ingredients' ? ducky() : h.goal === 'blockers' ? BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']() : ''; // our own SVG art
     // Collect goals list each fruit with its own count.
     $('goal-fruits').replaceChildren(...Object.keys(h.collectLeft).map((c) =>
       el('span', { class: 'goal-fruit', 'data-color': c }, el('i', { class: 'goal-icon small', svg: fruit(c) }), el('b', { class: 'count' }))));
@@ -663,9 +678,9 @@ function updateHud(h) {
       span.querySelector('b').textContent = left > 0 ? String(left) : '\u2713';
       span.classList.toggle('done', left === 0);
     }
-  } else if (h.goal === 'coconuts') {
-    $('goal-label').textContent = 'Crack coconuts';
-    $('goal-value').textContent = `${h.coconutsLeft} left`;
+  } else if (h.goal === 'blockers') {
+    $('goal-label').textContent = 'Clear blockers';
+    $('goal-value').textContent = `${h.blockersLeft} left`;
   } else if (h.goal === 'jelly') {
     $('goal-label').textContent = 'Clear the foam';
     $('goal-value').textContent = `${h.jellyLeft} left`;

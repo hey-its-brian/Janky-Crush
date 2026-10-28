@@ -252,3 +252,29 @@ export function coconut(layers) {
   return svg(shade(g, '#c98a52', '#8a5226', '#4a2810'),
     SHADOW + body + fibers + eyes + (layers > 1 ? rope : cracks) + gloss(34, 30, 9, 5, -35, 0.45));
 }
+
+// Mochi blocker: a soft rice cake dusted with powder. Two layers wears a
+// pink swirl; the last layer is plain white.
+export function mochi(layers) {
+  const g = id('mo');
+  const swirl = `<path d="M50 50 C50 40 64 40 64 52 C64 66 42 68 38 52 C34 34 58 26 70 40 C82 56 70 78 50 80 C28 82 18 62 24 44" stroke="#ff7fb8" stroke-width="7" fill="none" stroke-linecap="round"/>` +
+    `<path d="M50 50 C50 40 64 40 64 52 C64 66 42 68 38 52 C34 34 58 26 70 40" stroke="#ffd1e6" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+  const dust = [[30, 30], [70, 28], [24, 66], [76, 70], [50, 22], [58, 84]]
+    .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.8" fill="#fff" opacity=".9"/>`).join('');
+  return svg(shade(g, '#ffffff', '#fbf3ee', '#e2cfc6'),
+    SHADOW +
+    `<path d="M14 54 C12 26 30 12 50 12 C72 12 88 26 86 54 C86 78 72 88 50 88 C28 88 14 78 14 54Z" fill="url(#${g})" stroke="#b89a8c" stroke-width="3"/>` +
+    (layers > 1 ? swirl : `<path d="M30 70 Q50 78 70 70" stroke="#e2cfc6" stroke-width="3" fill="none" stroke-linecap="round"/>`) +
+    dust + gloss(34, 28, 10, 5, -30, 0.8));
+}
+
+// Gummy cube blocker: a wobbly lime gummy that falls like a piece.
+export function gummy() {
+  const g = id('gu');
+  return svg(`<linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8ff7a"/><stop offset=".5" stop-color="#48d62a"/><stop offset="1" stop-color="#1f8f12"/></linearGradient>`,
+    SHADOW +
+    `<rect x="14" y="16" width="72" height="70" rx="18" fill="url(#${g})" stroke="#13600a" stroke-width="3"/>` +
+    `<rect x="22" y="22" width="56" height="22" rx="10" fill="#fff" opacity=".35"/>` +
+    `<path d="M24 74 Q50 82 76 74" stroke="#13600a" stroke-width="2.5" fill="none" opacity=".5"/>` +
+    gloss(30, 28, 8, 4, -20, 0.85));
+}

@@ -43,8 +43,14 @@
       Cove, Lantern Hills, Steam Peaks) with their own ground, scenery and
       waving critters, gates, a striped rope between levels, a top bar
       with the host's portrait, and the host travelling on after a win.
-- [ ] **Phase 5+: Level packs** of 15–30, each adding a blocker
-      (chocolate, licorice, bombs, portals, conveyors).
+- [x] **Blockers and dispensers.** Mochi (one or two layers) and gummy
+      cubes (they fall; a match beside them or a blast pops them),
+      blocker-heavy levels, spouts that drop specials or gummies into a
+      column, and a new in-level layout: one pink top panel (moves, score
+      bar, goals, the host's portrait) and a booster bar at the bottom.
+- [ ] **Phase 5+: Level packs** of 15–30, each adding a mechanic
+      (spreading chocolate-like blockers, locked fruit, timer bombs,
+      portals, conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
       feature-complete. Wrap it with Capacitor so the same code runs as a
       real app, and install through TestFlight internal testing (no App

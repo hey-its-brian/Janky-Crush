@@ -4,10 +4,12 @@
 // player play every level many times.
 //
 // Layout: 9 strings of 9. ' ' not on the board, '.' plain, '1' foam,
-// '2' double foam, 'k' coconut, 'K' big coconut. See src/engine/level.js.
+// '2' double foam, 'k'/'K' coconut, 'm'/'M' mochi (one or two layers),
+// 'u' gummy cube. See src/engine/level.js. `dispensers` put a spout above
+// a column that drops in a special or a gummy every few refills.
 //
 // Goals: score, jelly (clear the foam), ingredients (bring friends down),
-// coconuts (crack them all), collect (gather so many of each fruit).
+// blockers (clear every coconut, mochi and gummy), collect (gather so many of each fruit).
 
 import { TUNING } from './level-tuning.js';
 
@@ -49,7 +51,7 @@ export const LEVEL_DESIGNS = [
     layout: [' ....... ', '.........', '.........', '...111...', '...111...', '...111...', '.........', '.........', ' ....... '],
   },
   {
-    id: 4, goal: { type: 'coconuts' }, colors: 5,
+    id: 4, goal: { type: 'blockers' }, colors: 5,
     layout: ['.........', '.........', '.........', '.........', 'k.k.k.k.k', '.........', '.........', '.........', '.........'],
   },
   { id: 5, goal: { type: 'score' }, moves: 20, colors: 5, layout: HEART },
@@ -62,15 +64,15 @@ export const LEVEL_DESIGNS = [
     layout: ['1.......1', '.1.....1.', '..1...1..', '...1.1...', '....1....', '...1.1...', '..1...1..', '.1.....1.', '1.......1'],
   },
   {
-    id: 9, goal: { type: 'coconuts' }, colors: 5,
-    layout: ['  .....  ', '  .....  ', '  .k.k.  ', '.k.....k.', '.........', '.k.....k.', '  .k.k.  ', '  .....  ', '  .....  '],
+    id: 9, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.........', '.m.m.m.m.', '.........', 'm.m.m.m.m', '.........', '.m.m.m.m.', '.........', '.........'],
   },
   { id: 10, goal: { type: 'score' }, moves: 22, colors: 6, layout: STAIRS },
 
-  // 11–15: big coconuts and double foam
+  // 11–15: big coconuts, double foam and gummy cubes
   { id: 11, goal: { type: 'ingredients', count: 3 }, colors: 5, layout: ARROW },
   {
-    id: 12, goal: { type: 'coconuts' }, colors: 5,
+    id: 12, goal: { type: 'blockers' }, colors: 5,
     layout: ['.........', '.........', '.........', 'K.K...K.K', '...K.K...', 'K.K...K.K', '.........', '.........', '.........'],
   },
   { id: 13, goal: { type: 'collect', targets: { b: 25, y: 25 } }, colors: 5, layout: PLUS },
@@ -82,18 +84,15 @@ export const LEVEL_DESIGNS = [
 
   // 16–20: shapes get trickier
   {
-    id: 16, goal: { type: 'coconuts' }, colors: 5,
-    layout: ['...   ...', '.K.   .K.', '...   ...', 'k.k   k.k', '...   ...', '.........', '.K.k.k.K.', '.........', 'k.k.k.k.k'],
+    id: 16, goal: { type: 'blockers' }, colors: 5,
+    layout: ['...   ...', '.u.   .u.', '...   ...', 'u.u   u.u', '...   ...', '.........', '.u.u.u.u.', '.........', 'u.u.u.u.u'],
   },
   { id: 17, goal: { type: 'jelly' }, colors: 5, layout: paint(HEART, '1') },
   { id: 18, goal: { type: 'collect', targets: { r: 25, p: 25, g: 25 } }, colors: 6, layout: FULL },
-  {
-    id: 19, goal: { type: 'coconuts' }, colors: 5,
-    layout: ['k.k.k.k.k', ' ....... ', '  K.k.K  ', '   ...   ', '   .k.   ', '   ...   ', '  k.K.k  ', ' ....... ', '.K.K.K.K.'],
-  },
+  { id: 19, goal: { type: 'jelly' }, colors: 5, layout: paint(HOURGLASS, '1'), dispensers: [{ col: 4, kind: 'stripe', every: 3 }] },
   { id: 20, goal: { type: 'score' }, moves: 24, colors: 6, layout: DONUT },
 
-  // 21–25: coconuts guard the foam
+  // 21–25: blockers guard the foam
   {
     id: 21, goal: { type: 'jelly' }, colors: 5,
     layout: ['111111111', '1k.k.k.k1', '1.......1', '1.......1', '1.......1', '1.......1', '1.......1', '1k.k.k.k1', '111111111'],
@@ -105,8 +104,8 @@ export const LEVEL_DESIGNS = [
   { id: 23, goal: { type: 'collect', targets: { y: 35, b: 35 } }, colors: 5, layout: HEART },
   { id: 24, goal: { type: 'jelly' }, colors: 5, layout: [...paint(DIAMOND.slice(0, 2), '1'), ...paint(DIAMOND.slice(2, 7), '2'), ...paint(DIAMOND.slice(7), '1')] },
   {
-    id: 25, goal: { type: 'coconuts' }, colors: 5,
-    layout: ['.........', '.K.K.K.K.', '.........', 'k.k.k.k.k', '.........', '.K.K.K.K.', '.........', 'k.k.k.k.k', '.........'],
+    id: 25, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.mm.mm.m.', '.MM.MM.M.', '.mm.mm.m.', '.MM.MM.M.', 'u.uu.uu.u', '.u..u..u.', '.........', '.........'],
   },
 
   // 26–30: harder mixes
@@ -117,10 +116,11 @@ export const LEVEL_DESIGNS = [
     layout: ['222222222', '2.......2', '2.k.k.k.2', '2.......2', '2.......2', '2.......2', '2.k.k.k.2', '2.......2', '222222222'],
   },
   {
-    id: 29, goal: { type: 'coconuts' }, colors: 5,
-    layout: ['.....    ', '.K.k..   ', '.k...K.  ', '...K...k ', '.k..K..k.', ' K...K..K', '  .k...k.', '   .Kk.K.', '    .....'],
+    id: 29, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.KK...KK.', '.kk.m.kk.', '.KK...KK.', '...M.M...', '.........', '.k.k.k.k.', '.........', '.........'],
+    dispensers: [{ col: 4, kind: 'bomb', every: 6 }],
   },
-  { id: 30, goal: { type: 'score' }, moves: 24, colors: 6, layout: BRIDGE },
+  { id: 30, goal: { type: 'score' }, moves: 24, colors: 6, layout: BRIDGE, dispensers: [{ col: 4, kind: 'wrapped', every: 5 }] },
 
   // 31–35: the deep end
   { id: 31, goal: { type: 'ingredients', count: 4 }, colors: 6, layout: FULL },
@@ -130,8 +130,9 @@ export const LEVEL_DESIGNS = [
   },
   { id: 33, goal: { type: 'collect', targets: { r: 30, o: 30, y: 30, g: 30 } }, colors: 6, layout: FULL },
   {
-    id: 34, goal: { type: 'coconuts' }, colors: 5,
-    layout: ['  .....  ', '  K.K.K  ', '.........', 'K.......K', 'K..K.K..K', 'K.......K', '.........', '  K.K.K  ', '  .....  '],
+    id: 34, goal: { type: 'collect', targets: { r: 30, b: 30 } }, colors: 5,
+    layout: ['.........', 'u.u.u.u.u', '.u.u.u.u.', 'u.u.u.u.u', '.........', '.........', '.u.u.u.u.', '.........', '.........'],
+    dispensers: [{ col: 2, kind: 'gummy', every: 4 }, { col: 6, kind: 'gummy', every: 4 }],
   },
   { id: 35, goal: { type: 'score' }, moves: 22, colors: 6, layout: HEART },
 
@@ -140,8 +141,9 @@ export const LEVEL_DESIGNS = [
   { id: 37, goal: { type: 'ingredients', count: 3 }, colors: 6, layout: TWIN },
   { id: 38, goal: { type: 'collect', targets: { b: 45, g: 45 } }, colors: 6, layout: DONUT },
   {
-    id: 39, goal: { type: 'coconuts' }, colors: 5,
-    layout: ['.........', '.K.K.K.K.', 'K.K.K.K.K', '.........', '.........', '.........', 'k.k.k.k.k', '.k.k.k.k.', '.........'],
+    id: 39, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.MM.u.MM.', '.mm...mm.', 'u.u.M.u.u', '.KK...KK.', '.kk.u.kk.', '.........', 'k.k.k.k.k', '.........'],
+    dispensers: [{ col: 4, kind: 'bomb', every: 7 }],
   },
   {
     id: 40, goal: { type: 'jelly' }, colors: 5,

@@ -351,6 +351,12 @@ const RECIPES = {
       bubbles({ at: 0.06, count: 3 });
     }
   },
+  // A mochi or gummy taking a hit: a soft, springy squish.
+  squish: ({ last = false } = {}) => {
+    tone({ freq: 180, to: 420, dur: 0.12, vol: 0.2, vibrato: 18 });
+    noise({ type: 'lowpass', freq: 900, to: 300, dur: 0.1, vol: 0.12 });
+    if (last) bloop(260, { at: 0.06, vol: 0.12, dur: 0.1 });
+  },
   // Foam bursting: a soft bubble.
   foam: () => {
     bloop(240 + Math.random() * 120, { vol: 0.16, dur: 0.08 });
@@ -451,7 +457,7 @@ const RECIPES = {
 };
 
 // Rate limits (ms) for effects that can pile up.
-const LIMIT = { crack: 40, pop: 30, land: 35, foam: 50, bolt: 30, tick: 40, morph: 30, match: 40 };
+const LIMIT = { squish: 40, crack: 40, pop: 30, land: 35, foam: 50, bolt: 30, tick: 40, morph: 30, match: 40 };
 const lastPlayed = {};
 
 export function play(name, opts) {

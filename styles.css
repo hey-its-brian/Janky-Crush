@@ -517,9 +517,9 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 /* ---- collect goals --------------------------------------------------------------- */
 
 .goal-fruits { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; row-gap: 0; }
-.goal-fruits.many { gap: 6px; }
-.goal-fruits.many .goal-icon.small { width: 26px; height: 26px; }
-.goal-fruits.many .count { font-size: 18px; }
+.goal-fruits.many { gap: 4px; flex-wrap: nowrap; }
+.goal-fruits.many .goal-icon.small { width: 22px; height: 22px; }
+.goal-fruits.many .count { font-size: 16px; }
 .goal-fruit { display: flex; align-items: center; gap: 2px; }
 .goal-icon.small { width: 34px; height: 34px; }
 .goal-fruit .count { font-family: var(--display); font-size: 24px; color: var(--ink); }
@@ -595,8 +595,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   background: radial-gradient(ellipse at 40% 30%, #fff, #ffc9e0 55%, #f59ac2);
   border: 3px solid #fff; box-shadow: 0 5px 0 #d97aa6, 0 8px 12px rgba(0, 0, 0, .18);
 }
-.node.coconuts { background: radial-gradient(circle at 35% 30%, #f0c896, #a8652c 55%, #6b3a16); box-shadow: 0 6px 0 #4a2810, 0 10px 16px rgba(0, 0, 0, .25); }
-.node.coconuts b { -webkit-text-stroke-color: #4a2810; }
+.node.blockers { background: radial-gradient(circle at 35% 30%, #f0c896, #a8652c 55%, #6b3a16); box-shadow: 0 6px 0 #4a2810, 0 10px 16px rgba(0, 0, 0, .25); }
+.node.blockers b { -webkit-text-stroke-color: #4a2810; }
 .node.collect { background: radial-gradient(circle at 35% 30%, #e5c8ff, #9b4dff 55%, #5a1fb0); box-shadow: 0 6px 0 #3f137e, 0 10px 16px rgba(0, 0, 0, .25); }
 .node.collect b { -webkit-text-stroke-color: #3f137e; }
 .node.current { width: 84px; height: 84px; margin: -42px 0 0 -42px; animation: pulse 1.2s ease-in-out infinite; }
@@ -624,3 +624,73 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   background: #fff; border: 2px solid #ffb3d6; font-family: var(--display); font-size: 15px; color: var(--ink); white-space: nowrap;
 }
 .star-badge .star-icon { width: 16px; height: 16px; }
+
+/* ---- level screen, top panel and booster bar --------------------------------------- */
+
+.screen { padding-top: 0; }
+.game-top {
+  position: relative; margin: 0 -14px; flex: none;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 12px;
+  display: grid; grid-template-columns: 84px minmax(0, 1fr) 88px; gap: 10px; align-items: center;
+  background: linear-gradient(#ffe0ef, #ffb3d6);
+  border-bottom: 4px solid #fff; border-radius: 0 0 28px 28px;
+  box-shadow: 0 6px 0 #e083ad, 0 12px 24px rgba(120, 20, 70, .25);
+}
+.game-top .moves {
+  width: 84px; height: 84px; border: 4px solid #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.game-top .moves b { font-size: 46px; line-height: .85; }
+.game-top .moves small { font-size: 12px; }
+.top-mid { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 10px; }
+.top-mid .meter { height: 20px; margin: 0 8px 0 2px; background: linear-gradient(#a3205b, #c42a6e); box-shadow: inset 0 3px 5px rgba(60, 0, 30, .45); }
+.top-mid .meter-star { width: 30px; height: 30px; margin: -15px 0 0 -15px; }
+.top-mid .meter-star i { background: #ffd1e6; }
+.meter-score {
+  position: absolute; left: 50%; top: -19px; transform: translateX(-50%);
+  font-family: var(--display); font-weight: 400; font-size: 15px; color: var(--pink-deep);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.top-mid .goal {
+  min-height: 52px; padding: 4px 12px; border-radius: 16px; justify-content: center;
+  background: linear-gradient(#fff, #fff1f7); border: 3px solid #fff; box-shadow: inset 0 -3px 0 #ffd1e6, 0 3px 0 #e083ad;
+}
+.top-mid .goal .goal-icon { width: 38px; height: 38px; }
+.top-mid .goal .count { font-size: 26px; }
+.portrait {
+  width: 88px; height: 88px; border-radius: 50%; overflow: hidden; position: relative;
+  background: radial-gradient(circle at 50% 35%, #e6fbff, #8fe3f5);
+  border: 5px solid #fff; box-shadow: 0 5px 0 #e083ad, 0 8px 14px rgba(0, 0, 0, .2);
+}
+.portrait .host { position: absolute; left: -2px; right: -2px; bottom: -10px; top: 4px; width: auto; height: auto; animation: breathe 3s ease-in-out infinite; }
+.game-top .bubble {
+  left: auto; right: 10px; bottom: auto; top: calc(100% + 8px); z-index: 4;
+}
+.game-top .bubble::after {
+  left: auto; right: 34px; bottom: auto; top: -11px; width: 16px; height: 12px;
+  border: 3px solid var(--ink); border-bottom: none; border-right: none; transform: rotate(45deg);
+}
+.booster-bar {
+  flex: none; display: flex; align-items: center; gap: 12px; margin: 0 -2px;
+  padding: 10px 14px; border-radius: 28px;
+  background: linear-gradient(#fff4fa, #ffd6ea); border: 4px solid #fff;
+  box-shadow: 0 6px 0 #e083ad, 0 10px 20px rgba(120, 20, 70, .22);
+}
+.pause-btn { flex: none; background: radial-gradient(circle at 35% 30%, #ffb3d4, var(--pink) 60%, var(--pink-deep)); box-shadow: 0 5px 0 #a3205b, 0 8px 14px rgba(0, 0, 0, .2); }
+.booster-bar .boosters { position: static; flex: 1; justify-content: space-around; }
+
+/* A dispenser spout above a column: what it drops is shown in its window. */
+.spout {
+  position: absolute; z-index: 3; width: 40px; height: 32px; transform: translate(-50%, -100%);
+  border-radius: 20px 20px 6px 6px; pointer-events: none;
+  background: linear-gradient(#e6fbff, #8fe3f5); border: 3px solid #fff;
+  box-shadow: 0 3px 0 #2aa7b8, 0 6px 10px rgba(0, 0, 0, .2);
+}
+.spout::before {
+  content: ''; position: absolute; left: 50%; top: 5px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffd1ec, #ff3d9a 60%, #a3005a);
+}
+.spout.stripe::before { background: repeating-linear-gradient(90deg, #ff2d4a 0 4px, #fff 4px 7px); }
+.spout.wrapped::before { background: radial-gradient(circle at 35% 30%, #fff, #9ff3f2 50%, #2ec4d6); }
+.spout.gummy::before { border-radius: 5px; background: linear-gradient(#b8ff7a, #48d62a 50%, #1f8f12); }
+.spout::after { content: ''; position: absolute; left: 50%; bottom: -8px; width: 18px; height: 8px; margin-left: -9px; background: #2aa7b8; border-radius: 0 0 6px 6px; }

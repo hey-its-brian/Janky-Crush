@@ -95,6 +95,7 @@ export class Renderer {
     this.jellyShown = new Map();
     // Coconut layers still showing until the hit that cracks them lands.
     this.blockShown = new Map();
+    this.blockTypeShown = new Map(); // what a cracked-away blocker was, until it's shown cracking
     this.selected = null;
     this.hint = null;
     this.aiming = null; // a booster waiting for a target: the board glows
@@ -121,6 +122,7 @@ export class Renderer {
     this.height = h;
     this.dpr = dpr;
     this.buildShape();
+    this.placeSpouts();
     if (this.spriteDpr !== dpr) {
       // Sprites are drawn a bit larger than 1:1 when the cell is bigger than
       // the design size, so scale the backing resolution with it.
@@ -169,6 +171,28 @@ export class Renderer {
     rc.globalCompositeOperation = 'destination-out';
     rc.drawImage(blob(2.5, 11), 0, 0);
     this.outline = ring;
+  }
+
+  // Dispenser spouts sit above their column, just over the board's edge.
+  // They're page elements next to the canvas, so they can poke out of it.
+  placeSpouts() {
+    const wrap = this.canvas.closest('.board-wrap');
+    if (!wrap) return;
+    wrap.querySelectorAll('.spout').forEach((n) => n.remove());
+    this.spouts = new Map();
+    const box = this.canvas.getBoundingClientRect(), outer = wrap.getBoundingClientRect();
+    const border = (box.width - this.width) / 2;
+    for (const d of this.board.dispensers ?? []) {
+      const top = this.board.topRow(d.col);
+      if (top < 0) continue;
+      const el = document.createElement('div');
+      el.className = `spout ${d.kind}`;
+      el.setAttribute('aria-hidden', 'true');
+      el.style.left = `${box.left - outer.left + border + PAD + d.col * this.pitch + this.cell / 2}px`;
+      el.style.top = `${box.top - outer.top + border + PAD + top * this.pitch}px`;
+      wrap.append(el);
+      this.spouts.set(d.col, el);
+    }
   }
 
   // Snap every candy's visual to its board position.
@@ -392,7 +416,11 @@ export class Renderer {
       const v = this.visuals.get(x.id);
       jobs.push(sleep(delayFor(x)).then(() => {
         const { x: px, y: py } = this.center(...x.at);
-        this.confetti(px, py, x.color, many ? 6 : 12);
+        if (x.special === 'gummy') {
+          this.crack({ at: x.at, left: 0, type: 'gummy' });
+        } else {
+          this.confetti(px, py, x.color, many ? 6 : 12);
+        }
         this.cue('pop', { x: panAt(x.at) });
         if (!v) return;
         // Squish, flash white and swell, then shrink away.
@@ -429,8 +457,10 @@ export class Renderer {
     for (const h of step.blocksHit ?? []) {
       const k = h.at[0] * 100 + h.at[1];
       this.blockShown.set(k, h.left + 1);
+      this.blockTypeShown.set(k, h.type);
       jobs.push(sleep(delayFor({ at: h.at, cause: h.cause })).then(() => {
         this.blockShown.delete(k);
+        this.blockTypeShown.delete(k);
         this.crack(h);
       }));
     }
@@ -454,12 +484,13 @@ export class Renderer {
     const { x, y } = this.center(...h.at);
     const now = performance.now();
     const chips = h.left === 0 ? 16 : 9;
+    const palette = h.type === 'gummy' ? ['#b8ff7a', '#48d62a', '#1f8f12', '#ffffff'] : h.type === 'mochi' ? ['#ffffff', '#ffd1e6', '#ff7fb8', '#f3e6df'] : ['#6b3a16', '#8a5226', '#3b1f0b', '#c98a52'];
     for (let i = 0; i < chips; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 0.1 + Math.random() * 0.16;
       this.particles.push({
         kind: 'confetti', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 0.12, g: 0.0009,
-        life: 600 + Math.random() * 300, born: now, color: ['#6b3a16', '#8a5226', '#3b1f0b', '#c98a52'][i % 4],
+        life: 600 + Math.random() * 300, born: now, color: palette[i % 4],
         size: 4 + Math.random() * 4, spin: (Math.random() - 0.5) * 0.04, angle: Math.random() * 6,
       });
     }
@@ -468,7 +499,7 @@ export class Renderer {
       this.effects.push({ kind: 'ring', x, y, color: '#fff4dc', born: now, life: 360 });
     }
     this.shake = { born: now, life: 140, amp: h.left === 0 ? 3 : 2 };
-    this.cue('crack', { x: this.board.cols > 1 ? (h.at[1] / (this.board.cols - 1)) * 2 - 1 : 0, last: h.left === 0 });
+    this.cue(h.type === 'mochi' || h.type === 'gummy' ? 'squish' : 'crack', { x: this.board.cols > 1 ? (h.at[1] / (this.board.cols - 1)) * 2 - 1 : 0, last: h.left === 0 });
     this.requestDraw();
   }
 
@@ -568,6 +599,12 @@ export class Renderer {
   }
 
   animateFall(moves, spawns) {
+    for (const s of spawns) {
+      if (!s.dispensed) continue;
+      const el = this.spouts?.get(s.to[1]);
+      el?.animate([{ transform: 'translate(-50%, -100%) scale(1)' }, { transform: 'translate(-50%, -100%) scale(1.3, .8)' }, { transform: 'translate(-50%, -100%) scale(1)' }], { duration: 260 });
+      this.cue('sparkle', { kind: s.candy.special === 'bomb' ? 'bomb' : s.candy.special === 'gummy' ? 'wrapped' : 'stripe' });
+    }
     for (const s of spawns)
       this.visuals.set(s.id, { candy: s.candy, row: s.fromRow, col: s.to[1], scale: 1, alpha: 1 });
     const jobs = [
@@ -1074,7 +1111,8 @@ export class Renderer {
         if (shell > 0 && this.sprites) {
           const size = SPRITE * (this.cell / BASE_CELL);
           const cx = x + this.cell / 2, cy = y + this.cell / 2;
-          ctx.drawImage(this.sprites[`coco:${Math.min(2, shell)}`], cx - size / 2, cy - size / 2, size, size);
+          const kind = (this.blockTypeShown.get(r * 100 + c) ?? board.blockType[r][c]) === 'mochi' ? 'mochi' : 'coco';
+          ctx.drawImage(this.sprites[`${kind}:${Math.min(2, shell)}`], cx - size / 2, cy - size / 2, size, size);
         }
       }
 

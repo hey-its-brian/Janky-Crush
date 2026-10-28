@@ -58,10 +58,10 @@ test('smash can crack a coconut', () => {
 test('coconut and collect goals finish when met', () => {
   const layout = Array(9).fill('.........');
   layout[4] = '....k....';
-  const lvl = { moves: 30, colors: 5, goal: { type: 'coconuts' }, stars: [1, 2, 3], layout };
+  const lvl = { moves: 30, colors: 5, goal: { type: 'blockers' }, stars: [1, 2, 3], layout };
   const b = setupBoard(lvl, makeRng(2));
   const st = new LevelState(lvl, b);
-  assert.equal(st.coconutsLeft(), 1);
+  assert.equal(st.blockersLeft(), 1);
   b.block[4][4] = 0;
   assert.ok(st.isComplete());
 
@@ -72,4 +72,34 @@ test('coconut and collect goals finish when met', () => {
   while (!st2.isComplete() && guard++ < 30) runTurn(b2, st2, ...b2.findPossibleMove());
   assert.ok(st2.isComplete());
   assert.equal(st2.collectLeft().r, 0);
+});
+
+test('mochi cracks like a coconut', () => {
+  const b = board(['rrrM', 'gbyo']);
+  const step = b.resolveStep(null);
+  assert.equal(b.block[0][3], 1);
+  assert.equal(step.blocksHit[0].type, 'mochi');
+});
+
+test('a gummy cube falls, cannot be swapped, and pops beside a match', () => {
+  const b = board(['u', '.']);
+  b.applyGravity();
+  assert.deepEqual(b.toStrings(), ['.', 'u']);
+  const g = board(['ug', 'rb']);
+  assert.equal(g.isValidSwap([0, 0], [0, 1]), false);
+  const m = board(['urrr', 'gbyo']);
+  const step = m.resolveStep(null);
+  assert.ok(step.cleared.some((x) => x.special === 'gummy'));
+  assert.equal(m.toStrings()[0], '....');
+});
+
+test('a dispenser drops its special every few refills', () => {
+  const b = board(['..', 'gr']);
+  b.dispensers = [{ col: 0, kind: 'bomb', every: 2, n: 0 }];
+  b.refill();
+  assert.notEqual(b.grid[0][0].special, 'bomb');
+  b.grid[0][0] = null;
+  const spawns = b.refill();
+  assert.equal(b.grid[0][0].special, 'bomb');
+  assert.ok(spawns.find((s) => s.to[1] === 0).dispensed);
 });
