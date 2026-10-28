@@ -39,7 +39,10 @@
       bursts, brighter specials. Coconut blockers (one or two layers;
       pieces slide diagonally around them), collect-the-fruit goals, ten
       new board shapes with the glass cut to the shape, and levels 31–40.
-      All 40 levels retuned.
+      All 40 levels retuned. A new map: four zones (Yuzu Valley, Coconut
+      Cove, Lantern Hills, Steam Peaks) with their own ground, scenery and
+      waving critters, gates, a striped rope between levels, a top bar
+      with the host's portrait, and the host travelling on after a win.
 - [ ] **Phase 5+: Level packs** of 15–30, each adding a blocker
       (chocolate, licorice, bombs, portals, conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
@@ -72,8 +75,6 @@
 - [ ] Announcer voice: on hold. Silent on the iPhone home-screen app so
       far; Settings has a Test voice button to check it. Should work in the
       native app.
-
-- [ ] The host hopping along the map to the next level after a win.
 
 - [ ] Gravity, bounce and jelly wobble feel right for now (constants at
       the top of `src/render/renderer.js`). Re-check once blockers,

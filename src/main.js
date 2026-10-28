@@ -91,7 +91,11 @@ function confirmStartOver(mode, name) {
   ], { host: 'worried' });
 }
 
-function showMap() {
+// The last level the map showed as current, per save, so a win can be
+// shown as the host travelling on to the next one.
+const lastCurrent = {};
+
+function showMap(then = null) {
   game?.stop();
   closeDialog();
   $('title-screen').hidden = true;
@@ -99,14 +103,29 @@ function showMap() {
   $('world').hidden = true;
   $('map-screen').hidden = false;
   playMusic();
-  const { current: next, y } = renderMap($('map'), LEVELS, progress, (level) => { tapFeedback(); showIntro(level); });
+  const before = lastCurrent[progress.active];
+  const { current: next, y, fromY } = renderMap($('map'), LEVELS, progress, (level) => { tapFeedback(); showIntro(level); }, { from: before });
+  lastCurrent[progress.active] = next.id;
+  const moved = before && before < next.id;
+  if (moved) {
+    play('sparkle', { kind: 'stripe' });
+    setTimeout(() => play('star', { i: 2 }), 1000);
+  }
   $('total-stars').textContent = String(progress.totalStars());
   $('play-btn').textContent = `Play ${next.id}`;
   $('play-btn').onclick = () => { tapFeedback(); showIntro(next); };
   updateTopbar();
-  // Bring the next level to play into view, low on the screen.
+  // Bring the next level to play into view, low on the screen; after a
+  // win, follow the host up from the level just beaten.
   const scroller = $('map-scroll');
-  scroller.scrollTop = Math.max(0, y - scroller.clientHeight * 0.6);
+  const target = Math.max(0, y - scroller.clientHeight * 0.6);
+  if (moved && fromY != null) {
+    scroller.scrollTop = Math.max(0, fromY - scroller.clientHeight * 0.6);
+    setTimeout(() => scroller.scrollTo({ top: target, behavior: 'smooth' }), 150);
+  } else {
+    scroller.scrollTop = target;
+  }
+  if (then) setTimeout(() => $('dialog').hidden && then(), moved ? 1700 : 0);
   if (progress.claimDaily()) {
     updateTopbar();
     play('coin');
@@ -355,7 +374,7 @@ function showResult(r) {
       rows.length ? el('div', { class: 'stats' }, ...rows) : null,
     ], [
       button('Replay', () => showGame(level), 'orange'),
-      next ? button('Next ▸', () => { showMap(); showIntro(next); })
+      next ? button('Next ▸', () => showMap(() => showIntro(next)))
         : button('Map', showMap),
     ], { host: 'cheer', confetti: true });
   } else {
@@ -673,6 +692,7 @@ $('home').addEventListener('click', () => { tapFeedback(); showTitle(); });
 $('lives-pill').addEventListener('click', () => { tapFeedback(); showLives(); });
 $('coins-pill').addEventListener('click', () => { tapFeedback(); showShop(); });
 $('heart-icon').innerHTML = heart(); // our own SVG art
+$('top-avatar-art').innerHTML = capy('idle');
 $('coin-icon').innerHTML = coin();
 
 // iPhones only allow sound after a tap, so wake the audio on the first one

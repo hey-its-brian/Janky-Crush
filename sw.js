@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v29';
+const VERSION = 'jc-v30';
 const ASSETS = [
   './',
   './index.html',
@@ -33,6 +33,7 @@ const ASSETS = [
   './src/render/sprites.js',
   './src/art/pieces.js',
   './src/art/icons.js',
+  './src/art/map-art.js',
   './src/art/capy.js',
   './src/art/scene.js',
   './src/ui/world.js',

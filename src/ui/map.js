@@ -1,38 +1,64 @@
-// The level map: a winding sandy path up through a tropical valley, with
-// hot-spring pools, palms, flowers, critters, a drifting balloon, and the
-// capybara host standing at your next level. Decorations are placed by a
-// seeded random so the map looks the same every time. All the markup is
-// built from our own art and level data, never user input.
+// The level map: a wide sandy road winding up through four zones, ten
+// levels each, every zone with its own ground, scenery and waving
+// characters. A candy-striped rope runs from level to level; finished
+// levels show their stars, the next one glows with the host's portrait
+// beside it, and locked ones wait as plain pink stepping stones.
+//
+// Decorations are placed by a seeded random so the map looks the same every
+// time. All the markup is built from our own art and level data, never user
+// input.
 
-import { palm, cloud, pool, steam, flower, bush, butterfly, balloon, rocks, bird } from '../art/scene.js';
-import { ducky, pup } from '../art/pieces.js';
+import { palm, cloud, flower, butterfly, balloon, rocks, bird, steam } from '../art/scene.js';
+import { hut, orangeTree, torch, lanterns, sakura, pine, mountains, onsen, redPanda, turtle, crab, frog, snowMonkey, toucan } from '../art/map-art.js';
 import { capy } from '../art/capy.js';
 import { makeRng } from '../rng.js';
 
-const SPACING = 112;
-const TOP = 300;     // room above the last level
-const BOTTOM = 190;  // room below level 1 (the Play button sits here)
+const SPACING = 120;
+const GATE_GAP = 130; // extra room below each zone's first level for its gate
+const TOP = 360;     // room above the last level
+const BOTTOM = 200;  // room below level 1 (the Play button sits here)
+
+// Each zone: name, ground colors (top, bottom), the road's colors, big
+// props and the characters that live there.
 const ZONES = [
-  { from: 1, name: 'Yuzu Valley' },
-  { from: 11, name: 'Steamy Springs' },
-  { from: 21, name: 'Duck Pond Peaks' },
+  {
+    from: 1, name: 'Yuzu Valley', ground: ['#7fd65a', '#5fc443'], tuft: '#3e9f2f',
+    props: [() => hut(), orangeTree, () => palm(), () => palm(true), orangeTree], small: [torch],
+    critters: [redPanda, toucan], flowers: ['#ff6fae', '#ffb02e', '#ffffff'],
+  },
+  {
+    from: 11, name: 'Coconut Cove', ground: ['#ffe7a3', '#f6d283'], tuft: '#9fcf5a', sea: true,
+    props: [() => palm(), () => palm(true), () => hut('#f0c060'), () => palm()], small: [torch],
+    critters: [turtle, crab], flowers: ['#ff8a6b', '#ffffff'],
+  },
+  {
+    from: 21, name: 'Lantern Hills', ground: ['#b5e08a', '#8fd06a'], tuft: '#4e9f3a',
+    props: [sakura, sakura, () => hut('#d97a4a')], small: [lanterns, torch],
+    critters: [frog], flowers: ['#ff9fc8', '#ffffff', '#ffcf3a'], petals: true,
+  },
+  {
+    from: 31, name: 'Steam Peaks', ground: ['#eaf0ff', '#cfdcf7'], tuft: '#9fb7d9', snowy: true,
+    props: [() => pine(), () => pine(), onsen], small: [() => pine()],
+    critters: [snowMonkey], flowers: ['#ffffff', '#b6d4ff'],
+  },
 ];
 
+const zoneOf = (id) => [...ZONES].reverse().find((z) => id >= z.from);
 const sprite = (svg, style, cls = '') => `<div class="sprite ${cls}" style="${style}">${svg}</div>`;
 
-// Points along the path: level i (0-based) and the curve between them.
+// Points along the road: level i (0-based) and the curve between them.
 function layout(n, width) {
-  const height = TOP + (n - 1) * SPACING + BOTTOM;
-  const swing = Math.min(130, width / 2 - 64);
+  const gatesBelow = (i) => ZONES.filter((z) => z.from <= i + 1).length;
+  const height = TOP + (n - 1) * SPACING + gatesBelow(n - 1) * GATE_GAP + BOTTOM;
+  const swing = Math.min(120, width / 2 - 70);
   const nodes = Array.from({ length: n }, (_, i) => ({
-    x: width / 2 + Math.sin(i * 0.9 + 0.4) * swing,
-    y: height - BOTTOM - i * SPACING,
+    x: width / 2 + Math.sin(i * 0.85 + 0.4) * swing,
+    y: height - BOTTOM - i * SPACING - gatesBelow(i) * GATE_GAP,
   }));
-  // Sample the curve so decorations can stay off the path.
   const samples = [];
   for (let i = 1; i < n; i++) {
     const a = nodes[i - 1], b = nodes[i], my = (a.y + b.y) / 2;
-    for (let t = 0; t <= 1; t += 0.1) {
+    for (let t = 0; t <= 1; t += 0.05) {
       const u = 1 - t;
       samples.push({
         x: u * u * u * a.x + 3 * u * u * t * a.x + 3 * u * t * t * b.x + t * t * t * b.x,
@@ -45,87 +71,149 @@ function layout(n, width) {
     const a = nodes[i - 1], b = nodes[i], my = (a.y + b.y) / 2;
     d += ` C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${b.y}`;
   }
-  d += ` L ${nodes[n - 1].x} ${nodes[n - 1].y - 140}`;
-  return { height, nodes, samples, d };
+  const road = `${d} L ${nodes[n - 1].x} ${nodes[n - 1].y - 200}`;
+  // The striped rope only links the levels.
+  const rope = d.replace(/^M [^ ]+ [^ ]+ L /, 'M ');
+  return { height, nodes, samples, road, rope };
 }
 
-function decorations(width, height, samples, nodes) {
-  const rng = makeRng(20261024);
+// Where the road crosses height y.
+function roadX(samples, y) {
+  let best = samples[0];
+  for (const p of samples) if (Math.abs(p.y - y) < Math.abs(best.y - y)) best = p;
+  return best.x;
+}
+
+// The ground: each zone's colors, blending into the next, under a sky.
+function groundGradient(levels, nodes, height) {
+  const stops = [];
+  const sky = Math.max(0, nodes[nodes.length - 1].y - 230);
+  stops.push(`#9fe2ff 0px`, `#cdf1ff ${sky}px`);
+  for (const z of [...ZONES].reverse()) {
+    const first = nodes[z.from - 1];
+    if (!first) continue;
+    const lastId = Math.min(levels.length, (ZONES[ZONES.indexOf(z) + 1]?.from ?? Infinity) - 1);
+    const top = nodes[lastId - 1].y - SPACING / 2;
+    stops.push(`${z.ground[0]} ${Math.max(sky + 60, top)}px`, `${z.ground[1]} ${first.y + SPACING / 2 - 40}px`);
+  }
+  stops.push(`${ZONES[0].ground[1]} ${height}px`);
+  return `linear-gradient(${stops.join(', ')})`;
+}
+
+function decorations(levels, width, height, samples, nodes) {
+  const rng = makeRng(20261028);
   const out = [];
+  const taken = []; // boxes of the big things, so they don't pile up
   const clear = (x, y, r) => samples.every((p) => Math.hypot(p.x - x, p.y - y) > r) &&
-    nodes.every((p) => Math.hypot(p.x - x, p.y - y) > r + 20);
-  const place = (w, h, y0, y1, pad, make) => {
-    for (let tries = 0; tries < 40; tries++) {
-      const x = 8 + rng() * (width - w - 16);
+    nodes.every((p) => Math.hypot(p.x - x, p.y - y) > r + 24);
+  const free = (x, y, w, h) => taken.every((b) => x + w * 0.85 < b.x || b.x + b.w * 0.85 < x || y + h * 0.85 < b.y || b.y + b.h * 0.85 < y);
+  const place = (w, h, y0, y1, pad, make, side = null, big = w >= 60) => {
+    for (let tries = 0; tries < 50; tries++) {
+      let x = 4 + rng() * (width - w - 8);
+      if (side === 'left') x = 4 + rng() * Math.max(1, width / 2 - w);
+      if (side === 'right') x = width / 2 + rng() * Math.max(1, width / 2 - w - 4);
       const y = y0 + rng() * (y1 - y0);
-      if (clear(x + w / 2, y + h / 2, pad)) return out.push(make(x, y));
+      if (!clear(x + w / 2, y + h * 0.75, Math.max(w, h) * 0.45 + 30)) continue;
+      if (big && !free(x, y, w, h)) continue;
+      if (big) taken.push({ x, y, w, h });
+      return out.push(make(x, y));
     }
+    return 0;
   };
-  // One band of scenery per level.
+
   for (let i = 0; i < nodes.length; i++) {
-    const y0 = nodes[i].y - SPACING / 2, y1 = nodes[i].y + SPACING / 2;
-    const pick = rng();
-    if (i % 4 === 1) {
-      // A steaming pool with a duck or a pup in it.
-      place(150, 70, y0, y1, 95, (x, y) =>
-        sprite(pool(), `left:${x}px;top:${y}px;width:150px;height:70px`) +
-        sprite(steam(), `left:${x + 40}px;top:${y - 30}px;animation-delay:-${(i * 0.7) % 4}s`, 'steam') +
-        sprite(steam(), `left:${x + 90}px;top:${y - 26}px;animation-delay:-${(i * 1.3) % 4}s`, 'steam') +
-        sprite(i % 8 === 1 ? ducky() : pup(), `left:${x + 50}px;top:${y + 8}px;width:40px;height:40px`, 'bob'));
-    } else if (pick < 0.45) {
-      place(110, 220, y0 - 120, y1 - 120, 70, (x, y) =>
-        sprite(palm(rng() < 0.5), `left:${x}px;top:${y}px;width:110px;height:220px`, rng() < 0.5 ? 'sway' : 'sway b'));
-    } else {
-      place(100, 50, y0, y1, 60, (x, y) => sprite(bush(), `left:${x}px;top:${y}px;width:100px;height:50px`));
+    const z = zoneOf(i + 1);
+    const p = nodes[i];
+    const y0 = p.y - SPACING / 2, y1 = p.y + SPACING / 2;
+    const free = p.x > width / 2 ? 'left' : 'right';
+    // A big prop each level, on the side away from the road.
+    const prop = z.props[Math.floor(rng() * z.props.length)];
+    place(130, 140, y0 - 90, y1 - 70, 0, (x, y) => sprite(prop(), `left:${x}px;top:${y}px;width:130px;height:140px`, 'prop sway-soft'), free);
+    // A character every few levels.
+    if (i % 3 === 1) {
+      const critter = z.critters[(i / 3 | 0) % z.critters.length];
+      place(100, 110, y0 - 40, y1 - 50, 0, (x, y) => sprite(critter(), `left:${x}px;top:${y}px;width:100px;height:110px;animation-delay:-${(i * 0.37) % 2}s`, 'critter'), free === 'left' ? 'right' : 'left')
+        || place(100, 110, y0 - 40, y1 - 50, 0, (x, y) => sprite(critter(), `left:${x}px;top:${y}px;width:100px;height:110px`, 'critter'), free);
     }
-    place(60, 34, y0, y1, 50, (x, y) => sprite(rocks(), `left:${x}px;top:${y}px;width:60px;height:34px`));
+    // Smaller things.
+    const small = z.small[Math.floor(rng() * z.small.length)];
+    if (small === lanterns) place(150, 76, y0, y1, 0, (x, y) => sprite(lanterns(), `left:${x}px;top:${y}px;width:150px;height:76px`));
+    else place(30, 96, y0, y1, 0, (x, y) => sprite(small(), `left:${x}px;top:${y}px;width:30px;height:96px`));
+    if (!z.snowy) place(56, 32, y0, y1, 0, (x, y) => sprite(rocks(), `left:${x}px;top:${y}px;width:56px;height:32px`));
     for (let f = 0; f < 3; f++) {
-      const c = ['#ff6fae', '#ffb02e', '#9b4dff', '#ffffff'][Math.floor(rng() * 4)];
-      place(24, 24, y0, y1, 40, (x, y) => sprite(flower(c), `left:${x}px;top:${y}px;width:24px;height:24px`));
+      const c = z.flowers[Math.floor(rng() * z.flowers.length)];
+      place(22, 22, y0, y1, 0, (x, y) => sprite(flower(c), `left:${x}px;top:${y}px;width:22px;height:22px`));
     }
-    for (let g = 0; g < 4; g++) place(34, 14, y0, y1, 34, (x, y) => `<div class="tuft" style="left:${x}px;top:${y}px"></div>`);
+    for (let g = 0; g < 4; g++) place(34, 14, y0, y1, 0, (x, y) => `<div class="tuft" style="left:${x}px;top:${y}px;--tuft:${z.tuft}"></div>`);
   }
+
+  // Zone extras: the sea, mountains, falling petals and snow.
+  ZONES.forEach((z, zi) => {
+    const first = nodes[z.from - 1];
+    if (!first) return;
+    const lastId = Math.min(levels.length, (ZONES[zi + 1]?.from ?? Infinity) - 1);
+    const top = nodes[lastId - 1].y - SPACING / 2, bottom = first.y + SPACING / 2;
+    if (z.sea) out.unshift(`<div class="sea" style="top:${top}px;height:${bottom - top}px"></div>`);
+    if (z.snowy) {
+      out.unshift(sprite(mountains(), `left:0;top:${top - 150}px;width:${width}px;height:${width * 0.36}px`, 'far'));
+      for (let k = 0; k < 18; k++) out.push(`<i class="flake" style="left:${(k * 47) % width}px;top:${top + (k * 97) % (bottom - top)}px;animation-delay:-${k * 0.7}s"></i>`);
+      for (let k = 0; k < 4; k++) {
+        const x = 30 + ((k * 113) % (width - 80)), y = top + 80 + k * ((bottom - top - 160) / 4);
+        out.push(sprite(steam(), `left:${x}px;top:${y}px;animation-delay:-${k}s`, 'steam'));
+      }
+    }
+    if (z.petals) for (let k = 0; k < 16; k++) out.push(`<i class="petal" style="left:${(k * 59) % width}px;top:${top + (k * 83) % (bottom - top)}px;animation-delay:-${k * 0.9}s"></i>`);
+  });
+
   // Things in the air.
-  for (let i = 0; i < nodes.length; i += 5) {
-    const y = nodes[i].y - 60;
-    out.push(sprite(butterfly(['#8b5cf6', '#ff6fae', '#2ec4d6'][i % 3]), `left:${20 + ((i * 53) % (width - 80))}px;top:${y}px;width:30px;height:22px;animation-delay:-${i}s`, 'flutter'));
+  for (let i = 0; i < nodes.length; i += 4) {
+    out.push(sprite(butterfly(['#8b5cf6', '#ff6fae', '#2ec4d6'][i % 3]), `left:${20 + ((i * 53) % (width - 80))}px;top:${nodes[i].y - 70}px;width:30px;height:22px;animation-delay:-${i}s`, 'flutter'));
   }
-  for (let i = 3; i < nodes.length; i += 9) {
+  for (let i = 3; i < nodes.length; i += 7) {
     out.push(sprite(bird(), `left:-40px;top:${nodes[i].y - 40}px;width:30px;height:14px;animation-delay:-${i}s`, 'fly'));
     out.push(sprite(bird(), `left:-70px;top:${nodes[i].y - 20}px;width:24px;height:11px;animation-delay:-${i + 0.4}s`, 'fly'));
   }
-  out.push(sprite(balloon(), `left:${width * 0.6}px;top:${nodes[Math.min(6, nodes.length - 1)].y - 80}px;width:64px;height:88px`, 'float'));
-  out.push(sprite(balloon(), `left:${width * 0.12}px;top:${nodes[Math.min(17, nodes.length - 1)].y - 60}px;width:54px;height:74px;animation-delay:-5s`, 'float'));
+  [[6, 0.6, 64], [17, 0.1, 54], [27, 0.66, 60], [36, 0.14, 56]].forEach(([i, fx, w]) => {
+    if (nodes[i]) out.push(sprite(balloon(), `left:${width * fx}px;top:${nodes[i].y - 80}px;width:${w}px;height:${w * 1.38}px;animation-delay:-${i}s`, 'float'));
+  });
   for (let i = 0; i < 5; i++) {
-    out.push(sprite(cloud(), `left:${(i * 131) % width}px;top:${30 + i * 50}px;width:${120 - i * 10}px;height:${60 - i * 5}px;animation-delay:-${i * 9}s`, 'cloud slow'));
+    out.push(sprite(cloud(), `left:${(i * 131) % width}px;top:${30 + i * 56}px;width:${120 - i * 10}px;height:${60 - i * 5}px;animation-delay:-${i * 9}s`, 'cloud slow'));
   }
   return out.join('');
 }
 
 // Draws the map into `el`. `progress` is a save.js Progress; `onPick(level)`
-// is called when an unlocked level is tapped. Returns the current level.
-export function renderMap(el, levels, progress, onPick) {
+// is called when an unlocked level is tapped. With `from` (a level id), the
+// host travels from that level to the current one and the new level pops
+// in. Returns the current level and where it is.
+export function renderMap(el, levels, progress, onPick, { from = null } = {}) {
   const width = el.clientWidth || window.innerWidth;
-  const { height, nodes, samples, d } = layout(levels.length, width);
+  const { height, nodes, samples, road, rope } = layout(levels.length, width);
   const unlocked = Math.min(progress.unlocked(), levels.length);
   const current = levels[unlocked - 1];
-
+  // How far along the rope is "done": up to the current level.
   const path = `<svg class="map-path" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true">
-    <path d="${d}" stroke="#c98a4b" stroke-width="60" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="${d}" stroke="#ffe0a3" stroke-width="48" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="${d}" stroke="#fff4d6" stroke-width="6" fill="none" stroke-dasharray="2 18" stroke-linecap="round"/>
+    <path d="${road}" stroke="rgba(120,70,20,.25)" stroke-width="104" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 6)"/>
+    <path d="${road}" stroke="#d9a35f" stroke-width="100" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${road}" stroke="#ffe3ad" stroke-width="88" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${road}" stroke="#fff2d2" stroke-width="40" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+    <path d="${rope}" stroke="#ff8fc1" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <path d="${rope}" stroke="#ffffff" stroke-width="12" fill="none" stroke-dasharray="7 9"/>
   </svg>`;
 
-  const signs = ZONES.filter((z) => z.from <= levels.length).map((z) => {
-    const p = nodes[z.from - 1];
-    const left = p.x > width / 2 ? Math.max(8, p.x - 210) : Math.min(width - 160, p.x + 60);
-    return `<div class="sign" style="left:${left}px;top:${p.y - 70}px">${z.name}</div>`;
+  // A wooden arch over the road where each zone begins.
+  const gates = ZONES.filter((z) => z.from <= levels.length).map((z, zi) => {
+    const y = nodes[z.from - 1].y + 170;
+    const x = roadX(samples, y);
+    const last = Math.min(levels.length, (ZONES[zi + 1]?.from ?? Infinity) - 1);
+    return `<div class="gate" style="left:${x}px;top:${y}px"><i></i><i></i><div class="gate-sign"><b>${z.name}</b><small>Levels ${z.from}–${last}</small></div></div>`;
   }).join('');
   const top = nodes[nodes.length - 1];
-  const soon = `<div class="sign soon" style="left:${Math.max(8, top.x - 90)}px;top:${top.y - 190}px">More levels soon!</div>`;
+  const soon = `<div class="sign soon" style="left:${Math.max(8, top.x - 90)}px;top:${top.y - 200}px">More levels soon!</div>`;
 
   el.style.height = `${height}px`;
-  el.innerHTML = path + decorations(width, height, samples, nodes) + signs + soon;
+  el.style.background = groundGradient(levels, nodes, height);
+  el.innerHTML = decorations(levels, width, height, samples, nodes) + path + gates + soon;
 
   levels.forEach((level, i) => {
     const p = nodes[i];
@@ -136,20 +224,19 @@ export function renderMap(el, levels, progress, onPick) {
     btn.className = `node ${locked ? 'locked' : level.goal.type}${level.id === unlocked ? ' current' : ''}`;
     btn.style.cssText = `left:${p.x}px;top:${p.y}px`;
     btn.setAttribute('aria-label', locked ? `Level ${level.id}, locked` : `Level ${level.id}, ${best.stars} stars`);
-    if (locked) {
-      btn.setAttribute('aria-disabled', 'true');
-      btn.innerHTML = '<i class="lock" aria-hidden="true"></i>';
-    } else {
+    if (!locked) {
       const num = document.createElement('b');
       num.textContent = String(level.id);
       btn.append(num);
       btn.addEventListener('click', () => onPick(level));
+    } else {
+      btn.disabled = true;
     }
     el.append(btn);
-    if (!locked) {
+    if (!locked && level.id !== unlocked) {
       const stars = document.createElement('div');
       stars.className = 'node-stars';
-      stars.style.cssText = `left:${p.x}px;top:${p.y - 34}px`;
+      stars.style.cssText = `left:${p.x}px;top:${p.y + 40}px`;
       stars.setAttribute('aria-hidden', 'true');
       for (let s = 0; s < 3; s++) {
         const star = document.createElement('i');
@@ -160,14 +247,30 @@ export function renderMap(el, levels, progress, onPick) {
     }
   });
 
-  // The host waits beside the next level to play.
+  // The host's portrait waits beside the next level to play.
   const cur = nodes[unlocked - 1];
   const side = cur.x > width / 2 ? -1 : 1;
-  const host = document.createElement('div');
-  host.className = 'sprite map-host';
-  host.style.cssText = `left:${cur.x + side * 46 - 48}px;top:${cur.y - 104}px;width:96px;height:100px`;
-  host.innerHTML = capy('cheer');
-  el.append(host);
+  const frame = document.createElement('div');
+  frame.className = 'avatar map-avatar';
+  frame.style.cssText = `left:${cur.x + side * 86 - 36}px;top:${cur.y - 36}px`;
+  frame.innerHTML = capy('cheer'); // our own SVG art
+  el.append(frame);
 
-  return { current, y: cur.y };
+  if (from && from < unlocked && nodes[from - 1]) {
+    const start = nodes[from - 1];
+    const startSide = start.x > width / 2 ? -1 : 1;
+    const dx = start.x + startSide * 86 - (cur.x + side * 86), dy = start.y - cur.y;
+    frame.animate([
+      { transform: `translate(${dx}px, ${dy}px)` },
+      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 40}px) scale(1.15)`, offset: 0.5 },
+      { transform: 'translate(0, 0)' },
+    ], { duration: 1100, easing: 'ease-in-out', fill: 'backwards' });
+    el.querySelector('.node.current')?.animate([
+      { transform: 'scale(0.3)', filter: 'brightness(2)' },
+      { transform: 'scale(1.35)', offset: 0.6 },
+      { transform: 'scale(1)' },
+    ], { duration: 650, delay: 950, easing: 'ease-out', fill: 'backwards' });
+  }
+
+  return { current, y: cur.y, fromY: from && nodes[from - 1] ? nodes[from - 1].y : null };
 }
