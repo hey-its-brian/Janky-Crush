@@ -9,7 +9,7 @@
 import { audioContext, musicOutput, onUnlock } from './sfx.js';
 import { pluck, epiano, reed, softBass, softened } from './synth.js';
 
-const BPM = 96;
+const BPM = 105;
 const STEP = 60 / BPM / 2; // an eighth note
 const BAR = 6; // eighths in a bar of 3/4
 const AHEAD = 0.15;
