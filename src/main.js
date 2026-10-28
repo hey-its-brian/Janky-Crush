@@ -7,7 +7,7 @@ import { capy } from './art/capy.js';
 import { ducky, striped, wrapped, bomb, fruit, coconut, mochi, gummy } from './art/pieces.js';
 import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
-import { playMusic } from './audio/music.js';
+import { playMusic, songFor } from './audio/music.js';
 import { announce, primeVoice, voiceInfo } from './audio/voice.js';
 import { haptic, tactile } from './audio/haptics.js';
 import { getSetting, setSetting } from './settings.js';
@@ -58,7 +58,7 @@ function showTitle() {
   $('world').hidden = false;
   $('title-screen').hidden = false;
   $('title-host').innerHTML = capy('cheer'); // our own SVG art
-  playMusic();
+  playMusic(0);
   const card = (mode, name, tag) => {
     const slot = progress.slotInfo(mode);
     const head = el('div', { class: 'head' }, el('h2', { text: name }), el('span', { class: 'tag', text: tag }));
@@ -102,7 +102,7 @@ function showMap(then = null) {
   $('game-screen').hidden = true;
   $('world').hidden = true;
   $('map-screen').hidden = false;
-  playMusic();
+  playMusic(0);
   const before = lastCurrent[progress.active];
   const { current: next, y, fromY } = renderMap($('map'), LEVELS, progress, (level) => { tapFeedback(); showIntro(level); }, { from: before });
   lastCurrent[progress.active] = next.id;
@@ -169,7 +169,7 @@ function showGame(level) {
   });
   setHost('idle');
   $('host-bubble').hidden = true;
-  playMusic();
+  playMusic(songFor(level.id));
   getGame().start(level);
   renderBoosters();
 }
