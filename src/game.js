@@ -258,7 +258,7 @@ export class Game {
     const celebrate = s.isComplete() || (s.goal.type === 'score' && s.score >= s.level.stars[0]);
     if (celebrate) {
       this.onBanner('Janky Crush!');
-      await sleep(1100);
+      await sleep(800);
     }
     // Score levels fire whatever specials are left either way.
     if (celebrate || s.goal.type === 'score') await this.run(bonusRound(this.board, s));

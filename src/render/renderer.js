@@ -36,24 +36,24 @@ const BASE_CELL = 42; // the cell size the sprites were drawn for
 
 // Wrapped explosion timing: the candy swells, then the blast rolls outward
 // and candies pop as the shockwave reaches them.
-const WINDUP_MS = 170;
-const EXPLOSION_MS = 700;
-const WAVE_MS_PER_CELL = 70;
+const WINDUP_MS = 120;
+const EXPLOSION_MS = 520;
+const WAVE_MS_PER_CELL = 45;
 
-// The player reads what happened from these, so they're deliberately
-// unhurried.
-const CLEAR_MS = 420;           // flash, swell, shrink away
-const BEAM_MS = 700;            // stripe beam life
-const BEAM_MS_PER_CELL = 38;    // how fast a beam sweeps outward
-const MORPH_MS = 380;           // a candy turning into a special
-const BOLT_GAP_MAX = 110;       // between bomb bolts...
-const BOLT_TOTAL_MAX = 1500;    // ...but all of them land within this
-const PRIMED_HOLD_MS = 450;     // converted specials sit on screen before firing
-const CHAIN_GAP_MAX = 220;      // between blasts in a chain...
-const CHAIN_TOTAL_MAX = 2400;   // ...capped for very long chains
-export const BONUS_GAP_MAX = 140;      // bonus round: leftover moves turning into stripes...
-export const BONUS_TOTAL_MAX = 1800;   // ...all within this
-const COLLECT_MS = 520;         // an ingredient dropping out of the exit
+// Snappy, but each still reads: the player learns what happened from these.
+const SWAP_MS = 140;            // two pieces trading places
+const CLEAR_MS = 260;           // flash, swell, shrink away
+const BEAM_MS = 480;            // stripe beam life
+const BEAM_MS_PER_CELL = 24;    // how fast a beam sweeps outward
+const MORPH_MS = 260;           // a candy turning into a special
+const BOLT_GAP_MAX = 70;        // between bomb bolts...
+const BOLT_TOTAL_MAX = 1000;    // ...but all of them land within this
+const PRIMED_HOLD_MS = 280;     // converted specials sit on screen before firing
+const CHAIN_GAP_MAX = 140;      // between blasts in a chain...
+const CHAIN_TOTAL_MAX = 1500;   // ...capped for very long chains
+export const BONUS_GAP_MAX = 90;       // bonus round: leftover moves turning into stripes...
+export const BONUS_TOTAL_MAX = 1200;   // ...all within this
+const COLLECT_MS = 380;         // an ingredient dropping out of the exit
 
 const ease = {
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
@@ -71,12 +71,12 @@ const JELLY_MAX = 0.3;
 const SELECT_BOUNCE_MS = 650;
 
 // Falling: real gravity in board cells per second squared, so a one-cell
-// drop takes ~150ms and a long drop speeds up and hits hard.
-const GRAVITY = 90;
-const START_SPEED = 9;      // cells/s: a nudge so one-cell drops aren't sluggish
+// drop takes ~70ms and a long drop speeds up and hits hard.
+const GRAVITY = 140;
+const START_SPEED = 13;     // cells/s: a nudge so one-cell drops aren't sluggish
 const BOUNCE = 0.14;        // how much of the landing speed bounces back
 const MAX_HOP_SPEED = 5;    // cells/s, so even big drops only hop a little
-const STACK_DELAY_MS = 24;  // candies in a column fall a hair apart
+const STACK_DELAY_MS = 16;  // candies in a column fall a hair apart
 
 export class Renderer {
   constructor(canvas, board) {
@@ -216,7 +216,7 @@ export class Renderer {
   async animateSwap(a, b) {
     this.cue('swap');
     const move = this.swapMover(a, b);
-    await this.tween(190, move);
+    await this.tween(SWAP_MS, move);
     move.settle();
   }
 
@@ -224,10 +224,10 @@ export class Renderer {
   async animateBadSwap(a, b) {
     this.cue('boing');
     const move = this.swapMover(a, b);
-    await this.tween(190, move);
+    await this.tween(SWAP_MS, move);
     move.settle();
-    await sleep(60);
-    await this.tween(190, (k) => move(1 - k));
+    await sleep(40);
+    await this.tween(SWAP_MS, (k) => move(1 - k));
     move.settle();
   }
 
@@ -262,6 +262,8 @@ export class Renderer {
 
     step.blasts.forEach((b, i) => {
       if (b.kind === 'bolts') {
+        const span = b.targets.length * boltGap(b) + 600;
+        this.effects.unshift({ kind: 'dim', born: t0 + blastAt[i], life: span });
         b.targets.forEach((to, j) => {
           this.effects.push({ kind: 'bolt', from: b.at, to, born: t0 + blastAt[i] + j * boltGap(b), life: 480 });
           later(blastAt[i] + j * boltGap(b), 'bolt', { x: panAt(to) });
@@ -347,7 +349,7 @@ export class Renderer {
       const v = this.visuals.get(x.id);
       jobs.push(sleep(delayFor(x)).then(() => {
         const { x: px, y: py } = this.center(...x.at);
-        this.burst(px, py, x.color ? PALETTE[x.color][0] : '#f1edff', many ? 4 : 8);
+        this.confetti(px, py, x.color, many ? 6 : 12);
         this.cue('pop', { x: panAt(x.at) });
         if (!v) return;
         // Squish, flash white and swell, then shrink away.
@@ -444,14 +446,15 @@ export class Renderer {
     if (v && v.candy.special === 'wrappedLit') v.scale = 1;
     const { x: px, y } = this.center(...blast.at);
     const colors = ['#ffffff', '#ff3d8b', '#ff8a1f', '#ffe14d'];
-    for (let i = 0; i < 26; i++) this.burst(px, y, colors[i % colors.length], 1, 0.12 + Math.random() * 0.16);
-    this.shake = { born: performance.now(), life: 320, amp: 3 + blast.radius * 2 };
+    for (let i = 0; i < 44; i++) this.burst(px, y, colors[i % colors.length], 1, 0.12 + Math.random() * 0.24);
+    this.confetti(px, y, null, 16);
+    this.shake = { born: performance.now(), life: 380, amp: 5 + blast.radius * 3 };
     this.requestDraw();
   }
 
   pop(v) {
     this.jiggle(v, -0.16);
-    return this.tween(300, (k) => (v.scale = 1 + 0.45 * Math.sin(k * Math.PI)), (t) => t);
+    return this.tween(240, (k) => (v.scale = 1 + 0.5 * Math.sin(k * Math.PI)), (t) => t);
   }
 
   jiggle(v, amount) {
@@ -557,7 +560,7 @@ export class Renderer {
       return Promise.resolve();
     }
     const jobs = moves.map((m) => ({ v: this.visuals.get(m.id), m })).filter((j) => j.v);
-    return this.tween(450, (k) => {
+    return this.tween(340, (k) => {
       for (const { v, m } of jobs) {
         v.row = m.from[0] + (m.to[0] - m.from[0]) * k;
         v.col = m.from[1] + (m.to[1] - m.from[1]) * k;
@@ -588,6 +591,27 @@ export class Renderer {
 
   // ---- particles ----------------------------------------------------------
 
+  // A fruit bursting: spinning confetti in its colors with white and gold,
+  // a few juice drops, and a ring that pops outward.
+  confetti(x, y, color, count = 12) {
+    const now = performance.now();
+    const shades = color ? [...PALETTE[color], '#ffffff', '#ffe14d'] : ['#ffffff', '#ff5fa2', '#ffe14d', '#2ec4d6', '#9b4dff'];
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 0.12 + Math.random() * 0.16;
+      this.particles.push({
+        kind: 'confetti', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 0.1, g: 0.0007,
+        life: 550 + Math.random() * 350, born: now, color: shades[i % shades.length],
+        size: 3 + Math.random() * 3.5, spin: (Math.random() - 0.5) * 0.03, angle: Math.random() * 6,
+      });
+    }
+    for (let i = 0; i < 3; i++) {
+      const a = Math.random() * Math.PI * 2;
+      this.particles.push({ x, y, vx: Math.cos(a) * 0.08, vy: Math.sin(a) * 0.08 - 0.06, g: 0.0006, life: 450, born: now, color: color ? PALETTE[color][0] : '#ffffff', size: 3.5 + Math.random() * 2 });
+    }
+    this.effects.push({ kind: 'ring', x, y, color: color ? PALETTE[color][0] : '#ffffff', born: now, life: 320 });
+  }
+
   burst(x, y, color, count = 7, speed = null) {
     const now = performance.now();
     for (let i = 0; i < count; i++) {
@@ -602,8 +626,10 @@ export class Renderer {
     this.lastFrame = now;
     this.particles = this.particles.filter((p) => now - p.born < p.life);
     for (const p of this.particles) {
+      if (p.g) p.vy += p.g * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      if (p.spin) p.angle += p.spin * dt;
     }
   }
 
@@ -690,6 +716,16 @@ export class Renderer {
     this.canvas.style.transform = `translate(${(Math.random() - 0.5) * 2 * a}px, ${(Math.random() - 0.5) * 2 * a}px)`;
   }
 
+  // Limit drawing to the board's own cells (it may have holes and notches).
+  clipToBoard() {
+    const { ctx, board } = this;
+    ctx.beginPath();
+    for (let r = 0; r < board.rows; r++)
+      for (let c = 0; c < board.cols; c++)
+        if (board.playable(r, c)) ctx.rect(PAD + c * this.pitch - GAP / 2, PAD + r * this.pitch - GAP / 2, this.pitch, this.pitch);
+    ctx.clip();
+  }
+
   // Blast effects: beams for stripes, a shockwave for wrapped, lightning for
   // the color bomb, and a flash when two bombs clear the board.
   drawEffect(e, now) {
@@ -708,20 +744,45 @@ export class Renderer {
         const row = e.kind === 'row';
         const o = this.center(...e.at);
         const reach = ((now - e.born) / BEAM_MS_PER_CELL + 0.5) * this.pitch;
-        const span = this.cell * (0.95 - 0.55 * t);
-        const g = row
-          ? ctx.createLinearGradient(0, o.y - span / 2, 0, o.y + span / 2)
-          : ctx.createLinearGradient(o.x - span / 2, 0, o.x + span / 2, 0);
-        g.addColorStop(0, 'rgba(45,226,230,0)');
-        g.addColorStop(0.5, `rgba(255,255,255,${0.95 * fade})`);
-        g.addColorStop(1, 'rgba(45,226,230,0)');
-        ctx.fillStyle = g;
-        if (row) {
-          const x0 = Math.max(0, o.x - reach), x1 = Math.min(this.width, o.x + reach);
-          ctx.fillRect(x0, o.y - span / 2, x1 - x0, span);
-        } else {
-          const y0 = Math.max(0, o.y - reach), y1 = Math.min(this.height, o.y + reach);
-          ctx.fillRect(o.x - span / 2, y0, span, y1 - y0);
+        const hot = Math.max(0, 1 - t * 1.4);
+        // Three layers: a wide warm glow, the beam, and a white-hot core.
+        const layers = [
+          { span: this.cell * (1.7 - 0.9 * t), mid: `rgba(255,190,60,${0.55 * fade})`, edge: 'rgba(255,120,40,0)' },
+          { span: this.cell * (1.05 - 0.5 * t), mid: `rgba(255,255,255,${fade})`, edge: 'rgba(45,226,230,0)' },
+          { span: this.cell * 0.22 * (1 - t * 0.6), mid: `rgba(255,255,255,${hot})`, edge: `rgba(255,255,255,${0.6 * hot})` },
+        ];
+        const x0 = Math.max(0, o.x - reach), x1 = Math.min(this.width, o.x + reach);
+        const y0 = Math.max(0, o.y - reach), y1 = Math.min(this.height, o.y + reach);
+        ctx.shadowColor = '#ffcf3a';
+        ctx.shadowBlur = 24;
+        for (const l of layers) {
+          const g = row
+            ? ctx.createLinearGradient(0, o.y - l.span / 2, 0, o.y + l.span / 2)
+            : ctx.createLinearGradient(o.x - l.span / 2, 0, o.x + l.span / 2, 0);
+          g.addColorStop(0, l.edge);
+          g.addColorStop(0.5, l.mid);
+          g.addColorStop(1, l.edge);
+          ctx.fillStyle = g;
+          if (row) ctx.fillRect(x0, o.y - l.span / 2, x1 - x0, l.span);
+          else ctx.fillRect(o.x - l.span / 2, y0, l.span, y1 - y0);
+        }
+        // Comet heads racing out to each end, throwing sparks.
+        if (t < 0.6) {
+          const heads = row ? [{ x: x0, y: o.y }, { x: x1, y: o.y }] : [{ x: o.x, y: y0 }, { x: o.x, y: y1 }];
+          for (const h of heads) {
+            const r = this.cell * 0.7;
+            const hg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, r);
+            hg.addColorStop(0, `rgba(255,255,255,${hot})`);
+            hg.addColorStop(0.4, `rgba(255,225,77,${0.7 * hot})`);
+            hg.addColorStop(1, 'rgba(255,225,77,0)');
+            ctx.fillStyle = hg;
+            ctx.fillRect(h.x - r, h.y - r, r * 2, r * 2);
+            if (Math.random() < 0.7) this.burst(h.x, h.y, Math.random() < 0.5 ? '#ffffff' : '#ffe14d', 1, 0.08 + Math.random() * 0.1);
+          }
+        }
+        if (!e.shook) {
+          e.shook = true;
+          this.shake = { born: now, life: 200, amp: 3 };
         }
         break;
       }
@@ -731,7 +792,15 @@ export class Renderer {
         const grow = ease.out(Math.min(1, t * 1.6));
 
         // Fireball: white-hot core through pink and orange, swelling then fading.
-        const r = reach * (0.35 + 0.85 * grow);
+        const r = reach * (0.5 + 1.1 * grow);
+        if (t < 0.25) {
+          // A flash across the board.
+          ctx.save();
+          this.clipToBoard();
+          ctx.fillStyle = `rgba(255,240,200,${0.3 * (1 - t / 0.25)})`;
+          ctx.fillRect(0, 0, this.width, this.height);
+          ctx.restore();
+        }
         const fire = ctx.createRadialGradient(x, y, 0, x, y, r);
         const heat = Math.max(0, 1 - t * 1.2);
         fire.addColorStop(0, `rgba(255,255,255,${0.95 * heat})`);
@@ -747,9 +816,16 @@ export class Renderer {
         ctx.strokeStyle = `rgba(255,255,255,${0.9 * fade})`;
         ctx.shadowColor = '#ff3d8b';
         ctx.shadowBlur = 16;
-        ctx.lineWidth = 6 * fade + 1;
+        ctx.lineWidth = 10 * fade + 1;
         ctx.beginPath();
         ctx.arc(x, y, ring, 0, Math.PI * 2);
+        ctx.stroke();
+        // A second, wider ring a beat behind.
+        const ring2 = reach * (0.2 + 1.6 * ease.out(Math.max(0, t - 0.12)));
+        ctx.strokeStyle = `rgba(255,225,77,${0.7 * fade})`;
+        ctx.lineWidth = 5 * fade + 1;
+        ctx.beginPath();
+        ctx.arc(x, y, ring2, 0, Math.PI * 2);
         ctx.stroke();
 
         // Square outline of the cells it takes out, so the reach is clear.
@@ -773,12 +849,12 @@ export class Renderer {
         const alpha = Math.min(1, fade * 1.6) * flicker;
 
         // Charged-up aura around the bomb while it's firing.
-        const aura = ctx.createRadialGradient(from.x, from.y, 0, from.x, from.y, this.cell * 0.9);
-        aura.addColorStop(0, `rgba(255,255,255,${0.35 * alpha})`);
-        aura.addColorStop(0.4, `rgba(192,77,255,${0.25 * alpha})`);
+        const aura = ctx.createRadialGradient(from.x, from.y, 0, from.x, from.y, this.cell * 1.6);
+        aura.addColorStop(0, `rgba(255,255,255,${0.55 * alpha})`);
+        aura.addColorStop(0.35, `rgba(192,77,255,${0.4 * alpha})`);
         aura.addColorStop(1, 'rgba(192,77,255,0)');
         ctx.fillStyle = aura;
-        ctx.fillRect(from.x - this.cell, from.y - this.cell, this.cell * 2, this.cell * 2);
+        ctx.fillRect(from.x - this.cell * 1.6, from.y - this.cell * 1.6, this.cell * 3.2, this.cell * 3.2);
 
         const path = jaggedPath(from, end, 9, Math.min(14, Math.hypot(end.x - from.x, end.y - from.y) * 0.08));
         // Side forks crackling off the main bolt.
@@ -793,9 +869,9 @@ export class Renderer {
 
         // Three passes: wide purple glow, hot magenta, white core.
         const passes = [
-          { width: 9, color: `rgba(192,77,255,${0.35 * alpha})`, blur: 26, glow: '#c04dff' },
-          { width: 4, color: `rgba(255,120,240,${0.75 * alpha})`, blur: 12, glow: '#ff3d8b' },
-          { width: 1.8, color: `rgba(255,255,255,${alpha})`, blur: 6, glow: '#ffffff' },
+          { width: 14, color: `rgba(192,77,255,${0.45 * alpha})`, blur: 30, glow: '#c04dff' },
+          { width: 6, color: `rgba(255,120,240,${0.9 * alpha})`, blur: 16, glow: '#ff3d8b' },
+          { width: 2.6, color: `rgba(255,255,255,${alpha})`, blur: 8, glow: '#ffffff' },
         ];
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
@@ -813,7 +889,7 @@ export class Renderer {
         if (reach >= 1) {
           if (!e.struck) {
             e.struck = true;
-            for (let i = 0; i < 8; i++) this.burst(to.x, to.y, i % 2 ? '#ffffff' : '#c04dff', 1, 0.1 + Math.random() * 0.12);
+            for (let i = 0; i < 14; i++) this.burst(to.x, to.y, ['#ffffff', '#c04dff', '#ff7af0'][i % 3], 1, 0.1 + Math.random() * 0.16);
             if (!this.shake || this.shake.amp < 2) this.shake = { born: now, life: 120, amp: 2 };
           }
           const u = Math.min(1, (t - 0.25) / 0.75);
@@ -855,6 +931,29 @@ export class Renderer {
         ctx.shadowBlur = 0;
         ctx.fillStyle = g;
         ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        break;
+      }
+      case 'ring': {
+        // A fruit popping: a ring in its color bursting outward.
+        const r = this.cell * (0.25 + 0.55 * ease.out(t));
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = e.color;
+        ctx.globalAlpha = fade;
+        ctx.lineWidth = 5 * fade + 0.5;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      }
+      case 'dim': {
+        // Darken the board while the bomb's lightning plays, so it pops.
+        const k = Math.min(1, t * 6, (1 - t) * 4);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.shadowBlur = 0;
+        this.clipToBoard();
+        ctx.fillStyle = `rgba(30,10,60,${0.35 * k})`;
+        ctx.fillRect(0, 0, this.width, this.height);
         break;
       }
       case 'board': {
@@ -991,14 +1090,24 @@ export class Renderer {
       const age = (now - p.born) / p.life;
       ctx.globalAlpha = 1 - age;
       if (p.text) {
-        ctx.font = '20px "Lilita One", "Fredoka", system-ui, sans-serif';
+        const pop = age < 0.15 ? 0.6 + (age / 0.15) * 0.6 : 1.2 - Math.min(0.2, (age - 0.15) * 0.5);
+        ctx.font = `${Math.round(24 * pop)}px "Lilita One", "Fredoka", system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.lineJoin = 'round';
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 6;
         ctx.strokeStyle = p.stroke ?? '#c42a6e';
         ctx.strokeText(p.text, p.x, p.y);
         ctx.fillStyle = p.color;
         ctx.fillText(p.text, p.x, p.y);
+      } else if (p.kind === 'confetti') {
+        // A paper chip tumbling: its width flips as it turns.
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.scale(Math.cos(p.angle * 2.3), 1);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size * 0.35, p.size, p.size * 0.7);
+        ctx.restore();
       } else {
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;
