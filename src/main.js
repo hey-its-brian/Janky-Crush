@@ -273,7 +273,7 @@ function goalText(level) {
       return kinds.length === 1 ? BLOCKER_GOAL[kinds[0]] : 'Clear every blocker';
     }
     case 'collect':
-      return `Collect ${listing(Object.entries(level.goal.targets).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`))}`;
+      return `Blend a smoothie: ${listing(Object.entries(level.goal.targets).map(([c, n]) => `${n} ${FRUIT_NAMES[c]}`))}`;
     default:
       return `Score ${fmt(level.stars[0])} points`;
   }
@@ -636,8 +636,9 @@ function getGame() {
     onChange: updateHud,
     onBanner: showBanner,
     onCallout: callout,
-    onEnd: (r) => setTimeout(() => showResult(r), 400),
+    onEnd: (r) => setTimeout(() => showResult(r), 250),
     onOutOfMoves: offerMoves,
+    onCleared: flyToBlender,
     onBooster: (name) => {
       progress.useBooster(name);
       say('');
@@ -646,6 +647,57 @@ function getGame() {
   });
   window.jankyCrush = game; // handy from the Safari Web Inspector and the smoke tests
   return game;
+}
+
+// ---- the smoothie blender (collect goals) ----------------------------------------------
+
+const FRUIT_JUICE = { r: '#ff3d5a', o: '#ff9a1f', y: '#ffe14d', g: '#7fd640', b: '#4a7dff', p: '#9b4dff' };
+let flying = 0;
+
+// The jar fills in layers, one per fruit, as each is gathered. When the
+// recipe is done the blades whirl and it turns into a smoothie.
+function fillBlender(level, left) {
+  const targets = level.goal.targets;
+  const total = Object.values(targets).reduce((a, b) => a + b, 0);
+  for (const layer of $('blender-fill').children) {
+    const c = layer.dataset.color;
+    layer.style.height = `${((targets[c] - (left[c] ?? 0)) / total) * 100}%`;
+  }
+  const done = Object.values(left).every((n) => n === 0);
+  const blender = $('blender');
+  if (done && !blender.classList.contains('done')) {
+    blender.classList.add('done', 'whir');
+    play('blend');
+    haptic(2);
+  }
+}
+
+// A popped fruit flies up into the blender (at most a dozen at once).
+function flyToBlender({ color, x, y }) {
+  const s = game?.state;
+  if (!s || s.goal.type !== 'collect' || !(color in s.goal.targets) || flying >= 12) return;
+  const from = $('board').getBoundingClientRect();
+  const to = $('blender').querySelector('.jar').getBoundingClientRect();
+  const bit = el('div', { class: 'fly-fruit', svg: fruit(color) });
+  bit.style.left = `${from.left + x - 17}px`;
+  bit.style.top = `${from.top + y - 17}px`;
+  document.body.append(bit);
+  flying++;
+  const dx = to.left + to.width / 2 - (from.left + x), dy = to.top + to.height / 2 - (from.top + y);
+  const anim = bit.animate([
+    { transform: 'translate(0, 0) scale(1)' },
+    { transform: `translate(${dx * 0.35}px, ${dy * 0.35 - 40}px) scale(1.15)`, offset: 0.35 },
+    { transform: `translate(${dx}px, ${dy}px) scale(.45)` },
+  ], { duration: 520 + Math.random() * 160, easing: 'ease-in' });
+  anim.onfinish = () => {
+    bit.remove();
+    flying--;
+    const blender = $('blender');
+    blender.classList.remove('gulp');
+    void blender.offsetWidth;
+    blender.classList.add('gulp');
+    play('foam');
+  };
 }
 
 function updateHud(h) {
@@ -663,12 +715,16 @@ function updateHud(h) {
     icon.dataset.type = goalKey;
     icon.className = `goal-icon ${h.goal}`;
     icon.innerHTML = h.goal === 'ingredients' ? ducky() : h.goal === 'blockers' ? BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']() : ''; // our own SVG art
+    $('blender').classList.remove('done', 'whir');
+    $('blender-fill').replaceChildren(...Object.keys(h.collectLeft).map((c) => el('i', { 'data-color': c, style: `background:${FRUIT_JUICE[c]}` })));
     // Collect goals list each fruit with its own count.
     $('goal-fruits').replaceChildren(...Object.keys(h.collectLeft).map((c) =>
       el('span', { class: 'goal-fruit', 'data-color': c }, el('i', { class: 'goal-icon small', svg: fruit(c) }), el('b', { class: 'count' }))));
   }
   const collecting = h.goal === 'collect';
   $('goal-fruits').hidden = !collecting;
+  $('blender').hidden = !collecting;
+  if (collecting) fillBlender(level, h.collectLeft);
   $('goal-fruits').classList.toggle('many', Object.keys(h.collectLeft).length > 2);
   icon.hidden = collecting;
   $('goal-single').hidden = collecting;

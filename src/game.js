@@ -24,7 +24,7 @@ export class Game {
   // flash a big message; onCallout(text) for a combo shout; onEnd(result)
   // when the level is over. onOutOfMoves() resolves to a number of extra
   // moves (0 to give up). onBooster(name) after a booster has been used.
-  constructor(canvas, { onChange, onBanner, onCallout = () => {}, onEnd, onOutOfMoves = async () => 0, onBooster = () => {} }) {
+  constructor(canvas, { onChange, onBanner, onCallout = () => {}, onEnd, onOutOfMoves = async () => 0, onBooster = () => {}, onCleared = () => {} }) {
     this.canvas = canvas;
     this.onChange = onChange;
     this.onBanner = onBanner;
@@ -32,6 +32,7 @@ export class Game {
     this.onEnd = onEnd;
     this.onOutOfMoves = onOutOfMoves;
     this.onBooster = onBooster;
+    this.onCleared = onCleared; // each fruit as it pops: { color, x, y } on the canvas
     this.armed = null; // 'smash' or 'switch' while waiting for the player to aim it
     this.busy = false;
     this.over = true;
@@ -53,6 +54,10 @@ export class Game {
     } else {
       this.renderer = new Renderer(this.canvas, this.board);
       this.renderer.cue = (name, opts) => {
+        if (name === 'cleared') {
+          if (!this.state.inBonus) this.onCleared(opts);
+          return;
+        }
         play(name, opts);
         if (HAPTIC[name]) haptic(HAPTIC[name]);
       };
@@ -261,7 +266,7 @@ export class Game {
     const celebrate = s.isComplete() || (s.goal.type === 'score' && s.score >= s.level.stars[0]);
     if (celebrate) {
       this.onBanner('Janky Crush!');
-      await sleep(800);
+      await sleep(600);
     }
     // Score levels fire whatever specials are left either way.
     if (celebrate || s.goal.type === 'score') await this.run(bonusRound(this.board, s));

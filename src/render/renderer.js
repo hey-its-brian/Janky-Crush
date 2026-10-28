@@ -36,24 +36,24 @@ const BASE_CELL = 42; // the cell size the sprites were drawn for
 
 // Wrapped explosion timing: the candy swells, then the blast rolls outward
 // and candies pop as the shockwave reaches them.
-const WINDUP_MS = 120;
-const EXPLOSION_MS = 520;
-const WAVE_MS_PER_CELL = 45;
+const WINDUP_MS = 90;
+const EXPLOSION_MS = 420;
+const WAVE_MS_PER_CELL = 34;
 
 // Snappy, but each still reads: the player learns what happened from these.
-const SWAP_MS = 140;            // two pieces trading places
-const CLEAR_MS = 260;           // flash, swell, shrink away
-const BEAM_MS = 480;            // stripe beam life
-const BEAM_MS_PER_CELL = 24;    // how fast a beam sweeps outward
-const MORPH_MS = 260;           // a candy turning into a special
-const BOLT_GAP_MAX = 70;        // between bomb bolts...
-const BOLT_TOTAL_MAX = 1000;    // ...but all of them land within this
-const PRIMED_HOLD_MS = 280;     // converted specials sit on screen before firing
-const CHAIN_GAP_MAX = 140;      // between blasts in a chain...
-const CHAIN_TOTAL_MAX = 1500;   // ...capped for very long chains
-export const BONUS_GAP_MAX = 90;       // bonus round: leftover moves turning into stripes...
-export const BONUS_TOTAL_MAX = 1200;   // ...all within this
-const COLLECT_MS = 380;         // an ingredient dropping out of the exit
+const SWAP_MS = 110;            // two pieces trading places
+const CLEAR_MS = 200;           // flash, swell, shrink away
+const BEAM_MS = 380;            // stripe beam life
+const BEAM_MS_PER_CELL = 18;    // how fast a beam sweeps outward
+const MORPH_MS = 200;           // a candy turning into a special
+const BOLT_GAP_MAX = 50;        // between bomb bolts...
+const BOLT_TOTAL_MAX = 750;     // ...but all of them land within this
+const PRIMED_HOLD_MS = 200;     // converted specials sit on screen before firing
+const CHAIN_GAP_MAX = 100;      // between blasts in a chain...
+const CHAIN_TOTAL_MAX = 1100;   // ...capped for very long chains
+export const BONUS_GAP_MAX = 70;       // bonus round: leftover moves turning into stripes...
+export const BONUS_TOTAL_MAX = 900;    // ...all within this
+const COLLECT_MS = 300;         // an ingredient dropping out of the exit
 
 const ease = {
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
@@ -71,12 +71,12 @@ const JELLY_MAX = 0.3;
 const SELECT_BOUNCE_MS = 650;
 
 // Falling: real gravity in board cells per second squared, so a one-cell
-// drop takes ~70ms and a long drop speeds up and hits hard.
-const GRAVITY = 140;
-const START_SPEED = 13;     // cells/s: a nudge so one-cell drops aren't sluggish
+// drop takes ~55ms and a long drop speeds up and hits hard.
+const GRAVITY = 180;
+const START_SPEED = 16;     // cells/s: a nudge so one-cell drops aren't sluggish
 const BOUNCE = 0.14;        // how much of the landing speed bounces back
 const MAX_HOP_SPEED = 5;    // cells/s, so even big drops only hop a little
-const STACK_DELAY_MS = 16;  // candies in a column fall a hair apart
+const STACK_DELAY_MS = 12;  // candies in a column fall a hair apart
 
 export class Renderer {
   constructor(canvas, board) {
@@ -420,6 +420,7 @@ export class Renderer {
           this.crack({ at: x.at, left: 0, type: 'gummy' });
         } else {
           this.confetti(px, py, x.color, many ? 6 : 12);
+          if (x.color) this.cue('cleared', { color: x.color, x: px, y: py });
         }
         this.cue('pop', { x: panAt(x.at) });
         if (!v) return;
@@ -678,7 +679,7 @@ export class Renderer {
       return Promise.resolve();
     }
     const jobs = moves.map((m) => ({ v: this.visuals.get(m.id), m })).filter((j) => j.v);
-    return this.tween(340, (k) => {
+    return this.tween(280, (k) => {
       for (const { v, m } of jobs) {
         v.row = m.from[0] + (m.to[0] - m.from[0]) * k;
         v.col = m.from[1] + (m.to[1] - m.from[1]) * k;

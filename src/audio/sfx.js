@@ -357,6 +357,31 @@ const RECIPES = {
     noise({ type: 'lowpass', freq: 900, to: 300, dur: 0.1, vol: 0.12 });
     if (last) bloop(260, { at: 0.06, vol: 0.12, dur: 0.1 });
   },
+  // The blender finishing a smoothie: a motor whirring up and down.
+  blend: () => {
+    const t = T();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, t);
+    o.frequency.exponentialRampToValueAtTime(190, t + 0.35);
+    o.frequency.setValueAtTime(190, t + 0.75);
+    o.frequency.exponentialRampToValueAtTime(60, t + 1.1);
+    f.type = 'lowpass';
+    f.frequency.value = 1200;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.1);
+    g.gain.setValueAtTime(0.12, t + 0.8);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.15);
+    o.connect(f).connect(g).connect(dest);
+    o.start(t);
+    o.stop(t + 1.2);
+    noise({ type: 'bandpass', freq: 700, to: 1800, q: 1.2, dur: 1, vol: 0.12, attack: 0.15 });
+    bubbles({ at: 0.3, count: 6, spread: 0.7 });
+    mallet(semi(12), 1.05, { dur: 0.6, vol: 0.14 });
+    mallet(semi(16), 1.15, { dur: 0.8, vol: 0.14 });
+  },
   // Foam bursting: a soft bubble.
   foam: () => {
     bloop(240 + Math.random() * 120, { vol: 0.16, dur: 0.08 });

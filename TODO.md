@@ -48,6 +48,10 @@
       blocker-heavy levels, spouts that drop specials or gummies into a
       column, and a new in-level layout: one pink top panel (moves, score
       bar, goals, the host's portrait) and a booster bar at the bottom.
+- [x] **Smoothie blender.** Collect levels are now smoothie recipes: each
+      matched fruit flies into a blender in the goal panel, which fills in
+      layers and whirls into a smoothie when the recipe is done. Animations
+      sped up again.
 - [ ] **Phase 5+: Level packs** of 15–30, each adding a mechanic
       (spreading chocolate-like blockers, locked fruit, timer bombs,
       portals, conveyors).
