@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v36';
+const VERSION = 'jc-v37';
 const ASSETS = [
   './',
   './index.html',
@@ -47,7 +47,10 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // 'reload' skips the browser's own cache, which can hold copies up to ten
+  // minutes old and would otherwise put the previous version in the new cache.
+  const fresh = ASSETS.map((url) => new Request(url, { cache: 'reload' }));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(fresh)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -64,7 +67,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.open(VERSION).then(async (cache) => {
       const cached = await cache.match(e.request);
-      const fresh = fetch(e.request)
+      const fresh = fetch(e.request, { cache: 'no-cache' }) // always check with the server
         .then((res) => {
           if (res.ok) cache.put(e.request, res.clone());
           return res;

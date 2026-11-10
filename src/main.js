@@ -790,6 +790,12 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
 if ('serviceWorker' in navigator && window.isSecureContext) {
+  // When an update takes over, restart on the new version right away, but
+  // only from the start screen so a level in progress is never lost.
+  const hadWorker = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadWorker && !$('title-screen').hidden) location.reload();
+  });
   navigator.serviceWorker.register('./sw.js');
 }
 
