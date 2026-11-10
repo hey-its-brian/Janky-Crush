@@ -1,10 +1,12 @@
-// Turns the SVG piece art (src/art/pieces.js) into canvas sprites once per
-// screen resolution, so a frame is just drawImage calls.
+// Builds the canvas sprites once per screen resolution, so a frame is just
+// drawImage calls. Fruits are rendered 3D images (art/pieces/*.png); the
+// rest, and any fruit whose image is missing, is SVG art from
+// src/art/pieces.js.
 //
 // (The old Night Arcade candies are in git history; they'll come back as an
 // optional theme.)
 
-import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup, coconut, mochi, gummy } from '../art/pieces.js';
+import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup, coconut, mochi, gummy, pieceImage, specialBack, specialFront } from '../art/pieces.js';
 
 // Particle and effect colors per fruit: [main, light, deep].
 export const PALETTE = {
@@ -19,7 +21,10 @@ export const PALETTE = {
 // Sprite box in CSS px for a 42px cell. Everything is drawn centered in
 // it; specials fill more of the box so their glow spills past the cell.
 export const SPRITE = 64;
-const FILL = { fruit: 0.7, special: 0.94, ingredient: 0.74, coconut: 0.78 };
+const FILL = { fruit: 0.84, special: 0.94, ingredient: 0.84, coconut: 0.86 };
+// Image sprites are cropped to the piece, so this is the piece's real size:
+// about 88% of a cell.
+const IMAGE_FILL = 0.58;
 
 export function spriteKey(candy) {
   if (candy.special === 'bomb') return 'bomb';
@@ -59,9 +64,84 @@ async function rasterize(svgText, px, fill) {
   return canvas;
 }
 
+// The rendered fruit images, loaded once. A missing one resolves to null.
+let images = null;
+function loadImages() {
+  images ??= Promise.all(FRUIT_KEYS.map(async (k) => {
+    const img = new Image();
+    img.src = pieceImage(k);
+    try { await img.decode(); return [k, img]; } catch { return [k, null]; }
+  })).then(Object.fromEntries);
+  return images;
+}
+
+function blank(px) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  return canvas;
+}
+
+// Draws the fruit image centered in a sprite box, on a soft contact shadow.
+function drawPiece(ctx, img, px, size, stripes) {
+  const x = (px - size) / 2, y = (px - size) / 2;
+  ctx.save();
+  ctx.fillStyle = 'rgba(10, 4, 30, .38)';
+  ctx.filter = `blur(${px * 0.025}px)`;
+  ctx.beginPath();
+  ctx.ellipse(px / 2, y + size * 0.97, size * 0.36, size * 0.09, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  if (!stripes) return ctx.drawImage(img, x, y, size, size);
+  // Stripes: white bands painted only where the fruit is.
+  const off = blank(px);
+  const o = off.getContext('2d');
+  o.drawImage(img, x, y, size, size);
+  o.globalCompositeOperation = 'source-atop';
+  o.translate(px / 2, px / 2);
+  if (stripes === 'v') o.rotate(Math.PI / 2);
+  o.fillStyle = 'rgba(255, 255, 255, .92)';
+  o.shadowColor = '#fff';
+  o.shadowBlur = px * 0.04;
+  for (const f of [-0.2, 0, 0.2]) {
+    o.beginPath();
+    o.roundRect(-size / 2, f * size - size * 0.05, size, size * 0.1, size * 0.05);
+    o.fill();
+  }
+  ctx.drawImage(off, 0, 0);
+}
+
+async function imageSprites(k, img, px) {
+  const size = px * IMAGE_FILL;
+  const base = blank(px);
+  drawPiece(base.getContext('2d'), img, px, size);
+  const special = async (kind, pieceSize, stripes) => {
+    const [back, front] = await Promise.all([
+      rasterize(specialBack(k, kind), px, FILL.special),
+      rasterize(specialFront(kind), px, FILL.special),
+    ]);
+    const canvas = blank(px);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(back, 0, 0);
+    drawPiece(ctx, img, px, pieceSize, stripes);
+    ctx.drawImage(front, 0, 0);
+    return canvas;
+  };
+  return [
+    [k, base],
+    [`${k}:stripeH`, await special('striped', size, 'h')],
+    [`${k}:stripeV`, await special('striped', size, 'v')],
+    [`${k}:wrapped`, await special('wrapped', size * 0.82)],
+  ];
+}
+
 // Resolves to { key: canvas } at `scale` device pixels per CSS px.
 export async function buildSprites(scale) {
   const px = Math.ceil(SPRITE * scale);
-  const entries = await Promise.all(sources().map(async ([key, svgText, fill]) => [key, await rasterize(svgText, px, fill)]));
+  const loaded = await loadImages();
+  const svgSprites = sources()
+    .filter(([key]) => !loaded[key.split(':')[0]])
+    .map(async ([key, svgText, fill]) => [key, await rasterize(svgText, px, fill)]);
+  const imgSprites = FRUIT_KEYS.filter((k) => loaded[k]).map((k) => imageSprites(k, loaded[k], px));
+  const entries = [...await Promise.all(svgSprites), ...(await Promise.all(imgSprites)).flat()];
   return Object.fromEntries(entries);
 }

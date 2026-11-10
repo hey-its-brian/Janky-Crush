@@ -107,6 +107,17 @@ export function fruit(color) {
   return FRUITS[color]();
 }
 
+// The rendered 3D sprite for a fruit (see tools/render-pieces.py). The
+// board draws these; the SVG fruits above are the fallback if one is
+// missing.
+export const pieceImage = (color) => `./art/pieces/${color}.png`;
+
+// A fruit for the page (goal icons, the fruit that flies to the blender).
+export function fruitIcon(color) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">` +
+    `<image href="${pieceImage(color)}" x="3" y="3" width="94" height="94"/></svg>`;
+}
+
 // The fruit's SVG body without the outer <svg>, so specials can wrap it.
 function inner(color) {
   return fruit(color).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
@@ -133,6 +144,19 @@ const twinkle = (x, y, r, c = '#fff') =>
   `<path d="M${x} ${y - r} Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y} Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r} ` +
   `Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y} Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z" fill="${c}"/>`;
 
+// The parts of a special that go behind and in front of an image sprite.
+// (The sprite itself and its stripes are composited in sprites.js.)
+export function specialBack(color, kind) {
+  const h = halo(kind === 'wrapped' ? '#8fe9ff' : GLOW[color]);
+  return svg(h.defs, h.body);
+}
+
+export function specialFront(kind) {
+  if (kind !== 'wrapped') return svg('', twinkle(84, 20, 7) + twinkle(14, 82, 5));
+  const b = bubble();
+  return svg(b.defs, b.body);
+}
+
 // Striped: juicy streaks across the fruit. dir 'h' clears a row, 'v' a column.
 export function striped(color, dir) {
   const clip = id('clip');
@@ -150,22 +174,26 @@ export function striped(color, dir) {
 }
 
 // Wrapped: the fruit sealed in a soap bubble with a rainbow sheen.
-export function wrapped(color) {
+function bubble() {
   const g = id('bub'), rim = id('rim');
+  return {
+    defs: `<radialGradient id="${g}" cx=".5" cy=".5" r=".5"><stop offset=".6" stop-color="#bff4ff" stop-opacity="0"/>` +
+      `<stop offset=".9" stop-color="#9fe8ff" stop-opacity=".6"/><stop offset="1" stop-color="#ffffff" stop-opacity=".95"/></radialGradient>` +
+      `<linearGradient id="${rim}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ad5"/>` +
+      `<stop offset=".35" stop-color="#fff59a"/><stop offset=".65" stop-color="#9ff7ff"/><stop offset="1" stop-color="#c9a6ff"/></linearGradient>`,
+    body: `<circle cx="50" cy="52" r="45" fill="url(#${g})" stroke="url(#${rim})" stroke-width="3.5"/>` +
+      `<circle cx="50" cy="52" r="42" fill="none" stroke="#fff" stroke-width="1.2" opacity=".8"/>` +
+      `<path d="M20 38 C24 26 34 17 46 14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".95"/>` +
+      `<circle cx="74" cy="76" r="3.5" fill="#fff" opacity=".9"/>` +
+      twinkle(88, 18, 6) + twinkle(10, 86, 5, '#fff59a'),
+  };
+}
+
+export function wrapped(color) {
+  const b = bubble();
   const h = halo('#8fe9ff');
-  return svg(
-    `<radialGradient id="${g}" cx=".5" cy=".5" r=".5"><stop offset=".6" stop-color="#bff4ff" stop-opacity="0"/>` +
-    `<stop offset=".9" stop-color="#9fe8ff" stop-opacity=".6"/><stop offset="1" stop-color="#ffffff" stop-opacity=".95"/></radialGradient>` +
-    `<linearGradient id="${rim}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ad5"/>` +
-    `<stop offset=".35" stop-color="#fff59a"/><stop offset=".65" stop-color="#9ff7ff"/><stop offset="1" stop-color="#c9a6ff"/></linearGradient>` +
-    h.defs,
-    h.body +
-    `<g transform="translate(50 54) scale(.78) translate(-50 -54)">${inner(color)}</g>` +
-    `<circle cx="50" cy="52" r="45" fill="url(#${g})" stroke="url(#${rim})" stroke-width="3.5"/>` +
-    `<circle cx="50" cy="52" r="42" fill="none" stroke="#fff" stroke-width="1.2" opacity=".8"/>` +
-    `<path d="M20 38 C24 26 34 17 46 14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".95"/>` +
-    `<circle cx="74" cy="76" r="3.5" fill="#fff" opacity=".9"/>` +
-    twinkle(88, 18, 6) + twinkle(10, 86, 5, '#fff59a'));
+  return svg(b.defs + h.defs,
+    h.body + `<g transform="translate(50 54) scale(.78) translate(-50 -54)">${inner(color)}</g>` + b.body);
 }
 
 // Color bomb: a sparkly dragonfruit with a rainbow glow.

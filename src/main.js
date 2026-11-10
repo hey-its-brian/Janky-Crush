@@ -4,7 +4,7 @@ import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES } from 
 import { buildWorld } from './ui/world.js';
 import { renderMap } from './ui/map.js';
 import { capy } from './art/capy.js';
-import { ducky, striped, wrapped, bomb, fruit, coconut, mochi, gummy } from './art/pieces.js';
+import { ducky, striped, wrapped, bomb, fruitIcon, coconut, mochi, gummy } from './art/pieces.js';
 import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic, songFor } from './audio/music.js';
@@ -284,7 +284,7 @@ function goalIcon(type, level = current) {
   // Our own SVG art.
   if (type === 'ingredients') icon.innerHTML = ducky();
   if (type === 'blockers') icon.innerHTML = BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']();
-  if (type === 'collect') icon.innerHTML = fruit(Object.keys(level.goal.targets)[0]);
+  if (type === 'collect') icon.innerHTML = fruitIcon(Object.keys(level.goal.targets)[0]);
   return icon;
 }
 
@@ -678,7 +678,7 @@ function flyToBlender({ color, x, y }) {
   if (!s || s.goal.type !== 'collect' || !(color in s.goal.targets) || flying >= 12) return;
   const from = $('board').getBoundingClientRect();
   const to = $('blender').querySelector('.jar').getBoundingClientRect();
-  const bit = el('div', { class: 'fly-fruit', svg: fruit(color) });
+  const bit = el('div', { class: 'fly-fruit', svg: fruitIcon(color) });
   bit.style.left = `${from.left + x - 17}px`;
   bit.style.top = `${from.top + y - 17}px`;
   document.body.append(bit);
@@ -719,7 +719,7 @@ function updateHud(h) {
     $('blender-fill').replaceChildren(...Object.keys(h.collectLeft).map((c) => el('i', { 'data-color': c, style: `background:${FRUIT_JUICE[c]}` })));
     // Collect goals list each fruit with its own count.
     $('goal-fruits').replaceChildren(...Object.keys(h.collectLeft).map((c) =>
-      el('span', { class: 'goal-fruit', 'data-color': c }, el('i', { class: 'goal-icon small', svg: fruit(c) }), el('b', { class: 'count' }))));
+      el('span', { class: 'goal-fruit', 'data-color': c }, el('i', { class: 'goal-icon small', svg: fruitIcon(c) }), el('b', { class: 'count' }))));
   }
   const collecting = h.goal === 'collect';
   $('goal-fruits').hidden = !collecting;

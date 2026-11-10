@@ -49,6 +49,7 @@ npm run serve     # http://localhost:8000
 node tools/tune.mjs           # re-tune every level's moves and stars
 node tools/tune.mjs 7 12      # ...or just some levels
 node tools/make-icons.mjs     # regenerate home-screen icons (needs Playwright)
+python3 tools/render-pieces.py   # re-render the 3D fruit sprites (pip install bpy pillow)
 ```
 
 ### Levels
@@ -75,8 +76,9 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/save.js` | The Normal and Easy save files: levels, coins, boosters, lives and the daily bonus, plus the coin prices and payouts. Tested in `test/save.test.js`. |
 | `src/settings.js` | Sound, music, announcer voice and haptics switches. |
 | `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
-| `src/art/` | All the art, drawn as SVG in code: fruits and specials, the capybara host, scenery, map buildings and critters (`map-art.js`), coin, heart and booster icons. |
-| `src/render/sprites.js` | Turns the piece art into canvas sprites for the board. |
+| `art/pieces/` | The six fruit pieces as rendered 3D sprites (strawberry, orange, star fruit, pear, blueberry, grapes). `tools/render-pieces.py` makes them with Blender. |
+| `src/art/` | The rest of the art, drawn as SVG in code: fallback fruits, special overlays, the capybara host, scenery, map buildings and critters (`map-art.js`), coin, heart and booster icons. |
+| `src/render/sprites.js` | Turns the fruit images and the SVG art into canvas sprites for the board, and builds the striped and wrapped specials from the fruit images. |
 | `src/render/renderer.js` | Canvas drawing and animations. |
 | `src/game.js` | Plays a level: runs each turn's events through the renderer, touch input, boosters, and asking for +5 moves. |
 | `src/main.js` | Screens: start screen, map bar, shop, lives, dialogs, HUD, the host's reactions. |

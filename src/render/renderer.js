@@ -159,6 +159,12 @@ export class Renderer {
         for (let col = 0; col < board.cols; col++)
           if (board.mask[r][col]) c.roundRect(PAD + col * this.pitch - grow, PAD + r * this.pitch - grow, this.cell + grow * 2, this.cell + grow * 2, radius);
       c.fill();
+      // Where four cells meet, their round corners leave a small hole: fill it.
+      const on = (r, col) => board.mask[r]?.[col];
+      for (let r = 0; r < board.rows - 1; r++)
+        for (let col = 0; col < board.cols - 1; col++)
+          if (on(r, col) && on(r + 1, col) && on(r, col + 1) && on(r + 1, col + 1))
+            c.fillRect(PAD + (col + 1) * this.pitch - GAP / 2 - radius, PAD + (r + 1) * this.pitch - GAP / 2 - radius, radius * 2, radius * 2);
       return off;
     };
     const outer = blob(6, 14);
@@ -168,6 +174,7 @@ export class Renderer {
     // The rim: the outer shape minus a slightly smaller one.
     const ring = blob(6, 14);
     const rc = ring.getContext('2d');
+    rc.setTransform(1, 0, 0, 1, 0, 0); // the blobs are already in device pixels
     rc.globalCompositeOperation = 'destination-out';
     rc.drawImage(blob(2.5, 11), 0, 0);
     this.outline = ring;
@@ -1100,8 +1107,8 @@ export class Renderer {
       for (let c = 0; c < board.cols; c++) {
         if (!board.mask[r][c]) continue;
         const x = PAD + c * this.pitch, y = PAD + r * this.pitch;
-        // Frosted glass tiles: the scene behind shows through the board.
-        ctx.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.26)' : 'rgba(255,255,255,.42)';
+        // Dark tray tiles, so the pieces are the brightest thing on screen.
+        ctx.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.045)' : 'rgba(255,255,255,.11)';
         ctx.beginPath();
         ctx.roundRect(x, y, this.cell, this.cell, 9);
         ctx.fill();
