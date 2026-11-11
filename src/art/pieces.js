@@ -107,15 +107,21 @@ export function fruit(color) {
   return FRUITS[color]();
 }
 
-// The rendered 3D sprite for a fruit (see tools/render-pieces.py). The
-// board draws these; the SVG fruits above are the fallback if one is
-// missing.
-export const pieceImage = (color) => `./art/pieces/${color}.png`;
+// The picture for a piece: the fruit are 3D renders (tools/render-pieces.py),
+// the other pieces are generated pictures (tools/cut-art.py). The board
+// draws these; the SVG art in this file is the fallback if one is missing.
+export const pieceImage = (name) => `./art/pieces/${name}.${FRUIT_KEYS.includes(name) ? 'png' : 'webp'}`;
 
-// A fruit for the page (goal icons, the fruit that flies to the blender).
-export function fruitIcon(color) {
+// Which picture each sprite that is not a fruit uses (sprite key -> name).
+export const PIECE_PICTURES = {
+  bomb: 'bomb', 'ing:duck': 'duck', 'ing:pup': 'pup', 'coco:1': 'coco1', 'coco:2': 'coco2',
+  'mochi:1': 'mochi1', 'mochi:2': 'mochi2', gummy: 'gummy',
+};
+
+// A piece for the page (goal icons, the fruit that flies to the blender).
+export function pieceIcon(name) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">` +
-    `<image href="${pieceImage(color)}" x="3" y="3" width="94" height="94"/></svg>`;
+    `<image href="${pieceImage(name)}" x="3" y="3" width="94" height="94"/></svg>`;
 }
 
 // The fruit's SVG body without the outer <svg>, so specials can wrap it.
@@ -194,6 +200,19 @@ export function wrapped(color) {
   const h = halo('#8fe9ff');
   return svg(b.defs + h.defs,
     h.body + `<g transform="translate(50 54) scale(.78) translate(-50 -54)">${inner(color)}</g>` + b.body);
+}
+
+// The color bomb's rainbow glow and twinkles, to go behind and in front of
+// its picture.
+const RAINBOW = [['#ff6a8a', 38, 42], ['#ffe95c', 62, 42], ['#9df27a', 66, 64], ['#7fc2ff', 50, 74], ['#d39bff', 34, 64]];
+export function bombBack() {
+  const rb = id('rb');
+  return svg(
+    RAINBOW.map(([c]) => `<radialGradient id="${rb}${c.slice(1)}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="${c}" stop-opacity=".9"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`).join(''),
+    RAINBOW.map(([c, x, y]) => `<circle cx="${x}" cy="${y}" r="34" fill="url(#${rb}${c.slice(1)})"/>`).join(''));
+}
+export function bombFront() {
+  return svg('', twinkle(14, 16, 8) + twinkle(87, 24, 7, '#ffe14d') + twinkle(86, 86, 8) + twinkle(12, 80, 6, '#9fe8ff') + twinkle(50, 6, 5, '#fff'));
 }
 
 // Color bomb: a sparkly dragonfruit with a rainbow glow.

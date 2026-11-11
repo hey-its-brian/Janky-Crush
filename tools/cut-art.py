@@ -6,9 +6,10 @@ sprites, and scales each one down.
     python3 tools/cut-art.py            # the map sprites, the ground tile and the host
     python3 tools/cut-art.py hut frog   # only some map sprites
     python3 tools/cut-art.py host       # only the host
+    python3 tools/cut-art.py pieces     # only the board pieces
 
-The pictures come from an image model (art/map/PROMPTS.md and
-art/host/PROMPTS.md). Most are on a white background and are cut out with
+The pictures come from an image model (the PROMPTS.md file beside each
+set of sprites has the prompts). Most are on a white background and are cut out with
 the rembg model. White and gray things were generated on a pink background
 and are cut out by color, which keeps their pale edges ('pink'), or with
 the model and then the pink tint is taken off ('model-pink').
@@ -154,10 +155,49 @@ def host():
         print('cut host', pose, im.size)
 
 
+# The board pieces that are not fruit: name -> cut method. (The fruit are
+# 3D renders, see tools/render-pieces.py.)
+PIECES = {
+    'bomb': 'model', 'coco1': 'model', 'coco2': 'model', 'mochi1': 'model-green', 'mochi2': 'model-green',
+    'gummy': 'model', 'duck': 'model', 'pup': 'model',
+}
+
+
+def no_green(im):
+    """Takes the green tint of a green background off a cut-out sprite."""
+    a = np.asarray(im.convert('RGB')).astype(np.int16)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    spill = np.clip(g - np.maximum(r, b), 0, None)
+    out = np.stack([r + spill * 0.1, g - spill * 0.9, b + spill * 0.1], -1)
+    out = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).convert('RGBA')
+    out.putalpha(im.getchannel('A'))
+    return out
+
+
+def pieces():
+    """Each board piece cropped to itself and centered in a square, the same
+    framing as the fruit renders."""
+    src, out = os.path.join(ROOT, 'art', 'source', 'pieces'), os.path.join(ROOT, 'art', 'pieces')
+    for name, method in PIECES.items():
+        im = cut_model(Image.open(os.path.join(src, f'{name}.webp')).convert('RGB'))
+        if method == 'model-green':
+            im = no_green(im)
+        im = im.crop(im.getchannel('A').point(lambda v: 255 if v > 16 else 0).getbbox())
+        side = max(im.size)
+        pad = round(side * 0.03)
+        canvas = Image.new('RGBA', (side + pad * 2, side + pad * 2), (0, 0, 0, 0))
+        canvas.paste(im, ((canvas.width - im.width) // 2, (canvas.height - im.height) // 2))
+        canvas.resize((256, 256), Image.LANCZOS).save(os.path.join(out, f'{name}.webp'), quality=92, method=6)
+        print('cut piece', name)
+
+
 def main():
-    if 'host' in sys.argv[1:] or len(sys.argv) == 1:
+    args = sys.argv[1:]
+    if 'host' in args or not args:
         host()
-    if sys.argv[1:] == ['host']:
+    if 'pieces' in args or not args:
+        pieces()
+    if args and all(a in ('host', 'pieces') for a in args):
         return
     names = [a for a in sys.argv[1:] if a in SPRITES] or list(SPRITES)
     os.makedirs(OUT, exist_ok=True)

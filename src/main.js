@@ -4,7 +4,7 @@ import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES } from 
 import { buildWorld, setWorldZone } from './ui/world.js';
 import { renderMap, zoneNumber } from './ui/map.js';
 import { capy } from './art/capy.js';
-import { ducky, striped, wrapped, bomb, fruitIcon, coconut, mochi, gummy } from './art/pieces.js';
+import { striped, wrapped, pieceIcon } from './art/pieces.js';
 import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic, songFor } from './audio/music.js';
@@ -261,7 +261,7 @@ function blockerKinds(level) {
   for (const d of level.dispensers ?? []) if (d.kind === 'gummy' && !kinds.includes('gummy')) kinds.push('gummy');
   return kinds;
 }
-const BLOCKER_ART = { coconut: () => coconut(2), mochi: () => mochi(2), gummy: () => gummy() };
+const BLOCKER_ART = { coconut: () => pieceIcon('coco2'), mochi: () => pieceIcon('mochi2'), gummy: () => pieceIcon('gummy') };
 const BLOCKER_GOAL = { coconut: 'Crack open every coconut', mochi: 'Squish every mochi', gummy: 'Pop every gummy cube' };
 
 function goalText(level) {
@@ -284,9 +284,9 @@ function goalText(level) {
 function goalIcon(type, level = current) {
   const icon = el('i', { class: `goal-icon ${type}`, 'aria-hidden': 'true' });
   // Our own SVG art.
-  if (type === 'ingredients') icon.innerHTML = ducky();
+  if (type === 'ingredients') icon.innerHTML = pieceIcon('duck');
   if (type === 'blockers') icon.innerHTML = BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']();
-  if (type === 'collect') icon.innerHTML = fruitIcon(Object.keys(level.goal.targets)[0]);
+  if (type === 'collect') icon.innerHTML = pieceIcon(Object.keys(level.goal.targets)[0]);
   return icon;
 }
 
@@ -371,13 +371,13 @@ function showResult(r) {
     const specials = el('span', { class: 'val' },
       s.striped ? chip(striped('r', 'h'), s.striped) : null,
       s.wrapped ? chip(wrapped('o'), s.wrapped) : null,
-      s.bomb ? chip(bomb(), s.bomb) : null);
+      s.bomb ? chip(pieceIcon('bomb'), s.bomb) : null);
     const rows = [
       s.striped + s.wrapped + s.bomb ? statRow('Specials made', specials) : null,
       s.bestCascade > 1 ? statRow('Biggest chain', el('span', { class: 'val', text: `×${s.bestCascade}` })) : null,
       s.foamCleared ? statRow('Foam cleared', el('span', { class: 'val', text: fmt(s.foamCleared) }), el('i', { class: 'foam-icon goal-icon', style: 'width:30px;height:30px' })) : null,
-      s.blockers ? statRow('Blockers cleared', el('span', { class: 'val', text: String(s.blockers) }), el('i', { class: 'goal-icon', svg: coconut(1), style: 'width:32px;height:32px' })) : null,
-      r.collected ? statRow('Friends rescued', el('span', { class: 'val', text: String(r.collected) }), el('i', { class: 'goal-icon', svg: ducky(), style: 'width:32px;height:32px' })) : null,
+      s.blockers ? statRow('Blockers cleared', el('span', { class: 'val', text: String(s.blockers) }), el('i', { class: 'goal-icon', svg: pieceIcon('coco1'), style: 'width:32px;height:32px' })) : null,
+      r.collected ? statRow('Friends rescued', el('span', { class: 'val', text: String(r.collected) }), el('i', { class: 'goal-icon', svg: pieceIcon('duck'), style: 'width:32px;height:32px' })) : null,
       s.bonus ? statRow('Leftover moves bonus', el('span', { class: 'val', text: `+${fmt(s.bonus)}` })) : null,
       statRow('Coins earned', el('span', { class: 'val' }, icon(coin()), `+${coins.total}`)),
     ].filter(Boolean);
@@ -681,7 +681,7 @@ function flyToBlender({ color, x, y }) {
   if (!s || s.goal.type !== 'collect' || !(color in s.goal.targets) || flying >= 12) return;
   const from = $('board').getBoundingClientRect();
   const to = $('blender').querySelector('.jar').getBoundingClientRect();
-  const bit = el('div', { class: 'fly-fruit', svg: fruitIcon(color) });
+  const bit = el('div', { class: 'fly-fruit', svg: pieceIcon(color) });
   bit.style.left = `${from.left + x - 17}px`;
   bit.style.top = `${from.top + y - 17}px`;
   document.body.append(bit);
@@ -717,12 +717,12 @@ function updateHud(h) {
   if (icon.dataset.type !== goalKey) {
     icon.dataset.type = goalKey;
     icon.className = `goal-icon ${h.goal}`;
-    icon.innerHTML = h.goal === 'ingredients' ? ducky() : h.goal === 'blockers' ? BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']() : ''; // our own art, never user input
+    icon.innerHTML = h.goal === 'ingredients' ? pieceIcon('duck') : h.goal === 'blockers' ? BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']() : ''; // our own art, never user input
     $('blender').classList.remove('done', 'whir');
     $('blender-fill').replaceChildren(...Object.keys(h.collectLeft).map((c) => el('i', { 'data-color': c, style: `background:${FRUIT_JUICE[c]}` })));
     // Collect goals list each fruit with its own count.
     $('goal-fruits').replaceChildren(...Object.keys(h.collectLeft).map((c) =>
-      el('span', { class: 'goal-fruit', 'data-color': c }, el('i', { class: 'goal-icon small', svg: fruitIcon(c) }), el('b', { class: 'count' }))));
+      el('span', { class: 'goal-fruit', 'data-color': c }, el('i', { class: 'goal-icon small', svg: pieceIcon(c) }), el('b', { class: 'count' }))));
   }
   const collecting = h.goal === 'collect';
   $('goal-fruits').hidden = !collecting;
