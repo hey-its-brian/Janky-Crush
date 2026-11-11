@@ -109,6 +109,13 @@ export class Game {
     clearTimeout(this.hintTimer);
 
     const r = this.renderer;
+    if (this.board.locked(...a) || this.board.locked(...b)) {
+      // A locked fruit does not move: its cage rattles.
+      r.rattle(this.board.locked(...a) ? a : b);
+      this.busy = false;
+      this.armHint();
+      return;
+    }
     if (!this.board.isValidSwap(a, b)) {
       await r.animateBadSwap(a, b);
       this.busy = false;

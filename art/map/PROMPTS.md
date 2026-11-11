@@ -52,6 +52,13 @@ Size is 1024 x 1024 unless the table gives a different size.
 | mountains (1680 x 720) | 12 | A wide row of three chunky rounded mountain peaks with thick white snow caps and blue-lavender rock, small snowy pine trees at the base |
 | flower | 12 | A single cute five-petal flower seen from above, round hot pink petals and a yellow center, no stem |
 | tuft | 12 | A small round tuft of bright green grass blades |
+| bamboo | 7 | A cute cluster of five tall chunky green bamboo stalks with a few big leaves |
+| waterfall | 7 | A small cute waterfall: bright turquoise water falling over a pile of chunky mossy gray rocks into a little round pool, white foam at the bottom |
+| panda | 7 | A cute chubby baby giant panda sitting and holding a green bamboo stick, big sparkly eyes, happy smile (magenta background) |
+| mushrooms | 7 | A cute cluster of three chunky glowing mushrooms, bright blue and pink caps with white spots, soft glow |
+| lanterntree | 7 | A cute round old forest tree with a thick twisted trunk, a dark teal-green leafy crown, and small glowing yellow lanterns hanging from its branches |
+| owl | 7 | A cute chubby round purple owl with big sparkly yellow eyes and a happy face, perched on a short wooden branch |
+| fireflyjar (720 x 1280) | 7 | A glass jar full of glowing yellow-green fireflies, with a cork lid, standing on a short wooden stump |
 
 The tool makes the orange, white and blue flowers and the snow tuft from
 the pink flower and the green tuft.

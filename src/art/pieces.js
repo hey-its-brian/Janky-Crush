@@ -306,3 +306,25 @@ export function gummy() {
     `<path d="M24 74 Q50 82 76 74" stroke="#13600a" stroke-width="2.5" fill="none" opacity=".5"/>` +
     gloss(30, 28, 8, 4, -20, 0.85));
 }
+
+// The lock over a locked fruit: a bamboo cage tied with rope. The fruit
+// shows between the poles. Drawn over the piece.
+export function cage() {
+  const g = id('bam'), h = id('bamh');
+  const pole = (x, y, w, hgt, horiz) => {
+    const nodes = [0.3, 0.68].map((t) => horiz
+      ? `<rect x="${x + w * t - 1.5}" y="${y - 1}" width="3" height="${hgt + 2}" rx="1.5" fill="#4f7d12"/>`
+      : `<rect x="${x - 1}" y="${y + hgt * t - 1.5}" width="${w + 2}" height="3" rx="1.5" fill="#4f7d12"/>`).join('');
+    return `<rect x="${x}" y="${y}" width="${w}" height="${hgt}" rx="${Math.min(w, hgt) / 2}" fill="url(#${horiz ? h : g})" stroke="#2f5208" stroke-width="2.5"/>` + nodes +
+      (horiz ? `<rect x="${x + 4}" y="${y + 2}" width="${w - 8}" height="2.5" rx="1.2" fill="#fff" opacity=".45"/>`
+        : `<rect x="${x + 2}" y="${y + 4}" width="2.5" height="${hgt - 8}" rx="1.2" fill="#fff" opacity=".45"/>`);
+  };
+  const knot = (x, y) => `<circle cx="${x}" cy="${y}" r="7.5" fill="#e9c98a" stroke="#8a5a1c" stroke-width="2.5"/>` +
+    `<path d="M${x - 4.5} ${y - 3} L${x + 4.5} ${y + 3} M${x - 4.5} ${y + 3} L${x + 4.5} ${y - 3}" stroke="#8a5a1c" stroke-width="2.2" stroke-linecap="round"/>`;
+  return svg(
+    `<linearGradient id="${g}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d6f07a"/><stop offset=".5" stop-color="#9ccf3a"/><stop offset="1" stop-color="#5f9618"/></linearGradient>` +
+    `<linearGradient id="${h}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6f07a"/><stop offset=".5" stop-color="#9ccf3a"/><stop offset="1" stop-color="#5f9618"/></linearGradient>`,
+    pole(4, 24, 92, 11, true) + pole(4, 65, 92, 11, true) +
+    pole(24, 4, 11, 92, false) + pole(65, 4, 11, 92, false) +
+    knot(29.5, 29.5) + knot(70.5, 29.5) + knot(29.5, 70.5) + knot(70.5, 70.5));
+}

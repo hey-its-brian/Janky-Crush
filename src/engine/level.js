@@ -13,22 +13,28 @@ import { Board, GUMMY } from './board.js';
 //   'm'  a mochi (one layer)
 //   'M'  a double mochi (two layers)
 //   'u'  a gummy cube (falls like a piece)
+//   'L'  a locked fruit
+//   'l'  a locked fruit on one layer of jelly
 export function parseLayout(layout) {
   const grid = (f) => layout.map((row) => [...row].map(f));
   const mask = grid((ch) => ch !== ' ');
-  const jelly = grid((ch) => (ch === '1' ? 1 : ch === '2' ? 2 : 0));
+  const jelly = grid((ch) => (ch === '1' || ch === 'l' ? 1 : ch === '2' ? 2 : 0));
+  const lock = grid((ch) => ch === 'L' || ch === 'l');
   const block = grid((ch) => ({ k: 1, K: 2, m: 1, M: 2 })[ch] ?? 0);
   const blockType = grid((ch) => ('kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : null));
   const gummy = grid((ch) => ch === 'u');
-  return { rows: layout.length, cols: layout[0].length, mask, jelly, block, blockType, gummy };
+  return { rows: layout.length, cols: layout[0].length, mask, jelly, block, blockType, gummy, lock };
 }
 
 export function setupBoard(level, rng) {
-  const { rows, cols, mask, jelly, block, blockType, gummy } = parseLayout(level.layout);
+  const { rows, cols, mask, jelly, block, blockType, gummy, lock } = parseLayout(level.layout);
   const board = new Board({ rows, cols, mask, colors: level.colors, rng });
   board.jelly = jelly;
   board.block = block;
   board.blockType = blockType;
+  board.lock = lock;
+  // `portals` in a level: [[fromRow, fromCol, toRow, toCol, color], ...].
+  board.portals = (level.portals ?? []).map(([fr, fc, tr, tc, color], i) => ({ from: [fr, fc], to: [tr, tc], color: color ?? i }));
   board.dispensers = (level.dispensers ?? []).map((d) => ({ ...d, n: 0 }));
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (gummy[r][c]) board.grid[r][c] = board.newCandy(null, GUMMY);
   board.fillInitial();

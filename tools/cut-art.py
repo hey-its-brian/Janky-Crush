@@ -34,6 +34,9 @@ SPRITES = {
     'crab': ('model', 320, True), 'frog': ('model', 320, False), 'monkey': ('model', 320, True),
     'balloon': ('model', 300, False), 'cloud': ('pink', 360, False), 'mountains': ('pink', 960, False),
     'flower': ('model', 96, False), 'tuft': ('model', 128, False),
+    'bamboo': ('model', 400, True), 'waterfall': ('model', 400, False), 'panda': ('model-pink', 320, True),
+    'mushrooms': ('model', 384, True), 'lanterntree': ('model', 400, True), 'owl': ('model', 320, False),
+    'fireflyjar': ('model', 288, True),
 }
 
 _session = None

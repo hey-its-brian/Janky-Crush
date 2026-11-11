@@ -77,10 +77,12 @@ function botMove(level, board, state, rng) {
         const step = combo ? copy.comboStep(a, b) : copy.resolveStep({ from: a, to: b });
         let points = step?.points ?? 0;
         const cleared = [...(step?.cleared ?? [])];
+        let unlocked = step?.unlocked?.length ?? 0;
         if (step?.primed) {
           const fired = copy.firePrimed();
           points += fired?.points ?? 0;
           cleared.push(...(fired?.cleared ?? []));
+          unlocked += fired?.unlocked?.length ?? 0;
         }
         copy.applyGravity();
         const gathered = cleared.filter((x) => wanted[x.color] > 0).length;
@@ -91,6 +93,7 @@ function botMove(level, board, state, rng) {
           jellyWeight * (before.jelly - copy.jellyCount()) +
           350 * (1 + 4 / (before.blocks + 1)) * (before.blocks - copy.blockCount() - copy.gummyCount()) +
           90 * gathered +
+          150 * unlocked + // a person opens cages when they can
           250 * (ingredientDepth(copy) - before.depth) +
           (specialsValue(copy) - before.specials) +
           rng() * 40;

@@ -53,3 +53,34 @@ test('every level can start with a legal move', async () => {
       assert.ok(b.findPossibleMove(), `level ${level.id} seed ${seed}`);
     }
 });
+
+test('every level refills completely, portals and all', async () => {
+  const { setupBoard } = await import('../src/engine/level.js');
+  const { makeRng } = await import('../src/rng.js');
+  for (const level of LEVEL_DESIGNS) {
+    const b = setupBoard({ ...level, stars: [1, 2, 3], moves: 20 }, makeRng(1));
+    // With every blocker and lock gone and the board empty, pieces must
+    // reach every cell.
+    for (let r = 0; r < b.rows; r++)
+      for (let c = 0; c < b.cols; c++) {
+        b.block[r][c] = 0;
+        b.lock[r][c] = false;
+        b.grid[r][c] = null;
+      }
+    for (let i = 0; i < 40; i++) {
+      const moved = b.applyGravity().length + b.refill().length;
+      if (!moved) break;
+    }
+    assert.equal(b.hasGaps(), false, `level ${level.id}`);
+  }
+});
+
+test('every portal joins the bottom of one part of the board to the top of another', () => {
+  for (const level of LEVEL_DESIGNS)
+    for (const [fr, fc, tr, tc] of level.portals ?? []) {
+      const open = (r, c) => level.layout[r]?.[c] !== undefined && level.layout[r][c] !== ' ';
+      assert.ok(open(fr, fc) && open(tr, tc), `level ${level.id}: portal ends are on the board`);
+      assert.ok(!open(fr + 1, fc), `level ${level.id}: nothing right under the entrance at ${fr},${fc}`);
+      assert.ok(!open(tr - 1, tc), `level ${level.id}: nothing right above the exit at ${tr},${tc}`);
+    }
+});

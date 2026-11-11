@@ -52,9 +52,13 @@
       matched fruit flies into a blender in the goal panel, which fills in
       layers and whirls into a smoothie when the recipe is done. Animations
       sped up again.
-- [ ] **Phase 5+: Level packs** of 15–30, each adding a mechanic
-      (spreading chocolate-like blockers, locked fruit, timer bombs,
-      portals, conveyors).
+- [x] **Phase 5, pack 1: levels 41–60.** Two new zones and two new
+      mechanics. Bamboo Falls (41–50) has locked fruit: a bamboo cage
+      holds a fruit in place until a match or a blast opens it. Firefly
+      Grove (51–60) has portals: fruit that falls into a ring comes out of
+      the ring of the same color.
+- [ ] **More level packs** of 15–30, each adding a mechanic (spreading
+      chocolate-like blockers, timer bombs, conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
       feature-complete. Wrap it with Capacitor so the same code runs as a
       real app, and install through TestFlight internal testing (no App

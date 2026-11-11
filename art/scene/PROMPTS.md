@@ -1,6 +1,6 @@
 # Backdrop prompts
 
-The four zone backdrops were made with the Z-Image Turbo model
+The zone backdrops were made with the Z-Image Turbo model
 (`mcp-tools/Z-Image-Turbo` on Hugging Face), size 864 x 2016, seed 21,
 8 steps. Use these prompts to make them again or to add a zone.
 
@@ -10,11 +10,11 @@ Each prompt has the same structure:
 - The middle is calm water. The board covers it.
 - The bottom quarter shows below the board: water, rocks, small objects.
 
-All four prompts start with:
+All the prompts start with:
 
 > Background art for a casual match-3 mobile puzzle game, tall portrait.
 
-All four prompts end with:
+All the prompts end with:
 
 > Stylized 3D cartoon render like a top mobile puzzle game, soft clay-like
 > rounded shapes, very vivid saturated candy colors, glossy, smooth
@@ -61,3 +61,28 @@ All four prompts end with:
 > open steaming turquoise water. Bottom quarter: steaming turquoise hot
 > spring water, smooth rounded rocks topped with snow at the left and
 > right corners, a small wooden bucket floating, fluffy snow on the bank.
+
+## zone5.webp: Bamboo Falls
+
+> A hidden hot spring pool in a bamboo forest with a waterfall, on a
+> bright misty morning. Top quarter: soft blue sky seen through tall green
+> bamboo stalks leaning in from the left and right edges, a white
+> waterfall falling over mossy rocks in the distance, rounded green hills.
+> Middle: calm open jade-green and turquoise water with soft mist. Bottom
+> quarter: clear steaming turquoise hot spring water, smooth rounded mossy
+> rocks at the left and right corners, a few floating green bamboo leaves,
+> small white flowers on the bank.
+
+## zone6.webp: Firefly Grove
+
+For this one, "warm sunlight from the upper left" in the ending is
+"magical glow".
+
+> A forest hot spring pool at night, lit by fireflies. Top quarter: deep
+> blue and purple night sky with stars and a big soft full moon, dark
+> rounded trees at the left and right edges, many glowing yellow-green
+> fireflies, glowing blue and pink mushrooms on the bank. Middle: calm
+> open dark teal water reflecting the moon, soft mist. Bottom quarter:
+> steaming teal hot spring water with moonlight reflections, smooth
+> rounded rocks at the left and right corners, glowing mushrooms, a few
+> fireflies near the water.

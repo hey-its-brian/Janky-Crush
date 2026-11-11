@@ -6,7 +6,7 @@
 // (The old Night Arcade candies are in git history; they'll come back as an
 // optional theme.)
 
-import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup, coconut, mochi, gummy, pieceImage, specialBack, specialFront } from '../art/pieces.js';
+import { FRUIT_KEYS, fruit, striped, wrapped, bomb, ducky, pup, coconut, mochi, gummy, cage, pieceImage, specialBack, specialFront } from '../art/pieces.js';
 
 // Particle and effect colors per fruit: [main, light, deep].
 export const PALETTE = {
@@ -50,6 +50,7 @@ function sources() {
   out.push(['mochi:1', mochi(1), FILL.coconut]);
   out.push(['mochi:2', mochi(2), FILL.coconut]);
   out.push(['gummy', gummy(), FILL.coconut]);
+  out.push(['lock', cage(), 0.66]); // as big as a cell
   return out;
 }
 

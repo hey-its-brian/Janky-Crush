@@ -77,6 +77,8 @@ const START_SPEED = 16;     // cells/s: a nudge so one-cell drops aren't sluggis
 const BOUNCE = 0.14;        // how much of the landing speed bounces back
 const MAX_HOP_SPEED = 5;    // cells/s, so even big drops only hop a little
 const STACK_DELAY_MS = 12;  // candies in a column fall a hair apart
+// One color for each portal on a board, so its two ends match.
+const PORTAL_COLORS = ['#7cf3ff', '#c79bff', '#ffd45e', '#7dffb0', '#ff9ad0'];
 
 export class Renderer {
   constructor(canvas, board) {
@@ -95,6 +97,7 @@ export class Renderer {
     this.jellyShown = new Map();
     // Coconut layers still showing until the hit that cracks them lands.
     this.blockShown = new Map();
+    this.lockShown = new Set(); // locks still drawn while their opening waits its turn
     this.blockTypeShown = new Map(); // what a cracked-away blocker was, until it's shown cracking
     this.selected = null;
     this.hint = null;
@@ -305,6 +308,15 @@ export class Renderer {
     move.settle();
   }
 
+  // A locked fruit that the player tried to move: it wobbles in its cage.
+  rattle(at) {
+    this.cue('boing');
+    const v = this.visualAt(at);
+    if (v) this.jiggle(v, 0.14);
+    this.shake = { born: performance.now(), life: 160, amp: 2 };
+    this.requestDraw();
+  }
+
   // Animate one resolution step from Board.resolveStep / comboStep /
   // firePrimed. Blasts go off one after another so chain reactions ripple,
   // and each candy pops when the blast that hit it arrives.
@@ -473,6 +485,18 @@ export class Renderer {
       }));
     }
 
+    // A lock opens when the match or blast that hit it goes off.
+    for (const u of step.unlocked ?? []) {
+      const k = u.at[0] * 100 + u.at[1];
+      this.lockShown.add(k);
+      jobs.push(sleep(delayFor({ at: u.at, cause: u.cause })).then(() => {
+        this.lockShown.delete(k);
+        this.crack({ at: u.at, left: 0, type: 'lock' });
+        const v = this.visualAt(u.at);
+        if (v) this.jiggle(v, 0.16);
+      }));
+    }
+
     // New specials pop in where they formed.
     for (const m of step.created) {
       const v = this.visuals.get(m.candy.id);
@@ -492,7 +516,7 @@ export class Renderer {
     const { x, y } = this.center(...h.at);
     const now = performance.now();
     const chips = h.left === 0 ? 16 : 9;
-    const palette = h.type === 'gummy' ? ['#b8ff7a', '#48d62a', '#1f8f12', '#ffffff'] : h.type === 'mochi' ? ['#ffffff', '#ffd1e6', '#ff7fb8', '#f3e6df'] : ['#6b3a16', '#8a5226', '#3b1f0b', '#c98a52'];
+    const palette = h.type === 'lock' ? ['#d6f07a', '#9ccf3a', '#5f9618', '#e9c98a'] : h.type === 'gummy' ? ['#b8ff7a', '#48d62a', '#1f8f12', '#ffffff'] : h.type === 'mochi' ? ['#ffffff', '#ffd1e6', '#ff7fb8', '#f3e6df'] : ['#6b3a16', '#8a5226', '#3b1f0b', '#c98a52'];
     for (let i = 0; i < chips; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 0.1 + Math.random() * 0.16;
@@ -609,15 +633,16 @@ export class Renderer {
   animateFall(moves, spawns) {
     for (const s of spawns) {
       if (!s.dispensed) continue;
-      const el = this.spouts?.get(s.to[1]);
+      const el = this.spouts?.get(s.col ?? s.to[1]);
       el?.animate([{ transform: 'translate(-50%, -100%) scale(1)' }, { transform: 'translate(-50%, -100%) scale(1.3, .8)' }, { transform: 'translate(-50%, -100%) scale(1)' }], { duration: 260 });
       this.cue('sparkle', { kind: s.candy.special === 'bomb' ? 'bomb' : s.candy.special === 'gummy' ? 'wrapped' : 'stripe' });
     }
+    // A piece bound for a cell past a portal drops into the column `col`.
     for (const s of spawns)
-      this.visuals.set(s.id, { candy: s.candy, row: s.fromRow, col: s.to[1], scale: 1, alpha: 1 });
+      this.visuals.set(s.id, { candy: s.candy, row: s.fromRow, col: s.col ?? s.to[1], scale: 1, alpha: 1 });
     const jobs = [
-      ...moves.map((m) => ({ v: this.visuals.get(m.id), from: m.from[0], to: m.to[0], fromCol: m.from[1], toCol: m.to[1] })),
-      ...spawns.map((s) => ({ v: this.visuals.get(s.id), from: s.fromRow, to: s.to[0], fromCol: s.to[1], toCol: s.to[1] })),
+      ...moves.map((m) => ({ v: this.visuals.get(m.id), from: m.from[0], to: m.to[0], fromCol: m.from[1], toCol: m.to[1], via: m.via })),
+      ...spawns.map((s) => ({ v: this.visuals.get(s.id), from: s.fromRow, to: s.to[0], fromCol: s.col ?? s.to[1], toCol: s.to[1], via: s.via })),
     ].filter((j) => j.v);
     const landed = new Map(); // "row,col" -> visual, for the jiggle below
     for (const v of this.visuals.values()) if (Number.isInteger(v.row)) landed.set(`${v.row},${v.col}`, v);
@@ -632,7 +657,82 @@ export class Renderer {
       stack.set(j.toCol, n + 1);
       j.delay = n * STACK_DELAY_MS;
     }
-    return Promise.all(jobs.map((j) => sleep(j.delay).then(() => this.drop(j, landed))));
+    return Promise.all(jobs.map((j) => sleep(j.delay).then(() => (j.via ? this.dropThrough(j, landed) : this.drop(j, landed)))));
+  }
+
+  // A piece that goes through one or more portals: it sinks into each
+  // entrance and fades out, then comes out of the exit and falls on.
+  async dropThrough(j, landed) {
+    const v = j.v;
+    let from = j.from, col = j.fromCol;
+    for (const portal of j.via) {
+      const end = portal.from[0] + 1; // one cell below the entrance
+      const dist = Math.max(0.5, end - from);
+      const time = ((-START_SPEED + Math.sqrt(START_SPEED * START_SPEED + 2 * GRAVITY * dist)) / GRAVITY) * 1000;
+      const start = from;
+      await this.tween(time, (_, t) => {
+        const sec = (t * time) / 1000;
+        v.row = Math.min(end, start + START_SPEED * sec + 0.5 * GRAVITY * sec * sec);
+        v.col = col;
+        const sunk = Math.max(0, v.row - portal.from[0]);
+        v.alpha = 1 - sunk;
+        v.scale = 1 - sunk * 0.5;
+      }, (t) => t);
+      this.portalFlash(portal);
+      from = portal.to[0] - 1;
+      col = portal.to[1];
+      v.row = from;
+      v.col = col;
+      v.alpha = 0;
+    }
+    await this.drop({ v, from, to: j.to, fromCol: col, toCol: j.toCol, emerge: true }, landed);
+    v.alpha = 1;
+    v.scale = 1;
+  }
+
+  portalFlash(portal) {
+    const now = performance.now();
+    for (const [r, c, dy] of [[...portal.from, 0.5], [...portal.to, -0.5]]) {
+      const { x, y } = this.center(r + dy, c);
+      this.effects.push({ kind: 'ring', x, y, color: this.portalColor(portal), born: now, life: 300 });
+    }
+    this.requestDraw();
+  }
+
+  portalColor(portal) {
+    return PORTAL_COLORS[(portal.color ?? this.board.portals.indexOf(portal)) % PORTAL_COLORS.length];
+  }
+
+  // The two ends of each portal: a glowing oval under the entrance cell
+  // and one above the exit cell, in the portal's own color.
+  drawPortals(now) {
+    const { ctx, board } = this;
+    if (!board.portals.length) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 300);
+    ctx.save();
+    for (const portal of board.portals) {
+      const color = this.portalColor(portal);
+      for (const [r, c, dy] of [[...portal.from, 0.5], [...portal.to, -0.5]]) {
+        const { x } = this.center(r, c);
+        const y = Math.max(this.cell * 0.11 + 3, Math.min(this.height - this.cell * 0.11 - 3, PAD + r * this.pitch + this.cell / 2 + dy * this.pitch));
+        ctx.beginPath();
+        ctx.ellipse(x, y, this.cell * 0.4, this.cell * 0.11, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(20, 8, 50, .85)';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 8 + 6 * pulse;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.ellipse(x, y, this.cell * 0.24, this.cell * 0.05, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,255,255,${0.35 + 0.4 * pulse})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   // One candy falls under gravity, hits, hops a little and settles.
@@ -663,6 +763,11 @@ export class Renderer {
       const sec = (t * total) / 1000;
       if (sec < tFall) {
         v.row = j.from + v0 * sec + 0.5 * GRAVITY * sec * sec;
+        if (j.emerge) {
+          const out = Math.max(0, Math.min(1, (v.row - j.from) / 0.8)); // comes out of the portal
+          v.alpha = out;
+          v.scale = 0.5 + 0.5 * out;
+        }
         // Sliding around a coconut: drift sideways over the last cell.
         if (j.toCol !== j.fromCol) v.col = j.fromCol + (j.toCol - j.fromCol) * Math.max(0, Math.min(1, v.row - (j.to - 1)));
         v.stretch = -Math.min(0.12, 0.004 * (v0 + GRAVITY * sec)); // drawn out by speed
@@ -1222,6 +1327,15 @@ export class Renderer {
       ctx.drawImage(this.sprites[v.override ?? spriteKey(v.candy)], x - w / 2 + dx, y - h / 2 + sink, w, h);
     }
     ctx.globalAlpha = 1;
+    // Cages over the locked fruit.
+    if (this.sprites)
+      for (let r = 0; r < board.rows; r++)
+        for (let c = 0; c < board.cols; c++) {
+          if (!board.lock[r][c] && !this.lockShown.has(r * 100 + c)) continue;
+          const { x, y } = this.center(r, c);
+          ctx.drawImage(this.sprites.lock, x - size / 2, y - size / 2, size, size);
+        }
+    this.drawPortals(now);
     ctx.restore();
 
     for (const e of this.effects) this.drawEffect(e, now);

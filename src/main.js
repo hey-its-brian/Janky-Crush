@@ -249,7 +249,7 @@ function showBanner(text) {
 // "a", "a and b", "a, b and c".
 const listing = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
-const FRUIT_NAMES = { r: 'strawberries', o: 'oranges', y: 'lemons', g: 'apples', b: 'blueberries', p: 'grapes' };
+const FRUIT_NAMES = { r: 'strawberries', o: 'oranges', y: 'star fruit', g: 'pears', b: 'blueberries', p: 'grapes' };
 
 // Which blockers a level has, in the order they first appear.
 function blockerKinds(level) {
@@ -336,6 +336,7 @@ function showIntro(level) {
     bigStars(best.stars),
     el('p', { class: 'goal-text' }, goalIcon(level.goal.type, level), goalText(level)),
     el('p', { class: 'muted', text: `in ${level.moves} moves` }),
+    level.tip ? el('p', { class: 'tip', text: level.tip }) : null,
     best.best ? el('p', { class: 'muted', text: `Best score ${fmt(best.best)}` }) : null,
   ], [
     button('Back', closeDialog, 'orange'),

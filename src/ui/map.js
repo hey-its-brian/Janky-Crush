@@ -42,11 +42,21 @@ const ZONES = [
     props: ['pine', 'pine', 'onsen'], small: ['pine'],
     critters: ['monkey'], flowers: ['white', 'blue'],
   },
+  {
+    from: 41, name: 'Bamboo Falls', ground: ['#74d39a', '#4fbf7e'],
+    props: ['bamboo', 'bamboo', 'waterfall', 'bamboo'], small: ['lantern', 'torch'],
+    critters: ['panda'], flowers: ['white', 'pink'],
+  },
+  {
+    from: 51, name: 'Firefly Grove', ground: ['#4a5fa8', '#34478a'], night: true,
+    props: ['lanterntree', 'mushrooms', 'lanterntree', 'mushrooms'], small: ['fireflyjar'],
+    critters: ['owl'], flowers: ['blue', 'white'],
+  },
 ];
 // Trees sway a little; buildings do not.
-const TREES = ['yuzutree', 'palm', 'palm:flip', 'sakura', 'pine'];
+const TREES = ['yuzutree', 'palm', 'palm:flip', 'sakura', 'pine', 'bamboo', 'lanterntree'];
 // Width and height of the small props, in px.
-const SMALL = { torch: [26, 100], lantern: [62, 104], pine: [44, 62] };
+const SMALL = { torch: [26, 100], lantern: [62, 104], pine: [44, 62], fireflyjar: [40, 66] };
 
 const zoneOf = (id) => [...ZONES].reverse().find((z) => id >= z.from);
 // Which zone (1-based) a level is in.
@@ -95,7 +105,9 @@ function roadX(samples, y) {
 function groundGradient(levels, nodes, height) {
   const stops = [];
   const sky = Math.max(0, nodes[nodes.length - 1].y - 230);
-  stops.push(`#9fe2ff 0px`, `#cdf1ff ${sky}px`);
+  // A night sky over the map when its last zone is a night zone.
+  const night = zoneOf(levels.length).night;
+  stops.push(`${night ? '#161c47' : '#9fe2ff'} 0px`, `${night ? '#2c3a78' : '#cdf1ff'} ${sky}px`);
   for (const z of [...ZONES].reverse()) {
     const first = nodes[z.from - 1];
     if (!first) continue;
@@ -170,6 +182,7 @@ function decorations(levels, width, height, samples, nodes) {
         out.push(sprite(steam(), `left:${x}px;top:${y}px;animation-delay:-${k}s`, 'steam'));
       }
     }
+    if (z.night) for (let k = 0; k < 22; k++) out.push(`<i class="firefly" style="left:${(k * 71) % width}px;top:${top + (k * 89) % (bottom - top)}px;animation-delay:-${k * 0.6}s"></i>`);
     if (z.petals) for (let k = 0; k < 16; k++) out.push(`<i class="petal" style="left:${(k * 59) % width}px;top:${top + (k * 83) % (bottom - top)}px;animation-delay:-${k * 0.9}s"></i>`);
   });
 

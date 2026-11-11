@@ -28,6 +28,7 @@ const POINTS_PER_SPECIAL_MADE = 60;
 const POINTS_PER_BLASTED_CANDY = 30;
 const POINTS_PER_JELLY = 100;
 const POINTS_PER_COCONUT_HIT = 80;
+const POINTS_PER_LOCK = 60;
 
 let nextId = 1;
 
@@ -55,6 +56,14 @@ export class Board {
     this.exits = new Set();
     // { remaining, maxOnBoard, chance } on ingredient levels.
     this.spawner = null;
+    // Locked cells: the piece there can't be swapped and doesn't fall. A
+    // match that includes it, or a blast, opens the lock and leaves the
+    // piece. Pieces above can't fall past it.
+    this.lock = Array.from({ length: rows }, () => Array(cols).fill(false));
+    // Portals: [{ from: [r, c], to: [r, c] }]. A piece that falls out of the
+    // bottom of `from` comes in at the top of `to`.
+    this.portals = [];
+    this.paths = null; // falling paths, built when first needed
   }
 
   // A copy to try moves on. Candy objects are copied so the original is
@@ -69,6 +78,9 @@ export class Board {
     b.dispensers = this.dispensers.map((d) => ({ ...d }));
     b.exits = new Set(this.exits);
     b.spawner = this.spawner ? { ...this.spawner } : null;
+    b.lock = this.lock.map((row) => [...row]);
+    b.portals = this.portals;
+    b.paths = this.paths;
     return b;
   }
 
@@ -101,11 +113,14 @@ export class Board {
 
   // Fill every playable cell so the board starts with no matches and at
   // least one legal move.
-  fillInitial() {
+  // `keepLocked` leaves the pieces in locked cells as they are (a re-fill
+  // in the middle of a level).
+  fillInitial(keepLocked = false) {
     for (let attempt = 0; attempt < 100; attempt++) {
       for (let r = 0; r < this.rows; r++) {
         for (let c = 0; c < this.cols; c++) {
           if (!this.mask[r][c] || this.block[r][c] || fixedPiece(this.grid[r][c])) continue;
+          if (keepLocked && this.lock[r][c] && this.grid[r][c]) continue;
           const banned = new Set();
           const l1 = this.get(r, c - 1), l2 = this.get(r, c - 2);
           if (l1 && l2 && l1.color === l2.color) banned.add(l1.color);
@@ -147,6 +162,8 @@ export class Board {
       })
     );
     this.jelly = this.grid.map((row) => row.map(() => 0));
+    this.lock = this.grid.map((row) => row.map(() => false));
+    this.paths = null;
     return this;
   }
 
@@ -228,8 +245,13 @@ export class Board {
     return Boolean(x.special && y.special);
   }
 
+  locked(r, c) {
+    return this.playable(r, c) && this.lock[r][c];
+  }
+
   isValidSwap(a, b) {
     if (!Board.adjacent(a, b) || !this.get(...a) || !this.get(...b)) return false;
+    if (this.locked(...a) || this.locked(...b)) return false;
     if (this.isComboSwap(a, b)) return true;
     this.swap(a, b);
     const ok = this.matchesAt(...a) || this.matchesAt(...b);
@@ -281,7 +303,7 @@ export class Board {
         for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) this.hitBlock(pass, r + dr, c + dc, -1);
     }
 
-    if (!pass.clear.size && !pass.light.size && !pass.created.length) return null;
+    if (!pass.clear.size && !pass.light.size && !pass.created.length && !pass.unlocked.size) return null;
     this.runPass(pass);
     return this.commit(pass, groups);
   }
@@ -305,7 +327,8 @@ export class Board {
         remove(to);
         for (let i = 0; i < this.rows; i++)
           for (let j = 0; j < this.cols; j++) {
-            if (this.grid[i][j] && this.grid[i][j].special !== INGREDIENT) remove([i, j]);
+            if (this.lock[i][j]) this.mark(pass, i, j);
+            else if (this.grid[i][j] && this.grid[i][j].special !== INGREDIENT) remove([i, j]);
             this.hitBlock(pass, i, j, 0);
           }
       } else {
@@ -317,6 +340,7 @@ export class Board {
           // one after another in firePrimed(), before anything falls.
           [otherAt, ...targets].forEach((p, i) => {
             const cand = this.get(...p);
+            if (this.locked(...p)) return this.mark(pass, ...p); // the bolt only opens the lock
             if (!cand.special) {
               const special = other.special === WRAPPED ? WRAPPED
                 : randInt(this.rng, 2) ? STRIPE_H : STRIPE_V;
@@ -383,6 +407,7 @@ export class Board {
       converted: [],      // { at, candy, special } (bomb + special combos)
       blasts: [],         // effects for the renderer, in firing order
       blockHit: new Map(), // key -> { at, cause } coconuts cracked this step
+      unlocked: new Map(), // key -> { at, cause } locks opened this step
       cause: new Map(),   // key -> index of the blast that cleared it (-1: the match)
       current: -1,
       primed: false,
@@ -398,6 +423,11 @@ export class Board {
     const cand = this.get(r, c);
     const k = key([r, c]);
     if (!cand || cand.special === INGREDIENT) return;
+    if (this.lock[r][c]) {
+      // A hit opens the lock; the piece stays.
+      if (!pass.unlocked.has(k)) pass.unlocked.set(k, { at: [r, c], cause: pass.current });
+      return;
+    }
     if (pass.keep.has(k) || pass.clear.has(k) || pass.light.has(k)) return;
     if (!pass.cause.has(k)) pass.cause.set(k, pass.current);
     if (cand.special === GUMMY) {
@@ -521,6 +551,9 @@ export class Board {
       if (!this.block[r][c]) this.blockType[r][c] = null;
     }
 
+    const unlocked = [...pass.unlocked.values()];
+    for (const { at } of unlocked) this.lock[at[0]][at[1]] = false;
+
     const matched = new Set(groups.flatMap((g) => g.cells.map(key)));
     const blasted = cleared.filter((x) => !matched.has(key(x.at))).length;
     const points =
@@ -528,7 +561,8 @@ export class Board {
       pass.created.length * POINTS_PER_SPECIAL_MADE +
       blasted * POINTS_PER_BLASTED_CANDY +
       jellyHit.length * POINTS_PER_JELLY +
-      blocksHit.length * POINTS_PER_COCONUT_HIT;
+      blocksHit.length * POINTS_PER_COCONUT_HIT +
+      unlocked.length * POINTS_PER_LOCK;
     return {
       groups,
       cleared,
@@ -539,6 +573,7 @@ export class Board {
       primed: pass.primed,
       jellyHit,
       blocksHit,
+      unlocked,
       points,
     };
   }
@@ -569,7 +604,7 @@ export class Board {
   // the match, otherwise at the preferred cell. Avoid a cell that already
   // holds a special, so that one still gets to fire.
   placeSpecial(color, special, swap, preferred, allowed) {
-    const ok = (p) => p && allowed.some((q) => q[0] === p[0] && q[1] === p[1]) && !this.get(...p).special;
+    const ok = (p) => p && allowed.some((q) => q[0] === p[0] && q[1] === p[1]) && !this.get(...p).special && !this.lock[p[0]][p[1]];
     const at = [swap?.to, swap?.from, preferred, ...allowed].find(ok);
     return at ? { at: [...at], color, special } : null;
   }
@@ -603,10 +638,14 @@ export class Board {
   // moved, from where it was to where it ended up.
   applyGravity() {
     const moved = new Map();
-    const move = (cell, from, to) => {
+    const move = (cell, from, to, via = []) => {
       const m = moved.get(cell.id);
-      if (m) m.to = to;
-      else moved.set(cell.id, { id: cell.id, from, to });
+      if (m) {
+        m.to = to;
+        if (via.length) m.via = [...(m.via ?? []), ...via];
+      } else {
+        moved.set(cell.id, via.length ? { id: cell.id, from, to, via } : { id: cell.id, from, to });
+      }
     };
     for (let guard = 0; guard < 1000; guard++) {
       this.compact(move);
@@ -615,48 +654,122 @@ export class Board {
     return [...moved.values()].filter((m) => m.from[0] !== m.to[0] || m.from[1] !== m.to[1]);
   }
 
-  // Straight down within each stretch of a column between coconuts. Cells
-  // off the board are see-through, so pieces drop past gaps in the shape.
-  compact(move) {
+  // The paths pieces fall along, each a list of cells from the bottom up.
+  // With no portals a path is one column (cells off the board are
+  // see-through, so pieces drop past gaps in the shape). A portal cuts its
+  // column below `from` and above `to`, and joins the two parts: the path
+  // runs up to `to`, then goes on from `from`. `sky` says if new pieces can
+  // drop in at the top; `joins` lists where the path goes through a portal.
+  fallPaths() {
+    if (this.paths) return this.paths;
+    const ins = new Map(this.portals.map((p) => [key(p.from), p]));
+    const outs = new Map(this.portals.map((p) => [key(p.to), p]));
+    const parts = [];
     for (let c = 0; c < this.cols; c++) {
+      let part = null, first = true;
+      for (let r = 0; r < this.rows; r++) {
+        if (!this.mask[r][c]) continue;
+        const k = key([r, c]);
+        if (!part || outs.has(k)) parts.push(part = { cells: [], col: c, sky: first && !outs.has(k) });
+        part.cells.unshift([r, c]);
+        first = false;
+        if (ins.has(k)) part = null;
+      }
+    }
+    const top = (part) => part.cells[part.cells.length - 1];
+    const partWithBottom = new Map(parts.map((p) => [key(p.cells[0]), p]));
+    const upper = new Set(this.portals.map((p) => partWithBottom.get(key(p.from))));
+    const paths = [];
+    for (const start of parts) {
+      if (upper.has(start)) continue; // reached through the portal below it
+      const path = { cells: [], joins: [], sky: false, col: start.col };
+      for (let part = start, guard = 0; part && guard < 20; guard++) {
+        path.cells.push(...part.cells);
+        path.sky = part.sky;
+        path.col = part.col;
+        const portal = outs.get(key(top(part)));
+        if (!portal) break;
+        path.joins.push({ index: path.cells.length, portal });
+        part = partWithBottom.get(key(portal.from));
+      }
+      paths.push(path);
+    }
+    const where = new Map();
+    for (const path of paths) path.cells.forEach((cell, i) => where.set(key(cell), { path, i }));
+    this.paths = Object.assign(paths, { where });
+    return this.paths;
+  }
+
+  // Does something in this cell stop pieces from falling past it?
+  barrier(r, c) {
+    return this.block[r][c] > 0 || this.lock[r][c];
+  }
+
+  // Straight down along each path, within each stretch between barriers
+  // (coconuts, mochi and locked pieces).
+  compact(move) {
+    for (const path of this.fallPaths()) {
+      const { cells } = path;
       let seg = [];
       const flush = () => {
         let write = 0;
-        for (const r of seg) {
+        for (const i of seg) {
+          const [r, c] = cells[i];
           const cell = this.grid[r][c];
           if (!cell) continue;
-          const target = seg[write++];
-          if (target !== r) {
-            this.grid[target][c] = cell;
+          const t = seg[write++];
+          if (t !== i) {
+            const [tr, tc] = cells[t];
+            this.grid[tr][tc] = cell;
             this.grid[r][c] = null;
-            move(cell, [r, c], [target, c]);
+            // The portals it went through, in the order it met them.
+            const via = path.joins.filter((j) => j.index > t && j.index <= i).map((j) => j.portal).reverse();
+            move(cell, [r, c], [tr, tc], via);
           }
         }
         seg = [];
       };
-      for (let r = this.rows - 1; r >= 0; r--) {
-        if (!this.mask[r][c]) continue;
-        if (this.block[r][c]) flush();
-        else seg.push(r);
-      }
+      cells.forEach(([r, c], i) => {
+        if (this.barrier(r, c)) flush();
+        else seg.push(i);
+      });
       flush();
     }
   }
 
   // Can new pieces drop into this cell from above the board?
   fed(r, c) {
-    for (let i = r - 1; i >= 0; i--) if (this.mask[i][c] && this.block[i][c]) return false;
+    const { path, i } = this.fallPaths().where.get(key([r, c]));
+    if (!path.sky) return false;
+    for (let j = i + 1; j < path.cells.length; j++) if (this.barrier(...path.cells[j])) return false;
     return true;
+  }
+
+  // The empty cells at the top of each path that new pieces can drop into:
+  // [{ path, cells }], cells from the top down, by the column they enter.
+  fedGaps() {
+    const out = [];
+    for (const path of this.fallPaths()) {
+      if (!path.sky) continue;
+      const cells = [];
+      for (let i = path.cells.length - 1; i >= 0; i--) {
+        const [r, c] = path.cells[i];
+        if (this.barrier(r, c)) break;
+        if (!this.grid[r][c]) cells.push({ at: [r, c], via: path.joins.filter((j) => j.index > i).map((j) => j.portal).reverse() });
+      }
+      if (cells.length) out.push({ path, cells });
+    }
+    return out.sort((a, b) => a.path.col - b.path.col);
   }
 
   // Slide one piece diagonally down into the lowest gap that can't be fed.
   slideOne(move) {
     for (let r = this.rows - 1; r > 0; r--)
       for (let c = 0; c < this.cols; c++) {
-        if (!this.mask[r][c] || this.block[r][c] || this.grid[r][c] || this.fed(r, c)) continue;
+        if (!this.mask[r][c] || this.barrier(r, c) || this.grid[r][c] || this.fed(r, c)) continue;
         for (const dc of [-1, 1]) {
           const sr = r - 1, sc = c + dc;
-          if (!this.playable(sr, sc) || this.block[sr][sc]) continue;
+          if (!this.playable(sr, sc) || this.barrier(sr, sc)) continue;
           const cell = this.grid[sr][sc];
           if (!cell) continue;
           this.grid[r][c] = cell;
@@ -684,25 +797,28 @@ export class Board {
 
   // Fill empty cells from the top. Each spawn says how many rows above the
   // board it starts, so a column's new candies stack up and fall in together.
+  // A piece bound for a cell past a portal says so with `via`, and `col` is
+  // the column it drops into.
   refill() {
     const spawns = [];
     const ingredientCol = this.pickIngredientColumn();
-    for (let c = 0; c < this.cols; c++) {
-      const empty = [];
-      for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.block[r][c] && !this.grid[r][c] && this.fed(r, c)) empty.push(r);
-      const spout = empty.length ? this.dispensers.find((d) => d.col === c) : null;
+    for (const { path, cells } of this.fedGaps()) {
+      const c = path.col;
+      const spout = this.dispensers.find((d) => d.col === c);
       let dispensed = null;
       if (spout) {
         spout.n = (spout.n ?? 0) + 1;
         if (spout.n % spout.every === 0) dispensed = this.dispense(spout.kind);
       }
-      empty.forEach((r, i) => {
+      cells.forEach(({ at, via }, i) => {
         // The last piece in drops first, so it leads the column down.
-        const cell = dispensed && i === empty.length - 1 ? dispensed
+        const cell = dispensed && i === cells.length - 1 ? dispensed
           : c === ingredientCol && i === 0 ? this.newIngredient(this.nextIngredientKind())
           : this.newCandy(this.randomColor());
-        this.grid[r][c] = cell;
-        spawns.push({ id: cell.id, candy: cell, color: cell.color, to: [r, c], fromRow: i - empty.length, dispensed: cell === dispensed });
+        this.grid[at[0]][at[1]] = cell;
+        const spawn = { id: cell.id, candy: cell, color: cell.color, to: at, fromRow: i - cells.length, dispensed: cell === dispensed };
+        if (via.length) Object.assign(spawn, { via, col: c });
+        spawns.push(spawn);
       });
     }
     return spawns;
@@ -729,9 +845,7 @@ export class Board {
     const sp = this.spawner;
     if (!sp || sp.remaining <= 0 || this.countIngredients() >= sp.maxOnBoard) return -1;
     if (this.rng() >= sp.chance) return -1;
-    const cols = [];
-    for (let c = 0; c < this.cols; c++)
-      for (let r = 0; r < this.rows; r++) if (this.mask[r][c] && !this.block[r][c] && !this.grid[r][c] && this.fed(r, c)) { cols.push(c); break; }
+    const cols = this.fedGaps().map((g) => g.path.col);
     if (!cols.length) return -1;
     sp.remaining--;
     return cols[randInt(this.rng, cols.length)];
@@ -763,12 +877,11 @@ export class Board {
     return -1;
   }
 
-  // Every column's lowest cell is an exit.
+  // The lowest cell of every falling path is an exit. (With no portals,
+  // that is every column's lowest cell.)
   setExits() {
     this.exits.clear();
-    for (let c = 0; c < this.cols; c++)
-      for (let r = this.rows - 1; r >= 0; r--)
-        if (this.mask[r][c]) { this.exits.add(key([r, c])); break; }
+    for (const path of this.fallPaths()) this.exits.add(key(path.cells[0]));
   }
 
   isExit(r, c) {
@@ -811,7 +924,7 @@ export class Board {
 
   // The Switch booster: swap any two neighbors, match or not.
   canSwitch(a, b) {
-    return Board.adjacent(a, b) && !!this.get(...a) && !!this.get(...b);
+    return Board.adjacent(a, b) && !!this.get(...a) && !!this.get(...b) && !this.locked(...a) && !this.locked(...b);
   }
 
   // End-of-level bonus: turn `n` plain candies into stripes, and prime them
@@ -822,7 +935,7 @@ export class Board {
     for (let r = 0; r < this.rows; r++)
       for (let c = 0; c < this.cols; c++) {
         const cand = this.grid[r][c];
-        if (!cand || fixedPiece(cand) || cand.special === WRAPPED_LIT) continue;
+        if (!cand || fixedPiece(cand) || cand.special === WRAPPED_LIT || this.lock[r][c]) continue;
         (cand.special ? specials : plain).push([r, c]);
       }
     const converted = [];
@@ -860,7 +973,7 @@ export class Board {
     const cells = [];
     for (let r = 0; r < this.rows; r++)
       for (let c = 0; c < this.cols; c++)
-        if (this.grid[r][c] && !fixedPiece(this.grid[r][c])) cells.push([r, c]);
+        if (this.grid[r][c] && !fixedPiece(this.grid[r][c]) && !this.lock[r][c]) cells.push([r, c]);
     const candies = cells.map(([r, c]) => ({ cell: this.grid[r][c], from: [r, c] }));
     for (let attempt = 0; attempt < 200; attempt++) {
       for (let i = candies.length - 1; i > 0; i--) {
@@ -874,7 +987,7 @@ export class Board {
     }
     // Colors alone can't make a playable board; recolor from scratch.
     for (const [r, c] of cells) this.grid[r][c] = null;
-    this.fillInitial();
+    this.fillInitial(true);
     return null;
   }
 }

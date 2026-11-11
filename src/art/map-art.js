@@ -1,5 +1,5 @@
 // The level map's scenery and characters. These are generated pictures, cut
-// out as sprites in art/map/ (see tools/cut-map-art.py and
+// out as sprites in art/map/ (see tools/cut-art.py and
 // art/map/PROMPTS.md). `art('palm:flip')` gives the mirrored sprite.
 
 export function art(name) {
