@@ -231,6 +231,10 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   transform-origin: 50% 100%; animation: breathe 3s ease-in-out infinite;
 }
 .host img, .title-host img, .dialog-host img { width: 100%; height: 100%; display: block; object-fit: contain; object-position: 50% 100%; }
+/* The blink picture lies exactly over the idle one and shows for a moment. */
+.title-host, .top-avatar > div { position: relative; }
+img.blink { position: absolute; left: 0; top: 0; opacity: 0; animation: blink 4.6s linear infinite; }
+@keyframes blink { 0%, 44% { opacity: 0; } 45%, 47.5% { opacity: 1; } 48.5%, 100% { opacity: 0; } }
 .host.cheer { animation: hop .6s ease-in-out 2; }
 .bubble {
   position: absolute; left: 112px; bottom: 84px; padding: 6px 14px; border-radius: 18px;

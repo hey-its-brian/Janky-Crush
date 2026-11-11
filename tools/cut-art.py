@@ -138,6 +138,7 @@ def ground():
 
 
 HOST_POSES = ('idle', 'cheer', 'worried')
+EYES = (340, 370, 710, 460)  # the eye area in the 1024 x 1024 host pictures
 
 
 def host():
@@ -150,6 +151,13 @@ def host():
     box = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
     half = max(512 - box[0], box[2] - 512)                    # keep the character centered
     box = (512 - half, box[1], 512 + half, box[3])
+    # The blink frame is the idle pose with only the eyes changed, so it
+    # lies exactly over the idle sprite: the idle cut-out with the eye area
+    # of blink.webp painted in.
+    blink = Image.open(os.path.join(src, 'blink.webp')).convert('RGB')
+    cuts['blink'] = cuts['idle'].copy()
+    cuts['blink'].paste(blink.crop(EYES), EYES[:2])
+    cuts['blink'].putalpha(cuts['idle'].getchannel('A'))
     for pose, im in cuts.items():
         im = im.crop(box)
         im.thumbnail((640, 560), Image.LANCZOS)

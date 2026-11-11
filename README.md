@@ -80,7 +80,7 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `art/pieces/` | The board pieces. The six fruit (strawberry, orange, star fruit, pear, blueberry, grapes) are 3D renders from `tools/render-pieces.py` (Blender). The color bomb, coconut, mochi, gummy cube, duck and pup are generated pictures cut out by `tools/cut-art.py`; `PROMPTS.md` has the prompts. |
 | `art/scene/` | The backdrop behind the board, one painted image for each map zone. They were made with an image model; `PROMPTS.md` has the prompts. |
 | `art/map/` | The map's buildings, trees, animals and small props as cut-out sprites, and the ground tile. `tools/cut-art.py` makes them from the generated pictures in `art/source/map/`; `PROMPTS.md` has the prompts. |
-| `art/host/` | The capybara host in its three poses (idle, cheer, worried), made the same way from `art/source/host/`. |
+| `art/host/` | The capybara host in its three poses (idle, cheer, worried) and its blink frame, made the same way from `art/source/host/`. |
 | `src/art/` | The rest of the art, drawn as SVG in code: fallback fruits, special overlays, steam, butterflies and birds, coin, heart and booster icons. `map-art.js` and `capy.js` give the map and the host their sprites. |
 | `src/render/sprites.js` | Turns the fruit images and the SVG art into canvas sprites for the board, and builds the striped and wrapped specials from the fruit images. |
 | `src/render/renderer.js` | Canvas drawing and animations. |

@@ -1,6 +1,7 @@
 # Host prompts
 
-The host has three poses: `idle`, `cheer` and `worried`. The generated
+The host has three poses: `idle`, `cheer` and `worried`, and a `blink`
+picture that shows over the idle pose for a moment. The generated
 pictures are in `art/source/host/`. `tools/cut-art.py host` cuts them out
 with one shared frame and writes the sprites in this folder.
 
@@ -43,3 +44,10 @@ worried:
 > cheeks, one blue sweat drop on its forehead. Keep the same character
 > design, colors, 3D clay style, the orange on its head, the sitting
 > position, and the plain white background.
+
+blink (only its eye area is used, painted into the idle sprite):
+
+> Close the capybara's eyes: both eyes become small calm closed curved
+> lines, as in a blink. Change nothing else. Keep the exact same pose,
+> position, size, colors, 3D clay style, the orange on its head, and the
+> plain white background.
