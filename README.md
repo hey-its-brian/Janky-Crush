@@ -77,12 +77,13 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/settings.js` | Sound, music, announcer voice and haptics switches. |
 | `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
 | `art/pieces/` | The six fruit pieces as rendered 3D sprites (strawberry, orange, star fruit, pear, blueberry, grapes). `tools/render-pieces.py` makes them with Blender. |
-| `src/art/` | The rest of the art, drawn as SVG in code: fallback fruits, special overlays, the capybara host, scenery, map buildings and critters (`map-art.js`), coin, heart and booster icons. |
+| `art/scene/` | The backdrop behind the board, one painted image for each map zone. They were made with an image model; `PROMPTS.md` has the prompts. |
+| `src/art/` | The rest of the art, drawn as SVG in code: fallback fruits, special overlays, the capybara host, map scenery, map buildings and critters (`map-art.js`), coin, heart and booster icons. |
 | `src/render/sprites.js` | Turns the fruit images and the SVG art into canvas sprites for the board, and builds the striped and wrapped specials from the fruit images. |
 | `src/render/renderer.js` | Canvas drawing and animations. |
 | `src/game.js` | Plays a level: runs each turn's events through the renderer, touch input, boosters, and asking for +5 moves. |
 | `src/main.js` | Screens: start screen, map bar, shop, lives, dialogs, HUD, the host's reactions. |
-| `src/ui/` | The level map (four zones, scenery placement, the host's travel after a win) and the animated hot-spring scene. |
+| `src/ui/` | The level map (four zones, scenery placement, the host's travel after a win) and the scene behind the board (the zone's backdrop with rising steam). |
 | `src/levels.js`, `src/level-tuning.js` | Level designs (layouts, goals, colors), and their tuned moves and stars. `test/levels.test.js` checks every open cell can be refilled. |
 | `tools/tune.mjs` | The level tuner. |
 | `styles.css` | Capybara Hot Springs theme and layout. |

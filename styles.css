@@ -49,25 +49,18 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 
 /* ---- motion ------------------------------------------------------------------ */
 
-@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes drift { from { transform: translateX(-200px); } to { transform: translateX(120vw); } }
 @keyframes sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6px) rotate(4deg); } }
 @keyframes steam { 0% { transform: translateY(10px) scale(.7); opacity: 0; } 30% { opacity: .8; } 100% { transform: translateY(-70px) scale(1.2); opacity: 0; } }
 @keyframes flap { to { transform: scaleX(.35); } }
 @keyframes flutter { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(40px, -30px); } 50% { transform: translate(90px, 10px); } 75% { transform: translate(30px, 30px); } }
 @keyframes fly { from { transform: translateX(0); } to { transform: translateX(120vw); } }
 @keyframes floaty { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-30px, -22px); } }
-@keyframes ripple { to { background-position: 58px 0; } }
 @keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, .97); } }
 @keyframes hop { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-14px) scale(1.02, .98); } 60% { transform: translateY(0) scale(1.06, .94); } }
 
 .cloud { animation: drift 40s linear infinite; }
 .cloud.slow { animation-duration: 70s; }
-.sway { transform-origin: 50% 100%; animation: sway 4.5s ease-in-out infinite; }
-.sway.b { animation-duration: 5.5s; animation-delay: -2s; }
-.bob { animation: bob 2.6s ease-in-out infinite; }
-.bob.b { animation-delay: -1.3s; }
 .steam { width: 26px; height: 64px; opacity: 0; animation: steam 4s ease-out infinite; }
 .flutter { animation: flutter 7s ease-in-out infinite; }
 .flutter .wing, .fly .wing { transform-origin: 50% 50%; animation: flap .25s ease-in-out infinite alternate; }
@@ -77,27 +70,21 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 /* ---- the hot-spring world behind the board ---------------------------------- */
 
 .world { position: fixed; inset: 0; overflow: hidden; }
-.sky { position: absolute; inset: 0; background: linear-gradient(#59c6ff 0%, #a9e7ff 38%, #e8fbff 56%, #fff1cf 100%); }
-.rays {
-  position: absolute; left: 50%; top: -260px; width: 900px; height: 900px; margin-left: -450px;
-  border-radius: 50%;
-  background: repeating-conic-gradient(rgba(255, 255, 255, .22) 0 9deg, rgba(255, 255, 255, 0) 9deg 22deg);
-  -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 62%);
-  mask-image: radial-gradient(circle, #000 20%, transparent 62%);
-  animation: spin 60s linear infinite;
+.backdrop {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  /* Covers a phone screen; on wider screens it keeps a phone's width. */
+  width: min(100%, 560px); height: max(100%, min(100vw, 560px) * 2.3334);
+  background: center / cover no-repeat;
 }
-.sprite.stretch svg { width: 100%; height: 100%; }
-.water {
-  position: absolute; left: -10%; right: -10%; bottom: 0; height: 22%;
-  background: linear-gradient(#5fe0e6, #24b4c9 60%, #1a93ad);
-  border-top: 5px solid #b9fbff;
-  border-radius: 50% 50% 0 0 / 40px 40px 0 0;
+.backdrop.fill { width: 110%; height: 110%; filter: blur(28px) brightness(.85); }
+@media (min-width: 561px) {
+  .backdrop:not(.fill) {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
 }
-.water::before {
-  content: ''; position: absolute; inset: 14px 0 auto; height: 10px; border-radius: 6px;
-  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .6) 0 26px, transparent 26px 58px);
-  animation: ripple 3s linear infinite;
-}
+@media (max-width: 560px) { .backdrop.fill { display: none; } }
+.steam svg { filter: blur(2px); }
 
 /* ---- panels and buttons -------------------------------------------------------- */
 

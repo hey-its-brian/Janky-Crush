@@ -1,4 +1,4 @@
-// Scenery for the hot-spring world: palm trees, clouds, hills, pools,
+// Scenery for the map and the level scene: palm trees, clouds, pools,
 // flowers, butterflies and steam. Each returns a standalone SVG string.
 // Animation (sway, drift, bob, rising steam) is done with CSS on the
 // element that holds the SVG.
@@ -36,14 +36,6 @@ export function cloud() {
     `<ellipse cx="78" cy="30" rx="16" ry="6" fill="#fff" opacity=".9"/>`);
 }
 
-// Rolling hills strip, viewBox 0 0 440 160.
-export function hills() {
-  return wrap('0 0 440 160',
-    `<path d="M0 80 C60 30 120 30 180 70 C240 110 300 20 360 40 C400 54 420 70 440 64 L440 160 L0 160Z" fill="#9be36e"/>` +
-    `<path d="M0 110 C70 70 140 80 200 104 C260 128 330 78 440 96 L440 160 L0 160Z" fill="#6fcf4e"/>` +
-    `<path d="M0 136 C80 116 160 124 240 138 C320 152 380 126 440 130 L440 160 L0 160Z" fill="#4cb53b"/>`);
-}
-
 // A steaming hot-spring pool, viewBox 0 0 200 90.
 export function pool() {
   const rocks = [[10, 50, 12], [30, 66, 13], [58, 76, 12], [92, 80, 13], [126, 78, 12], [158, 70, 13], [186, 54, 12], [176, 32, 10], [20, 30, 10]]
@@ -69,14 +61,6 @@ export function flower(petal = '#ff6fae') {
   return wrap('0 0 40 40', petals + `<circle cx="20" cy="20" r="6" fill="#ffe14d" stroke="#c99a00" stroke-width="1.5"/>`);
 }
 
-// viewBox 0 0 120 60
-export function bush() {
-  return wrap('0 0 120 60',
-    `<g fill="#4cb53b" stroke="#2a7a1e" stroke-width="2.5"><circle cx="30" cy="38" r="22"/><circle cx="60" cy="28" r="26"/><circle cx="92" cy="38" r="22"/></g>` +
-    `<rect x="12" y="38" width="98" height="22" fill="#4cb53b"/>` +
-    `<circle cx="50" cy="20" r="5" fill="#fff" opacity=".35"/><circle cx="84" cy="30" r="4" fill="#fff" opacity=".3"/>`);
-}
-
 // viewBox 0 0 40 30. Wings flap via CSS scaleX on .wing.
 export function butterfly(color = '#8b5cf6') {
   return wrap('0 0 40 30',
@@ -85,16 +69,6 @@ export function butterfly(color = '#8b5cf6') {
     `<ellipse cx="14" cy="22" rx="6" ry="5" fill="${color}" stroke="#3a1a5c" stroke-width="1.5"/>` +
     `<ellipse cx="26" cy="22" rx="6" ry="5" fill="${color}" stroke="#3a1a5c" stroke-width="1.5"/></g>` +
     `<rect x="18.5" y="6" width="3" height="20" rx="1.5" fill="#3a1a5c"/>`);
-}
-
-// A sun with a face, viewBox 0 0 100 100.
-export function sun() {
-  return wrap('0 0 100 100',
-    `<circle cx="50" cy="50" r="34" fill="url(#sun)" stroke="#e08a00" stroke-width="3"/>` +
-    `<ellipse cx="40" cy="46" rx="3" ry="4" fill="#7a3d00"/><ellipse cx="60" cy="46" rx="3" ry="4" fill="#7a3d00"/>` +
-    `<path d="M42 58 Q50 64 58 58" stroke="#7a3d00" stroke-width="3" fill="none" stroke-linecap="round"/>` +
-    `<ellipse cx="34" cy="56" rx="5" ry="3" fill="#ff8f6b" opacity=".7"/><ellipse cx="66" cy="56" rx="5" ry="3" fill="#ff8f6b" opacity=".7"/>`,
-    `<radialGradient id="sun" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff6b0"/><stop offset=".6" stop-color="#ffd23f"/><stop offset="1" stop-color="#ffb000"/></radialGradient>`);
 }
 
 // A striped hot-air balloon, viewBox 0 0 80 110.

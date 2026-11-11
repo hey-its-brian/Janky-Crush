@@ -1,8 +1,8 @@
 import { Game } from './game.js';
 import { LEVELS } from './levels.js';
 import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES } from './save.js';
-import { buildWorld } from './ui/world.js';
-import { renderMap } from './ui/map.js';
+import { buildWorld, setWorldZone } from './ui/world.js';
+import { renderMap, zoneNumber } from './ui/map.js';
 import { capy } from './art/capy.js';
 import { ducky, striped, wrapped, bomb, fruitIcon, coconut, mochi, gummy } from './art/pieces.js';
 import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
@@ -55,6 +55,7 @@ function showTitle() {
   closeDialog();
   $('game-screen').hidden = true;
   $('map-screen').hidden = true;
+  setWorldZone($('world'), 1);
   $('world').hidden = false;
   $('title-screen').hidden = false;
   $('title-host').innerHTML = capy('cheer'); // our own SVG art
@@ -160,6 +161,7 @@ function showGame(level) {
   closeDialog();
   $('title-screen').hidden = true;
   $('map-screen').hidden = true;
+  setWorldZone($('world'), zoneNumber(level.id));
   $('world').hidden = false;
   $('game-screen').hidden = false;
   // Star marks along the meter at each threshold (the third sits at the end).

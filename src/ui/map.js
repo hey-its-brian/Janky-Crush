@@ -44,6 +44,8 @@ const ZONES = [
 ];
 
 const zoneOf = (id) => [...ZONES].reverse().find((z) => id >= z.from);
+// Which zone (1-based) a level is in.
+export const zoneNumber = (id) => ZONES.indexOf(zoneOf(id)) + 1;
 const sprite = (svg, style, cls = '') => `<div class="sprite ${cls}" style="${style}">${svg}</div>`;
 
 // Points along the road: level i (0-based) and the curve between them.
