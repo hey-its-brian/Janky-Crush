@@ -2,7 +2,7 @@
 
 The map sprites were made with the Z-Image Turbo model
 (`mcp-tools/Z-Image-Turbo` on Hugging Face), 8 steps. The generated
-pictures are in `art/source/map/`. `tools/cut-map-art.py` cuts them out and
+pictures are in `art/source/map/`. `tools/cut-art.py` cuts them out and
 writes the sprites in this folder.
 
 To add a sprite: generate a picture, save it in `art/source/map/`, add its

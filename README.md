@@ -50,7 +50,7 @@ node tools/tune.mjs           # re-tune every level's moves and stars
 node tools/tune.mjs 7 12      # ...or just some levels
 node tools/make-icons.mjs     # regenerate home-screen icons (needs Playwright)
 python3 tools/render-pieces.py   # re-render the 3D fruit sprites (pip install bpy pillow)
-python3 tools/cut-map-art.py     # cut the map sprites out of art/source/map (pip install "rembg[cpu]" pillow numpy scipy)
+python3 tools/cut-art.py         # cut the map sprites and the host out of art/source (pip install "rembg[cpu]" pillow numpy scipy)
 ```
 
 ### Levels
@@ -79,8 +79,9 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
 | `art/pieces/` | The six fruit pieces as rendered 3D sprites (strawberry, orange, star fruit, pear, blueberry, grapes). `tools/render-pieces.py` makes them with Blender. |
 | `art/scene/` | The backdrop behind the board, one painted image for each map zone. They were made with an image model; `PROMPTS.md` has the prompts. |
-| `art/map/` | The map's buildings, trees, animals and small props as cut-out sprites, and the ground tile. `tools/cut-map-art.py` makes them from the generated pictures in `art/source/map/`; `PROMPTS.md` has the prompts. |
-| `src/art/` | The rest of the art, drawn as SVG in code: fallback fruits, special overlays, the capybara host, steam, butterflies and birds, coin, heart and booster icons. `map-art.js` gives the map its sprites. |
+| `art/map/` | The map's buildings, trees, animals and small props as cut-out sprites, and the ground tile. `tools/cut-art.py` makes them from the generated pictures in `art/source/map/`; `PROMPTS.md` has the prompts. |
+| `art/host/` | The capybara host in its three poses (idle, cheer, worried), made the same way from `art/source/host/`. |
+| `src/art/` | The rest of the art, drawn as SVG in code: fallback fruits, special overlays, steam, butterflies and birds, coin, heart and booster icons. `map-art.js` and `capy.js` give the map and the host their sprites. |
 | `src/render/sprites.js` | Turns the fruit images and the SVG art into canvas sprites for the board, and builds the striped and wrapped specials from the fruit images. |
 | `src/render/renderer.js` | Canvas drawing and animations. |
 | `src/game.js` | Plays a level: runs each turn's events through the renderer, touch input, boosters, and asking for +5 moves. |

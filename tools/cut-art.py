@@ -1,16 +1,17 @@
-"""Turns the generated map pictures in art/source/map/ into the sprites in
-art/map/: cuts out the background, adds a soft ground shadow, and scales
-each one down.
+"""Turns the generated pictures in art/source/ into the sprites the game
+uses: cuts out the background, adds a soft ground shadow to the map
+sprites, and scales each one down.
 
     pip install "rembg[cpu]" pillow numpy scipy
-    python3 tools/cut-map-art.py            # every sprite
-    python3 tools/cut-map-art.py hut frog   # only some
+    python3 tools/cut-art.py            # the map sprites, the ground tile and the host
+    python3 tools/cut-art.py hut frog   # only some map sprites
+    python3 tools/cut-art.py host       # only the host
 
-The pictures come from an image model (art/map/PROMPTS.md). Most are on a
-white background and are cut out with the rembg model. White and gray
-things were generated on a pink background and are cut out by color, which
-keeps their pale edges ('pink'), or with the model and then the pink tint
-is taken off ('model-pink').
+The pictures come from an image model (art/map/PROMPTS.md and
+art/host/PROMPTS.md). Most are on a white background and are cut out with
+the rembg model. White and gray things were generated on a pink background
+and are cut out by color, which keeps their pale edges ('pink'), or with
+the model and then the pink tint is taken off ('model-pink').
 """
 import os
 import sys
@@ -130,7 +131,31 @@ def ground():
     Image.fromarray(tile, 'RGBA').save(os.path.join(OUT, 'ground.png'), optimize=True)
 
 
+HOST_POSES = ('idle', 'cheer', 'worried')
+
+
+def host():
+    """The host's poses, all cropped with one box and scaled the same, so
+    the character does not change size or move when the pose changes."""
+    src, out = os.path.join(ROOT, 'art', 'source', 'host'), os.path.join(ROOT, 'art', 'host')
+    os.makedirs(out, exist_ok=True)
+    cuts = {p: cut_model(Image.open(os.path.join(src, f'{p}.webp')).convert('RGB')) for p in HOST_POSES}
+    boxes = [c.getchannel('A').point(lambda v: 255 if v > 16 else 0).getbbox() for c in cuts.values()]
+    box = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+    half = max(512 - box[0], box[2] - 512)                    # keep the character centered
+    box = (512 - half, box[1], 512 + half, box[3])
+    for pose, im in cuts.items():
+        im = im.crop(box)
+        im.thumbnail((640, 560), Image.LANCZOS)
+        im.save(os.path.join(out, f'{pose}.webp'), quality=92, method=6)
+        print('cut host', pose, im.size)
+
+
 def main():
+    if 'host' in sys.argv[1:] or len(sys.argv) == 1:
+        host()
+    if sys.argv[1:] == ['host']:
+        return
     names = [a for a in sys.argv[1:] if a in SPRITES] or list(SPRITES)
     os.makedirs(OUT, exist_ok=True)
     if len(names) == len(SPRITES):

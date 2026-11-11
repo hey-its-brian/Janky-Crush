@@ -230,7 +230,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   position: absolute; left: -6px; bottom: 0; width: 122px; height: 124px;
   transform-origin: 50% 100%; animation: breathe 3s ease-in-out infinite;
 }
-.host svg { width: 100%; height: 100%; display: block; }
+.host img, .title-host img, .dialog-host img { width: 100%; height: 100%; display: block; object-fit: contain; object-position: 50% 100%; }
 .host.cheer { animation: hop .6s ease-in-out 2; }
 .bubble {
   position: absolute; left: 112px; bottom: 84px; padding: 6px 14px; border-radius: 18px;
@@ -366,8 +366,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .chip { display: flex; align-items: center; gap: 1px; font-family: var(--display); font-size: 18px; }
 .chip span { width: 30px; height: 30px; display: block; }
 .chip svg { width: 100%; height: 100%; display: block; }
-.dialog-host { position: absolute; z-index: 2; left: -22px; top: -98px; width: 104px; height: 108px; pointer-events: none; transform: rotate(-8deg); }
-.dialog-host svg { width: 100%; height: 100%; }
+.dialog-host { position: absolute; z-index: 2; left: -30px; top: -112px; width: 126px; height: 130px; pointer-events: none; transform: rotate(-8deg); }
 .confetti-layer { position: fixed; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
 .confetti-layer i { position: absolute; top: -20px; width: 10px; height: 16px; border-radius: 3px; animation: fall 3s linear infinite; }
 @keyframes fall { from { transform: translateY(-40px) rotate(0); } to { transform: translateY(110vh) rotate(720deg); } }
@@ -439,8 +438,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .logo { margin: 0; display: flex; flex-direction: column; align-items: center; line-height: .9; transform: rotate(-4deg); }
 .logo span { font-size: 76px; --stroke: var(--pink-deep); -webkit-text-stroke-width: 10px; }
 .logo span + span { font-size: 92px; --stroke: #c25a00; color: #ffe14d; }
-.title-host { width: 150px; height: 140px; animation: hop 1.8s ease-in-out infinite; }
-.title-host svg { width: 100%; height: 100%; }
+.title-host { width: 190px; height: 180px; animation: hop 1.8s ease-in-out infinite; }
 .save-cards { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 .save-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
 .save-card .head { display: flex; align-items: center; gap: 10px; }
@@ -574,7 +572,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   background: radial-gradient(circle at 50% 30%, #fff8e7, #ffe2a8);
   border: 4px solid #fff; box-shadow: 0 0 0 4px #2f86ff, 0 8px 14px rgba(0, 0, 0, .3);
 }
-.avatar svg { width: 118%; height: 118%; margin: -2% 0 0 -9%; display: block; }
+/* The picture has room at the sides for raised arms: zoom in on the head. */
+.avatar img { width: 176%; margin: -5% 0 0 -38%; display: block; }
 .map-avatar { animation: hop 1.6s ease-in-out infinite; }
 .top-avatar { position: relative; z-index: auto; width: 62px; height: 62px; flex: none; overflow: visible; }
 .top-avatar > div { width: 100%; height: 100%; border-radius: 14px; overflow: hidden; }
@@ -622,7 +621,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   background: radial-gradient(circle at 50% 35%, #e6fbff, #8fe3f5);
   border: 5px solid #fff; box-shadow: 0 5px 0 #e083ad, 0 8px 14px rgba(0, 0, 0, .2);
 }
-.portrait .host { position: absolute; left: -2px; right: -2px; bottom: -10px; top: 4px; width: auto; height: auto; animation: breathe 3s ease-in-out infinite; }
+.portrait .host { position: absolute; inset: 0; width: auto; height: auto; animation: breathe 3s ease-in-out infinite; }
+.portrait .host img { width: 172%; height: auto; margin: -2% 0 0 -36%; }
 .game-top .bubble {
   left: auto; right: 10px; bottom: auto; top: calc(100% + 8px); z-index: 4;
 }

@@ -22,7 +22,7 @@ function el(tag, attrs = {}, ...children) {
   for (const [k, v] of Object.entries(attrs)) {
     if (k === 'class') node.className = v;
     else if (k === 'text') node.textContent = v;
-    else if (k === 'svg') node.innerHTML = v; // our own SVG art only
+    else if (k === 'svg') node.innerHTML = v; // our own art, never user input only
     else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
     else node.setAttribute(k, v);
   }
@@ -58,7 +58,7 @@ function showTitle() {
   setWorldZone($('world'), 1);
   $('world').hidden = false;
   $('title-screen').hidden = false;
-  $('title-host').innerHTML = capy('cheer'); // our own SVG art
+  $('title-host').innerHTML = capy('cheer'); // our own art, never user input
   playMusic(0);
   const card = (mode, name, tag) => {
     const slot = progress.slotInfo(mode);
@@ -183,7 +183,7 @@ let hostTimer;
 function setHost(pose) {
   if (pose === hostPose) return;
   hostPose = pose;
-  $('host').innerHTML = capy(pose); // our own SVG art
+  $('host').innerHTML = capy(pose); // our own art, never user input
 }
 
 // A hint in the host's speech bubble that stays until cleared.
@@ -296,7 +296,7 @@ function openDialog(title, body, actions, { host = null, confetti = false, stack
   $('dialog-body').replaceChildren(...body.filter(Boolean));
   $('dialog-actions').replaceChildren(...actions);
   $('dialog-actions').classList.toggle('stack', stack);
-  $('dialog-host').innerHTML = host ? capy(host) : ''; // our own SVG art
+  $('dialog-host').innerHTML = host ? capy(host) : ''; // our own art, never user input
   const layer = $('confetti');
   layer.replaceChildren();
   if (confetti) {
@@ -716,7 +716,7 @@ function updateHud(h) {
   if (icon.dataset.type !== goalKey) {
     icon.dataset.type = goalKey;
     icon.className = `goal-icon ${h.goal}`;
-    icon.innerHTML = h.goal === 'ingredients' ? ducky() : h.goal === 'blockers' ? BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']() : ''; // our own SVG art
+    icon.innerHTML = h.goal === 'ingredients' ? ducky() : h.goal === 'blockers' ? BLOCKER_ART[blockerKinds(level)[0] ?? 'coconut']() : ''; // our own art, never user input
     $('blender').classList.remove('done', 'whir');
     $('blender-fill').replaceChildren(...Object.keys(h.collectLeft).map((c) => el('i', { 'data-color': c, style: `background:${FRUIT_JUICE[c]}` })));
     // Collect goals list each fruit with its own count.
@@ -764,7 +764,7 @@ $('settings').addEventListener('click', () => {
 $('home').addEventListener('click', () => { tapFeedback(); showTitle(); });
 $('lives-pill').addEventListener('click', () => { tapFeedback(); showLives(); });
 $('coins-pill').addEventListener('click', () => { tapFeedback(); showShop(); });
-$('heart-icon').innerHTML = heart(); // our own SVG art
+$('heart-icon').innerHTML = heart(); // our own art, never user input
 $('top-avatar-art').innerHTML = capy('idle');
 $('coin-icon').innerHTML = coin();
 

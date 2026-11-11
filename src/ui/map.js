@@ -262,7 +262,7 @@ export function renderMap(el, levels, progress, onPick, { from = null } = {}) {
   const frame = document.createElement('div');
   frame.className = 'avatar map-avatar';
   frame.style.cssText = `left:${cur.x + side * 86 - 36}px;top:${cur.y - 36}px`;
-  frame.innerHTML = capy('cheer'); // our own SVG art
+  frame.innerHTML = capy('cheer'); // our own art, never user input
   el.append(frame);
 
   if (from && from < unlocked && nodes[from - 1]) {

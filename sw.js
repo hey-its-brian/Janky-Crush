@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v39';
+const VERSION = 'jc-v40';
 const ASSETS = [
   './',
   './index.html',
@@ -45,6 +45,9 @@ const ASSETS = [
   './art/map/turtle.webp',
   './art/map/yuzutree.webp',
   './art/map/ground.png',
+  './art/host/idle.webp',
+  './art/host/cheer.webp',
+  './art/host/worried.webp',
   './art/pieces/r.png',
   './art/pieces/o.png',
   './art/pieces/y.png',
