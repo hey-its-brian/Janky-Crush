@@ -8,8 +8,8 @@
 // time. All the markup is built from our own art and level data, never user
 // input.
 
-import { palm, cloud, flower, butterfly, balloon, rocks, bird, steam } from '../art/scene.js';
-import { hut, orangeTree, torch, lanterns, sakura, pine, mountains, onsen, redPanda, turtle, crab, frog, snowMonkey, toucan } from '../art/map-art.js';
+import { butterfly, bird, steam } from '../art/scene.js';
+import { art } from '../art/map-art.js';
 import { capy } from '../art/capy.js';
 import { makeRng } from '../rng.js';
 
@@ -18,35 +18,40 @@ const GATE_GAP = 130; // extra room below each zone's first level for its gate
 const TOP = 360;     // room above the last level
 const BOTTOM = 200;  // room below level 1 (the Play button sits here)
 
-// Each zone: name, ground colors (top, bottom), the road's colors, big
-// props and the characters that live there.
+// Each zone: name, ground colors (top, bottom), big props, small props, the
+// characters that live there and its flower colors. All are sprite names
+// for art().
 const ZONES = [
   {
-    from: 1, name: 'Yuzu Valley', ground: ['#7fd65a', '#5fc443'], tuft: '#3e9f2f',
-    props: [() => hut(), orangeTree, () => palm(), () => palm(true), orangeTree], small: [torch],
-    critters: [redPanda, toucan], flowers: ['#ff6fae', '#ffb02e', '#ffffff'],
+    from: 1, name: 'Yuzu Valley', ground: ['#7fd65a', '#5fc443'],
+    props: ['hut', 'yuzutree', 'palm', 'palm:flip', 'yuzutree'], small: ['torch'],
+    critters: ['redpanda', 'toucan'], flowers: ['pink', 'orange', 'white'],
   },
   {
-    from: 11, name: 'Coconut Cove', ground: ['#ffe7a3', '#f6d283'], tuft: '#9fcf5a', sea: true,
-    props: [() => palm(), () => palm(true), () => hut('#f0c060'), () => palm()], small: [torch],
-    critters: [turtle, crab], flowers: ['#ff8a6b', '#ffffff'],
+    from: 11, name: 'Coconut Cove', ground: ['#ffe7a3', '#f6d283'], sea: true,
+    props: ['palm', 'palm:flip', 'beachhut', 'palm'], small: ['torch'],
+    critters: ['turtle', 'crab'], flowers: ['orange', 'white'],
   },
   {
-    from: 21, name: 'Lantern Hills', ground: ['#b5e08a', '#8fd06a'], tuft: '#4e9f3a',
-    props: [sakura, sakura, () => hut('#d97a4a')], small: [lanterns, torch],
-    critters: [frog], flowers: ['#ff9fc8', '#ffffff', '#ffcf3a'], petals: true,
+    from: 21, name: 'Lantern Hills', ground: ['#b5e08a', '#8fd06a'],
+    props: ['sakura', 'sakura', 'teahouse'], small: ['lantern', 'torch'],
+    critters: ['frog'], flowers: ['pink', 'white', 'orange'], petals: true,
   },
   {
-    from: 31, name: 'Steam Peaks', ground: ['#eaf0ff', '#cfdcf7'], tuft: '#9fb7d9', snowy: true,
-    props: [() => pine(), () => pine(), onsen], small: [() => pine()],
-    critters: [snowMonkey], flowers: ['#ffffff', '#b6d4ff'],
+    from: 31, name: 'Steam Peaks', ground: ['#eaf0ff', '#cfdcf7'], snowy: true,
+    props: ['pine', 'pine', 'onsen'], small: ['pine'],
+    critters: ['monkey'], flowers: ['white', 'blue'],
   },
 ];
+// Trees sway a little; buildings do not.
+const TREES = ['yuzutree', 'palm', 'palm:flip', 'sakura', 'pine'];
+// Width and height of the small props, in px.
+const SMALL = { torch: [26, 100], lantern: [62, 104], pine: [44, 62] };
 
 const zoneOf = (id) => [...ZONES].reverse().find((z) => id >= z.from);
 // Which zone (1-based) a level is in.
 export const zoneNumber = (id) => ZONES.indexOf(zoneOf(id)) + 1;
-const sprite = (svg, style, cls = '') => `<div class="sprite ${cls}" style="${style}">${svg}</div>`;
+const sprite = (art, style, cls = '') => `<div class="sprite ${cls}" style="${style}">${art}</div>`;
 
 // Points along the road: level i (0-based) and the curve between them.
 function layout(n, width) {
@@ -130,23 +135,24 @@ function decorations(levels, width, height, samples, nodes) {
     const free = p.x > width / 2 ? 'left' : 'right';
     // A big prop each level, on the side away from the road.
     const prop = z.props[Math.floor(rng() * z.props.length)];
-    place(130, 140, y0 - 90, y1 - 70, 0, (x, y) => sprite(prop(), `left:${x}px;top:${y}px;width:130px;height:140px`, 'prop sway-soft'), free);
+    place(130, 140, y0 - 90, y1 - 70, 0, (x, y) => sprite(art(prop), `left:${x}px;top:${y}px;width:130px;height:140px`, TREES.includes(prop) ? 'prop sway-soft' : 'prop'), free);
     // A character every few levels.
     if (i % 3 === 1) {
       const critter = z.critters[(i / 3 | 0) % z.critters.length];
-      place(100, 110, y0 - 40, y1 - 50, 0, (x, y) => sprite(critter(), `left:${x}px;top:${y}px;width:100px;height:110px;animation-delay:-${(i * 0.37) % 2}s`, 'critter'), free === 'left' ? 'right' : 'left')
-        || place(100, 110, y0 - 40, y1 - 50, 0, (x, y) => sprite(critter(), `left:${x}px;top:${y}px;width:100px;height:110px`, 'critter'), free);
+      place(100, 110, y0 - 40, y1 - 50, 0, (x, y) => sprite(art(critter), `left:${x}px;top:${y}px;width:100px;height:110px;animation-delay:-${(i * 0.37) % 2}s`, 'critter'), free === 'left' ? 'right' : 'left')
+        || place(100, 110, y0 - 40, y1 - 50, 0, (x, y) => sprite(art(critter), `left:${x}px;top:${y}px;width:100px;height:110px`, 'critter'), free);
     }
     // Smaller things.
     const small = z.small[Math.floor(rng() * z.small.length)];
-    if (small === lanterns) place(150, 76, y0, y1, 0, (x, y) => sprite(lanterns(), `left:${x}px;top:${y}px;width:150px;height:76px`));
-    else place(30, 96, y0, y1, 0, (x, y) => sprite(small(), `left:${x}px;top:${y}px;width:30px;height:96px`));
-    if (!z.snowy) place(56, 32, y0, y1, 0, (x, y) => sprite(rocks(), `left:${x}px;top:${y}px;width:56px;height:32px`));
+    const [sw, sh] = SMALL[small];
+    place(sw, sh, y0, y1, 0, (x, y) => sprite(art(small), `left:${x}px;top:${y}px;width:${sw}px;height:${sh}px`, 'prop'), null, true);
+    if (!z.snowy) place(48, 46, y0, y1, 0, (x, y) => sprite(art('rocks'), `left:${x}px;top:${y}px;width:48px;height:46px`));
     for (let f = 0; f < 3; f++) {
       const c = z.flowers[Math.floor(rng() * z.flowers.length)];
-      place(22, 22, y0, y1, 0, (x, y) => sprite(flower(c), `left:${x}px;top:${y}px;width:22px;height:22px`));
+      place(24, 24, y0, y1, 0, (x, y) => sprite(art(`flower-${c}`), `left:${x}px;top:${y}px;width:24px;height:24px`));
     }
-    for (let g = 0; g < 4; g++) place(34, 14, y0, y1, 0, (x, y) => `<div class="tuft" style="left:${x}px;top:${y}px;--tuft:${z.tuft}"></div>`);
+    const tuft = art(z.snowy ? 'tuft-snow' : 'tuft');
+    for (let g = 0; g < 2; g++) place(26, 22, y0, y1, 0, (x, y) => sprite(tuft, `left:${x}px;top:${y}px;width:26px;height:22px`));
   }
 
   // Zone extras: the sea, mountains, falling petals and snow.
@@ -157,7 +163,7 @@ function decorations(levels, width, height, samples, nodes) {
     const top = nodes[lastId - 1].y - SPACING / 2, bottom = first.y + SPACING / 2;
     if (z.sea) out.unshift(`<div class="sea" style="top:${top}px;height:${bottom - top}px"></div>`);
     if (z.snowy) {
-      out.unshift(sprite(mountains(), `left:0;top:${top - 150}px;width:${width}px;height:${width * 0.36}px`, 'far'));
+      out.unshift(sprite(art('mountains'), `left:0;top:${top - 150}px;width:${width}px;height:${width * 0.36}px`, 'far'));
       for (let k = 0; k < 18; k++) out.push(`<i class="flake" style="left:${(k * 47) % width}px;top:${top + (k * 97) % (bottom - top)}px;animation-delay:-${k * 0.7}s"></i>`);
       for (let k = 0; k < 4; k++) {
         const x = 30 + ((k * 113) % (width - 80)), y = top + 80 + k * ((bottom - top - 160) / 4);
@@ -176,10 +182,10 @@ function decorations(levels, width, height, samples, nodes) {
     out.push(sprite(bird(), `left:-70px;top:${nodes[i].y - 20}px;width:24px;height:11px;animation-delay:-${i + 0.4}s`, 'fly'));
   }
   [[6, 0.6, 64], [17, 0.1, 54], [27, 0.66, 60], [36, 0.14, 56]].forEach(([i, fx, w]) => {
-    if (nodes[i]) out.push(sprite(balloon(), `left:${width * fx}px;top:${nodes[i].y - 80}px;width:${w}px;height:${w * 1.38}px;animation-delay:-${i}s`, 'float'));
+    if (nodes[i]) out.push(sprite(art('balloon'), `left:${width * fx}px;top:${nodes[i].y - 80}px;width:${w}px;height:${w * 1.38}px;animation-delay:-${i}s`, 'float'));
   });
   for (let i = 0; i < 5; i++) {
-    out.push(sprite(cloud(), `left:${(i * 131) % width}px;top:${30 + i * 56}px;width:${120 - i * 10}px;height:${60 - i * 5}px;animation-delay:-${i * 9}s`, 'cloud slow'));
+    out.push(sprite(art('cloud'), `left:${(i * 131) % width}px;top:${30 + i * 56}px;width:${120 - i * 10}px;height:${60 - i * 5}px;animation-delay:-${i * 9}s`, 'cloud slow'));
   }
   return out.join('');
 }
@@ -214,7 +220,8 @@ export function renderMap(el, levels, progress, onPick, { from = null } = {}) {
   const soon = `<div class="sign soon" style="left:${Math.max(8, top.x - 90)}px;top:${top.y - 200}px">More levels soon!</div>`;
 
   el.style.height = `${height}px`;
-  el.style.background = groundGradient(levels, nodes, height);
+  // A soft mottled tile over the zone colors, so the ground is not flat.
+  el.style.background = `url("./art/map/ground.png") 0 0 / 256px 256px, ${groundGradient(levels, nodes, height)}`;
   el.innerHTML = decorations(levels, width, height, samples, nodes) + path + gates + soon;
 
   levels.forEach((level, i) => {
