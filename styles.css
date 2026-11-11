@@ -513,16 +513,15 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .far { z-index: 0; opacity: .9; }
 
 .sea {
-  position: absolute; left: 0; width: 64px; z-index: 0;
-  background: linear-gradient(90deg, #1fa4b8, #46d1dc 70%, #9ff3f2);
-  border-radius: 0 40px 40px 0;
+  position: absolute; left: 0; width: 100px; z-index: 0; pointer-events: none;
+  /* The water fades in and out at the ends of the zone. */
+  -webkit-mask-image: linear-gradient(transparent, #000 70px, #000 calc(100% - 70px), transparent);
+  mask-image: linear-gradient(transparent, #000 70px, #000 calc(100% - 70px), transparent);
 }
-.sea::after {
-  content: ''; position: absolute; right: -8px; top: 0; bottom: 0; width: 16px;
-  background: radial-gradient(circle at 0 50%, #fff 0 6px, transparent 7px) 0 0 / 16px 22px repeat-y;
-  animation: foam 3s linear infinite;
-}
-@keyframes foam { to { background-position: 0 44px; } }
+.sea-foam { animation: wash 3.2s ease-in-out infinite alternate; }
+@keyframes wash { from { transform: translateX(-3px); } to { transform: translateX(5px); } }
+.bobbing { z-index: 1; transform-origin: 50% 90%; animation: bobbing 3s ease-in-out infinite; }
+@keyframes bobbing { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-4px) rotate(5deg); } }
 .firefly {
   position: absolute; z-index: 2; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
   background: #eaff8a; box-shadow: 0 0 8px 3px rgba(214, 255, 90, .75);
@@ -538,17 +537,15 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 }
 
 .gate { position: absolute; z-index: 2; width: 0; height: 0; pointer-events: none; }
-.gate i { position: absolute; top: -70px; width: 12px; height: 84px; border-radius: 4px; background: linear-gradient(90deg, #8a5226, #c98a4b, #8a5226); border: 2.5px solid #4a2a10; }
-.gate i:first-child { left: -66px; }
-.gate i:nth-child(2) { left: 54px; }
-.gate-sign {
-  position: absolute; left: -96px; top: -100px; width: 192px; padding: 6px 8px 7px; text-align: center;
-  background: linear-gradient(#e7a866, #b06d30); border: 3px solid #ffe2b0; border-radius: 14px;
-  box-shadow: 0 5px 0 #6e3d14, 0 10px 18px rgba(0, 0, 0, .25);
-  display: flex; flex-direction: column; line-height: 1.05;
+.gate-sign { position: absolute; left: -114px; top: -119px; width: 220px; height: 133px; }
+.gate-sign img { display: block; width: 100%; height: 100%; }
+/* The text sits on the plank, above the posts. */
+.gate-sign span {
+  position: absolute; left: 9%; right: 7%; top: 10%; height: 62%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; text-align: center;
 }
 .gate-sign b { font-family: var(--display); font-weight: 400; font-size: 22px; color: #fff; -webkit-text-stroke: 4px #6e3d14; paint-order: stroke fill; }
-.gate-sign small { font-weight: 700; font-size: 12px; color: #fff3d6; }
+.gate-sign small { font-weight: 700; font-size: 12px; color: #5a2f0c; }
 
 /* Level nodes: glossy discs on the road. */
 .node {
@@ -565,6 +562,13 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .node.collect { background: radial-gradient(circle at 35% 30%, #e5c8ff, #9b4dff 55%, #5a1fb0); box-shadow: 0 6px 0 #3f137e, 0 10px 16px rgba(0, 0, 0, .25); }
 .node.collect b { -webkit-text-stroke-color: #3f137e; }
 .node.current { width: 84px; height: 84px; margin: -42px 0 0 -42px; animation: pulse 1.2s ease-in-out infinite; }
+/* A soft shine on the top half and a shaded lower edge make the disc round. */
+.node:not(.locked)::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse 62% 38% at 50% 20%, rgba(255, 255, 255, .7), rgba(255, 255, 255, 0) 70%);
+  box-shadow: inset 0 -7px 9px rgba(0, 0, 0, .22), inset 0 2px 3px rgba(255, 255, 255, .55);
+}
+.node b { position: relative; z-index: 1; }
 .node.current::before {
   content: ''; position: absolute; inset: -16px; border-radius: 50%; z-index: -1;
   background: radial-gradient(circle, rgba(255, 255, 255, .9), rgba(255, 207, 58, .55) 45%, rgba(255, 207, 58, 0) 70%);

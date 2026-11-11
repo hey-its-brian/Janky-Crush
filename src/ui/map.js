@@ -101,6 +101,27 @@ function roadX(samples, y) {
   return best.x;
 }
 
+// The sea along the left side of a zone: water with a wavy edge, a line of
+// foam that washes in and out, and a band of wet sand.
+function sea(top, height) {
+  const edge = (base, amp, phase) => {
+    let d = `M0 0 L${base} 0`;
+    for (let y = 0; y <= height; y += 8) d += ` L${(base + amp * Math.sin(y / 34 + phase) + amp * 0.4 * Math.sin(y / 13 + phase * 2)).toFixed(1)} ${y}`;
+    return `${d} L0 ${height} Z`;
+  };
+  let glints = '';
+  for (let y = 30, k = 0; y < height - 20; y += 46, k++) {
+    const x = 10 + ((k * 23) % 34);
+    glints += `<path d="M${x} ${y} q7 -5 14 0" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".55"/>`;
+  }
+  return `<svg class="sea" style="top:${top}px;height:${height}px" width="100" height="${height}" viewBox="0 0 100 ${height}" aria-hidden="true">
+    <defs><linearGradient id="sea-water" x1="0" x2="1"><stop offset="0" stop-color="#1596b4"/><stop offset=".6" stop-color="#35c6d6"/><stop offset="1" stop-color="#8ff0ee"/></linearGradient></defs>
+    <path d="${edge(84, 7, 0.4)}" fill="#d9ad62" opacity=".55"/>
+    <path class="sea-foam" d="${edge(76, 7, 0)}" fill="#fff"/>
+    <path d="${edge(70, 7, 0)}" fill="url(#sea-water)"/>${glints}
+  </svg>`;
+}
+
 // The ground: each zone's colors, blending into the next, under a sky.
 function groundGradient(levels, nodes, height) {
   const stops = [];
@@ -173,7 +194,14 @@ function decorations(levels, width, height, samples, nodes) {
     if (!first) return;
     const lastId = Math.min(levels.length, (ZONES[zi + 1]?.from ?? Infinity) - 1);
     const top = nodes[lastId - 1].y - SPACING / 2, bottom = first.y + SPACING / 2;
-    if (z.sea) out.unshift(`<div class="sea" style="top:${top}px;height:${bottom - top}px"></div>`);
+    if (z.sea) {
+      out.unshift(sea(top, bottom - top));
+      // Boats on the water, shells and starfish on the wet sand.
+      for (let y = top + 140, k = 0; y < bottom - 120; y += 300, k++) {
+        out.push(sprite(art('sailboat'), `left:${4 + (k % 2) * 10}px;top:${y}px;width:46px;height:50px;animation-delay:-${k * 1.3}s`, 'bobbing'));
+        out.push(sprite(art(k % 2 ? 'shell' : 'starfish'), `left:${92 + (k % 3) * 9}px;top:${y + 150}px;width:26px;height:26px`));
+      }
+    }
     if (z.snowy) {
       out.unshift(sprite(art('mountains'), `left:0;top:${top - 150}px;width:${width}px;height:${width * 0.36}px`, 'far'));
       for (let k = 0; k < 18; k++) out.push(`<i class="flake" style="left:${(k * 47) % width}px;top:${top + (k * 97) % (bottom - top)}px;animation-delay:-${k * 0.7}s"></i>`);
@@ -227,7 +255,7 @@ export function renderMap(el, levels, progress, onPick, { from = null } = {}) {
     const y = nodes[z.from - 1].y + 170;
     const x = roadX(samples, y);
     const last = Math.min(levels.length, (ZONES[zi + 1]?.from ?? Infinity) - 1);
-    return `<div class="gate" style="left:${x}px;top:${y}px"><i></i><i></i><div class="gate-sign"><b>${z.name}</b><small>Levels ${z.from}–${last}</small></div></div>`;
+    return `<div class="gate" style="left:${x}px;top:${y}px"><div class="gate-sign">${art('sign')}<span><b>${z.name}</b><small>Levels ${z.from}–${last}</small></span></div></div>`;
   }).join('');
   const top = nodes[nodes.length - 1];
   const soon = `<div class="sign soon" style="left:${Math.max(8, top.x - 90)}px;top:${top.y - 200}px">More levels soon!</div>`;

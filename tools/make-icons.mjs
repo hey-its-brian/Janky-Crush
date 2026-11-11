@@ -1,26 +1,26 @@
-// Draw the home-screen icons: the capybara host cheering on a sunny sky.
-// Renders the SVG art in a headless browser and saves PNGs.
+// Draw the home-screen icons: the capybara host cheering in front of the
+// Yuzu Valley backdrop. Composes the art in a headless browser and saves
+// PNGs.
 //
 //   node tools/make-icons.mjs
 //
 // Needs Playwright with Chromium (PLAYWRIGHT_PATH can point at its
 // index.mjs if it isn't installed in this project).
 
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { capy } from '../src/art/capy.js';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH ?? 'playwright');
 const OUT = fileURLToPath(new URL('../icons/', import.meta.url));
+const picture = (path) => `data:image/webp;base64,${readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url))).toString('base64')}`;
 
+// The top of the backdrop (sky, mountain, yuzu trees) fills the icon, with
+// a soft glow behind the host so it stands out at small sizes.
 const html = `<!doctype html><html><body style="margin:0">
-<div id="icon" style="position:relative;width:512px;height:512px;overflow:hidden;
-  background:radial-gradient(circle at 50% 30%, #fff6c8 0, #ffe27a 22%, #7fd8ff 48%, #3fb6f0 100%)">
-  <div style="position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 32%,
-    rgba(255,255,255,.25) 0 10deg, rgba(255,255,255,0) 10deg 24deg)"></div>
-  <div style="position:absolute;left:-10%;right:-10%;bottom:-6%;height:30%;border-radius:50% 50% 0 0;
-    background:linear-gradient(#6fe6ea,#21aac2);border-top:10px solid #c4fcff"></div>
-  <div style="position:absolute;left:46px;top:60px;width:420px;height:430px">${capy('cheer')}</div>
+<div id="icon" style="position:relative;width:512px;height:512px;overflow:hidden;background:#59c6ff">
+  <img src="${picture('art/scene/zone1.webp')}" style="position:absolute;left:-64px;top:-70px;width:640px">
+  <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 58%, rgba(255,250,214,.85) 0, rgba(255,250,214,.5) 34%, rgba(255,250,214,0) 62%)"></div>
+  <img src="${picture('art/host/cheer.webp')}" style="position:absolute;left:-6px;top:20px;width:524px;filter:drop-shadow(0 10px 14px rgba(60,30,0,.35))">
 </div></body></html>`;
 
 const browser = await chromium.launch();

@@ -38,6 +38,8 @@ SPRITES = {
     'bamboo': ('model', 400, True), 'waterfall': ('model', 400, False), 'panda': ('model-pink', 320, True),
     'mushrooms': ('model', 384, True), 'lanterntree': ('model', 400, True), 'owl': ('model', 320, False),
     'fireflyjar': ('model', 288, True),
+    'sign': ('model', 560, False), 'shell': ('model', 120, False), 'starfish': ('model', 120, False),
+    'sailboat': ('model-green', 220, False),
 }
 
 _session = None
@@ -209,6 +211,8 @@ def main():
         im = cut_pink(im) if method == 'pink' else cut_model(im)
         if method == 'model-pink':
             im = no_pink(im)
+        if method == 'model-green':
+            im = no_green(im)
         im = im.crop(im.getchannel('A').point(lambda v: 255 if v > 16 else 0).getbbox())
         if shadow:
             im = ground_shadow(im)

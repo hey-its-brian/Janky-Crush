@@ -59,6 +59,10 @@ Size is 1024 x 1024 unless the table gives a different size.
 | lanterntree | 7 | A cute round old forest tree with a thick twisted trunk, a dark teal-green leafy crown, and small glowing yellow lanterns hanging from its branches |
 | owl | 7 | A cute chubby round purple owl with big sparkly yellow eyes and a happy face, perched on a short wooden branch |
 | fireflyjar (720 x 1280) | 7 | A glass jar full of glowing yellow-green fireflies, with a cork lid, standing on a short wooden stump |
+| shell | 12 | A cute chunky spiral sea shell, pastel pink and cream |
+| starfish | 7 | A cute chubby orange starfish with a happy face, lying flat, seen from above |
+| sailboat | 7 | A cute small toy sailboat with a chunky wooden hull and one red and white striped sail (green background, no water) |
+| sign | 7 | A wide blank wooden signboard for a game map: one big horizontal plank of warm golden-brown wood with rounded corners and a lighter carved border, completely empty, held up by two short thick wooden posts at its left and right ends. Model: Qwen-Image, 16:9, straight front view. |
 
 The tool makes the orange, white and blue flowers and the snow tuft from
 the pink flower and the green tuft.
