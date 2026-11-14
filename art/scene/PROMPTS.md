@@ -86,3 +86,30 @@ For this one, "warm sunlight from the upper left" in the ending is
 > steaming teal hot spring water with moonlight reflections, smooth
 > rounded rocks at the left and right corners, glowing mushrooms, a few
 > fireflies near the water.
+
+## zone7.webp: Berry Bog
+
+> A cozy hot spring pond in a berry marsh on a soft pink and lilac early
+> evening. Top quarter: lilac and peach sky with fluffy pink clouds,
+> rounded green hills, big round bushes heavy with purple, blue and red
+> berries at the left and right edges, a little cottage with a red roof
+> far away, cattail reeds. Middle: calm open violet-blue water with soft
+> wisps of steam. Bottom quarter: clear steaming violet-blue hot spring
+> water, lily pads with pink flowers, smooth rounded mossy rocks at the
+> left and right corners, a few floating berries, a small wooden jam jar
+> on the bank.
+
+## zone8.webp: Festival Pier
+
+For this one, "warm sunlight from the upper left" in the ending is "warm
+lantern light".
+
+> A festival night by a hot spring bay. Top quarter: deep blue and purple
+> night sky full of big colorful fireworks bursts in pink, gold and cyan,
+> strings of glowing paper lanterns and pennant flags across the top,
+> festival stalls with striped awnings on a wooden pier at the left and
+> right edges, a distant hill with tiny lights. Middle: calm open dark
+> teal water that reflects the fireworks, with soft wisps of steam. Bottom
+> quarter: steaming dark teal hot spring water with glowing floating paper
+> lanterns, wooden pier posts and smooth rounded rocks at the left and
+> right corners, a few sparkles.

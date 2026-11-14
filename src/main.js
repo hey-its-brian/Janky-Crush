@@ -268,14 +268,14 @@ const FRUIT_NAMES = { r: 'strawberries', o: 'oranges', y: 'star fruit', g: 'pear
 function blockerKinds(level) {
   const kinds = [];
   for (const ch of level.layout.join('')) {
-    const k = 'kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : ch === 'u' ? 'gummy' : null;
+    const k = 'kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : ch === 'u' ? 'gummy' : 'jJ'.includes(ch) ? 'jam' : null;
     if (k && !kinds.includes(k)) kinds.push(k);
   }
   for (const d of level.dispensers ?? []) if (d.kind === 'gummy' && !kinds.includes('gummy')) kinds.push('gummy');
   return kinds;
 }
-const BLOCKER_ART = { coconut: () => pieceIcon('coco2'), mochi: () => pieceIcon('mochi2'), gummy: () => pieceIcon('gummy') };
-const BLOCKER_GOAL = { coconut: 'Crack open every coconut', mochi: 'Squish every mochi', gummy: 'Pop every gummy cube' };
+const BLOCKER_ART = { coconut: () => pieceIcon('coco2'), mochi: () => pieceIcon('mochi2'), gummy: () => pieceIcon('gummy'), jam: () => pieceIcon('jam') };
+const BLOCKER_GOAL = { coconut: 'Crack open every coconut', mochi: 'Squish every mochi', gummy: 'Pop every gummy cube', jam: 'Clear all the jam' };
 
 function goalText(level) {
   switch (level.goal.type) {
@@ -391,6 +391,7 @@ function showResult(r) {
       s.foamCleared ? statRow('Foam cleared', el('span', { class: 'val', text: fmt(s.foamCleared) }), el('i', { class: 'foam-icon goal-icon', style: 'width:30px;height:30px' })) : null,
       s.blockers ? statRow('Blockers cleared', el('span', { class: 'val', text: String(s.blockers) }), el('i', { class: 'goal-icon', svg: pieceIcon('coco1'), style: 'width:32px;height:32px' })) : null,
       r.collected ? statRow('Friends rescued', el('span', { class: 'val', text: String(r.collected) }), el('i', { class: 'goal-icon', svg: pieceIcon('duck'), style: 'width:32px;height:32px' })) : null,
+      s.defused ? statRow('Timers stopped', el('span', { class: 'val', text: String(s.defused) })) : null,
       s.bonus ? statRow('Leftover moves bonus', el('span', { class: 'val', text: `+${fmt(s.bonus)}` })) : null,
       statRow('Coins earned', el('span', { class: 'val' }, icon(coin()), `+${coins.total}`)),
     ].filter(Boolean);
@@ -414,8 +415,8 @@ function showResult(r) {
     progress.loseLife();
     const lives = progress.lives();
     openDialog(`Level ${level.id}`, [
-      el('div', { class: 'big-text toon', text: 'Out of moves!' }),
-      el('p', { class: 'goal-text', text: why }),
+      el('div', { class: 'big-text toon', text: r.exploded ? 'Boom!' : 'Out of moves!' }),
+      el('p', { class: 'goal-text', text: r.exploded ? 'A timer fruit got to zero. Match each one before its count runs out.' : why }),
       el('p', { class: 'muted' }, 'Score ', el('strong', { text: fmt(r.score) })),
       progress.easy ? null : el('p', { class: 'goal-text' }, icon(heart()),
         lives > 0 ? `Lost a life \u00b7 ${lives} left` : 'That was your last life'),

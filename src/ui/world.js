@@ -1,10 +1,10 @@
 // The scene behind the board: a painted hot-spring backdrop for each map
-// zone (art/scene/zone1.webp ... zone6.webp), with steam rising from the
+// zone (art/scene/zone1.webp ... zone8.webp), with steam rising from the
 // water. Pure decoration. All the SVG here is our own art, never user input.
 
 import { steam } from '../art/scene.js';
 
-export const ZONE_BACKDROPS = 6;
+export const ZONE_BACKDROPS = 8;
 const image = (zone) => `url("./art/scene/zone${Math.min(Math.max(zone, 1), ZONE_BACKDROPS)}.webp")`;
 
 export function buildWorld(el) {

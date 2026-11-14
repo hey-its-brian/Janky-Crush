@@ -61,8 +61,13 @@
       with the host in the pool, and the two saves side by side. The cage
       on locked fruit and the swirl in the portals are generated art. The
       striped and wrapped icons in the results dialog use the 3D fruit.
-- [ ] **More level packs** of 15–30, each adding a mechanic (spreading
-      chocolate-like blockers, timer bombs, conveyors).
+- [x] **Phase 5, pack 2: levels 61–80.** Two new zones and two new
+      mechanics. Berry Bog (61–70) has jam: a match beside it clears it,
+      and after each move that clears none the jam grows over one more
+      fruit. Festival Pier (71–80) has timer fruit: the count goes down
+      each move, and the level is lost if it gets to zero. These levels
+      are tuned harder (the bot wins about half its games).
+- [ ] **More level packs** of 15–30, each adding a mechanic (conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
       feature-complete. Wrap it with Capacitor so the same code runs as a
       real app, and install through TestFlight internal testing (no App

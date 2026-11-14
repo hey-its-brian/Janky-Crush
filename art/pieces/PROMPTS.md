@@ -91,3 +91,21 @@ portal color.
 > stylized 3D render, smooth and soft. Monochrome white light only.
 > Centered, fills most of the frame, pure solid black background, no text,
 > no frame, no objects.
+
+## Jam
+
+The jam blocker (`jam.webp`) is cut out by `tools/cut-art.py pieces`.
+Z-Image Turbo gave a false "maybe not safe" picture for jam prompts, so
+this one is from Qwen-Image (`mcp-tools/Qwen-Image`), 1:1, seed 7.
+
+> A rounded square cushion of purple blueberry jam, like a thick spoonful
+> of fruit preserve with a soft wavy edge, shiny highlights, with three
+> whole blueberries and one raspberry on top. Single isolated game piece
+> for a casual match-3 mobile puzzle game, front view, stylized 3D cartoon
+> render, soft rounded chunky shapes, very vivid saturated candy colors,
+> glossy, big soft highlight on the upper left, centered, the whole object
+> visible with empty space around it, plain flat white background, no
+> ground, no shadow.
+
+Negative prompt: text, watermark, jar, spoon, bread, plate, blurry, low
+resolution.

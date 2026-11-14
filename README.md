@@ -73,13 +73,13 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 
 | Path | What it is |
 | --- | --- |
-| `src/engine/board.js` | Pure board logic: matching, specials, jelly, coconut and mochi blockers, gummy cubes, locked fruit, portals, dispensers, ingredients, gravity (with diagonal slides), refill, shuffle. Tested in `test/`. |
+| `src/engine/board.js` | Pure board logic: matching, specials, jelly, coconut and mochi blockers, gummy cubes, jam that spreads, timer fruit, locked fruit, portals, dispensers, ingredients, gravity (with diagonal slides), refill, shuffle. Tested in `test/`. |
 | `src/engine/level.js` | Level setup from a layout, and goal tracking. |
 | `src/engine/turn.js` | A turn, a booster (Smash, Switch) and the end-of-level bonus, as sequences of events. |
 | `src/save.js` | The Normal and Easy save files: levels, coins, boosters, lives and the daily bonus, plus the coin prices and payouts. Tested in `test/save.test.js`. |
 | `src/settings.js` | Sound, music, announcer voice and haptics switches. |
 | `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
-| `art/pieces/` | The board pieces. The six fruit (strawberry, orange, star fruit, pear, blueberry, grapes) are 3D renders from `tools/render-pieces.py` (Blender). The color bomb, coconut, mochi, gummy cube, duck and pup are generated pictures cut out by `tools/cut-art.py`; `PROMPTS.md` has the prompts. |
+| `art/pieces/` | The board pieces. The six fruit (strawberry, orange, star fruit, pear, blueberry, grapes) are 3D renders from `tools/render-pieces.py` (Blender). The color bomb, coconut, mochi, gummy cube, jam, duck and pup are generated pictures cut out by `tools/cut-art.py`; `PROMPTS.md` has the prompts. |
 | `art/scene/` | The backdrop behind the board, one painted image for each map zone. They were made with an image model; `PROMPTS.md` has the prompts. |
 | `art/title/` | The welcome screen: the logo and the hot spring backdrop. `tools/make-title.py` makes them from the generated pictures in `art/source/title/`; `PROMPTS.md` has the prompts. |
 | `art/map/` | The map's buildings, trees, animals and small props as cut-out sprites, and the ground tile. `tools/cut-art.py` makes them from the generated pictures in `art/source/map/`; `PROMPTS.md` has the prompts. |
@@ -89,7 +89,7 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/render/renderer.js` | Canvas drawing and animations. |
 | `src/game.js` | Plays a level: runs each turn's events through the renderer, touch input, boosters, and asking for +5 moves. |
 | `src/main.js` | Screens: start screen, map bar, shop, lives, dialogs, HUD, the host's reactions. |
-| `src/ui/` | The level map (six zones, scenery placement, the host's travel after a win) and the scene behind the board (the zone's backdrop with rising steam). |
+| `src/ui/` | The level map (eight zones, scenery placement, the host's travel after a win) and the scene behind the board (the zone's backdrop with rising steam). |
 | `src/levels.js`, `src/level-tuning.js` | Level designs (layouts, goals, colors), and their tuned moves and stars. `test/levels.test.js` checks every open cell can be refilled. |
 | `tools/tune.mjs` | The level tuner. |
 | `styles.css` | Capybara Hot Springs theme and layout. |

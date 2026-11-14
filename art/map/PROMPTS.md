@@ -59,6 +59,14 @@ Size is 1024 x 1024 unless the table gives a different size.
 | lanterntree | 7 | A cute round old forest tree with a thick twisted trunk, a dark teal-green leafy crown, and small glowing yellow lanterns hanging from its branches |
 | owl | 7 | A cute chubby round purple owl with big sparkly yellow eyes and a happy face, perched on a short wooden branch |
 | fireflyjar (720 x 1280) | 7 | A glass jar full of glowing yellow-green fireflies, with a cork lid, standing on a short wooden stump |
+| berrybush | 7 | A cute big round leafy bush full of large glossy purple, blue and red berries, with a short thick brown trunk |
+| jamcottage | 7 | A small cute cottage shaped like a round glass jar of purple berry jam, with a red and white checkered cloth lid as its roof, a little round wooden door and one small window, a chimney with a puff of steam |
+| reeds | 7 | A cute tall bunch of brown cattail reeds with green leaves and one pink water lily at its base |
+| hedgehog | 7 | A cute chubby brown hedgehog with cream belly and soft brown spines, standing and holding one big purple berry in its paws, happy face with rosy cheeks |
+| stall | 7 | A small cute wooden festival food stall with a red and white striped awning, a row of glowing round paper lanterns under the roof, a counter with candy apples and dango sticks |
+| lanternpole | 7 | A cute tall wooden festival pole with a golden ball on top, hung with strings of glowing round paper lanterns in red, yellow and blue and little triangle pennant flags |
+| rockets | 7 | A small wooden crate holding three chunky colorful firework rockets with striped bodies, pointed cone tops and short fuses |
+| fox | 7 | A cute chubby orange fox with a white belly and a fluffy white-tipped tail, sitting and holding a glowing sparkler stick in one paw, happy face with rosy cheeks |
 | shell | 12 | A cute chunky spiral sea shell, pastel pink and cream |
 | starfish | 7 | A cute chubby orange starfish with a happy face, lying flat, seen from above |
 | sailboat | 7 | A cute small toy sailboat with a chunky wooden hull and one red and white striped sail (green background, no water) |

@@ -13,15 +13,17 @@ import { Board, GUMMY } from './board.js';
 //   'm'  a mochi (one layer)
 //   'M'  a double mochi (two layers)
 //   'u'  a gummy cube (falls like a piece)
+//   'j'  jam (one layer; it spreads)
+//   'J'  jam on one layer of jelly
 //   'L'  a locked fruit
 //   'l'  a locked fruit on one layer of jelly
 export function parseLayout(layout) {
   const grid = (f) => layout.map((row) => [...row].map(f));
   const mask = grid((ch) => ch !== ' ');
-  const jelly = grid((ch) => (ch === '1' || ch === 'l' ? 1 : ch === '2' ? 2 : 0));
+  const jelly = grid((ch) => (ch === '1' || ch === 'l' || ch === 'J' ? 1 : ch === '2' ? 2 : 0));
   const lock = grid((ch) => ch === 'L' || ch === 'l');
-  const block = grid((ch) => ({ k: 1, K: 2, m: 1, M: 2 })[ch] ?? 0);
-  const blockType = grid((ch) => ('kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : null));
+  const block = grid((ch) => ({ k: 1, K: 2, m: 1, M: 2, j: 1, J: 1 })[ch] ?? 0);
+  const blockType = grid((ch) => ('kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : 'jJ'.includes(ch) ? 'jam' : null));
   const gummy = grid((ch) => ch === 'u');
   return { rows: layout.length, cols: layout[0].length, mask, jelly, block, blockType, gummy, lock };
 }
@@ -48,6 +50,14 @@ export function setupBoard(level, rng) {
     // Ingredients replace candies, which can use up the only legal move.
     if (!board.findPossibleMove()) board.shuffle();
   }
+  // `timers` in a level: { start, fuse, every, max }. `start` timer fruit
+  // are on the board at the beginning, each with `fuse` on its count. A
+  // new one drops in every `every` moves while fewer than `max` are there.
+  if (level.timers) {
+    const { start = 1, fuse, every = 0, max = start } = level.timers;
+    board.timerRule = { fuse, every, max };
+    board.placeTimers(start, fuse);
+  }
   return board;
 }
 
@@ -59,7 +69,10 @@ export class LevelState {
     this.score = 0;
     this.collected = 0;
     // For the end-of-level review.
-    this.stats = { striped: 0, wrapped: 0, bomb: 0, bestCascade: 0, foamCleared: 0, blockers: 0, bonus: 0 };
+    this.stats = { striped: 0, wrapped: 0, bomb: 0, bestCascade: 0, foamCleared: 0, blockers: 0, bonus: 0, defused: 0 };
+    this.turns = 0; // moves made
+    // Where a timer fruit went off ([r, c]). The level is then lost.
+    this.exploded = null;
     this.inBonus = false;
     // Fruit gathered toward a 'collect' goal, by color.
     this.gathered = {};
@@ -72,6 +85,7 @@ export class LevelState {
     st.foamCleared += step.jellyHit.length;
     st.blockers += (step.blocksHit ?? []).filter((h) => h.left === 0).length +
       step.cleared.filter((x) => x.special === GUMMY).length;
+    st.defused += step.cleared.filter((x) => x.timer != null).length;
     if (this.inBonus) {
       st.bonus += points;
       return;
@@ -134,10 +148,17 @@ export class LevelState {
   }
 
   isOver() {
-    return this.isComplete() || this.moves <= 0;
+    return Boolean(this.exploded) || this.isComplete() || this.moves <= 0;
+  }
+
+  // A score level with its moves spent and the score reached is safe:
+  // the timers stop there.
+  scoreReached() {
+    return this.goal.type === 'score' && this.moves <= 0 && this.score >= (this.level.stars?.[0] ?? Infinity);
   }
 
   won() {
+    if (this.exploded) return false;
     return this.goal.type === 'score' ? this.score >= this.level.stars[0] : this.isComplete();
   }
 

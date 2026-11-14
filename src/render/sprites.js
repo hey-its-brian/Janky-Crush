@@ -150,7 +150,8 @@ async function pictureSprite(key, img, px) {
     return [key, canvas];
   }
   if (key === 'bomb') ctx.drawImage(await rasterize(bombBack(), px, FILL.special), 0, 0);
-  drawPiece(ctx, img, px, px * (key === 'bomb' ? 0.54 : key.startsWith('ing:') ? 0.6 : 0.62));
+  // Jam fills its cell, like the coconut and the mochi do.
+  drawPiece(ctx, img, px, px * (key === 'bomb' ? 0.54 : key.startsWith('ing:') ? 0.6 : key === 'jam' ? 0.64 : 0.62));
   if (key === 'bomb') ctx.drawImage(await rasterize(bombFront(), px, FILL.special), 0, 0);
   return [key, canvas];
 }

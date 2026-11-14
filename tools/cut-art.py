@@ -40,6 +40,10 @@ SPRITES = {
     'fireflyjar': ('model', 288, True),
     'sign': ('model', 560, False), 'shell': ('model', 120, False), 'starfish': ('model', 120, False),
     'sailboat': ('model-green', 220, False),
+    'berrybush': ('model', 400, True), 'jamcottage': ('model', 384, True), 'reeds': ('model', 288, True),
+    'hedgehog': ('model', 320, True),
+    'stall': ('model', 384, True), 'lanternpole': ('model', 400, True), 'rockets': ('model', 288, True),
+    'fox': ('model', 320, True),
 }
 
 _session = None
@@ -169,7 +173,7 @@ def host():
 # 3D renders, see tools/render-pieces.py.)
 PIECES = {
     'bomb': 'model', 'coco1': 'model', 'coco2': 'model', 'mochi1': 'model-green', 'mochi2': 'model-green',
-    'gummy': 'model', 'duck': 'model', 'pup': 'model',
+    'gummy': 'model', 'duck': 'model', 'pup': 'model', 'jam': 'model',
 }
 
 

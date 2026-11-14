@@ -1,4 +1,4 @@
-// The level map: a wide sandy road winding up through four zones, ten
+// The level map: a wide sandy road winding up through the zones, ten
 // levels each, every zone with its own ground, scenery and waving
 // characters. A candy-striped rope runs from level to level; finished
 // levels show their stars, the next one glows with the host's portrait
@@ -52,11 +52,21 @@ const ZONES = [
     props: ['lanterntree', 'mushrooms', 'lanterntree', 'mushrooms'], small: ['fireflyjar'],
     critters: ['owl'], flowers: ['blue', 'white'],
   },
+  {
+    from: 61, name: 'Berry Bog', ground: ['#f6c9d8', '#eeaac4'],
+    props: ['berrybush', 'berrybush', 'jamcottage', 'berrybush'], small: ['reeds'],
+    critters: ['hedgehog'], flowers: ['pink', 'white', 'blue'],
+  },
+  {
+    from: 71, name: 'Festival Pier', ground: ['#5a3d8f', '#432a73'], night: true,
+    props: ['stall', 'lanternpole', 'stall', 'lanternpole'], small: ['rockets'],
+    critters: ['fox'], flowers: ['orange', 'white'],
+  },
 ];
 // Trees sway a little; buildings do not.
-const TREES = ['yuzutree', 'palm', 'palm:flip', 'sakura', 'pine', 'bamboo', 'lanterntree'];
+const TREES = ['yuzutree', 'palm', 'palm:flip', 'sakura', 'pine', 'bamboo', 'lanterntree', 'berrybush'];
 // Width and height of the small props, in px.
-const SMALL = { torch: [26, 100], lantern: [62, 104], pine: [44, 62], fireflyjar: [40, 66] };
+const SMALL = { torch: [26, 100], lantern: [62, 104], pine: [44, 62], fireflyjar: [40, 66], reeds: [48, 62], rockets: [48, 58] };
 
 const zoneOf = (id) => [...ZONES].reverse().find((z) => id >= z.from);
 // Which zone (1-based) a level is in.

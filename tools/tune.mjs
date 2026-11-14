@@ -31,7 +31,9 @@ export function targetWinRate(id) {
   if (id <= 20) return 0.72;
   if (id <= 25) return 0.65;
   if (id <= 32) return 0.6;
-  return 0.55;
+  if (id <= 60) return 0.55;
+  // From here the prize wheel hands out boosters, so the levels ask more.
+  return 0.48;
 }
 
 // ---- the computer player ---------------------------------------------------
@@ -63,6 +65,7 @@ function botMove(level, board, state, rng) {
     blocks: board.blockCount() + board.gummyCount(),
     depth: ingredientDepth(board),
     specials: specialsValue(board),
+    jam: board.jamCount(),
   };
   const wanted = state.collectLeft();
   let best = null, bestValue = -Infinity;
@@ -85,6 +88,11 @@ function botMove(level, board, state, rng) {
           unlocked += fired?.unlocked?.length ?? 0;
         }
         copy.applyGravity();
+        // Timer fruit: stopping one is worth more the lower its count, and
+        // a move that leaves one to go off is the worst there is.
+        let timers = 0;
+        for (const x of cleared) if (x.timer != null) timers += 3000 / Math.max(1, x.timer);
+        for (const row of copy.grid) for (const c of row) if (c?.timer != null && !c.fresh && c.timer <= 1) timers -= 1e6;
         const gathered = cleared.filter((x) => wanted[x.color] > 0).length;
         // The last few jellies are worth chasing harder, as a person would.
         const jellyWeight = 400 * (1 + 6 / (before.jelly + 1));
@@ -96,6 +104,8 @@ function botMove(level, board, state, rng) {
           150 * unlocked + // a person opens cages when they can
           250 * (ingredientDepth(copy) - before.depth) +
           (specialsValue(copy) - before.specials) +
+          timers +
+          (before.jam && copy.jamCount() < before.jam ? 300 : 0) + // a move that clears jam also stops it growing
           rng() * 40;
         if (value > bestValue) [best, bestValue] = [[a, b], value];
       }
@@ -113,9 +123,11 @@ function playGame(level, seed, moves) {
     runTurn(board, state, ...move);
     used++;
   }
-  const complete = state.isComplete();
-  if (complete || level.goal.type === 'score') runBonus(board, state);
-  return { used, complete, score: state.score };
+  const exploded = Boolean(state.exploded);
+  const complete = state.isComplete() && !exploded;
+  if (complete || (level.goal.type === 'score' && !exploded)) runBonus(board, state);
+  // A score level that ends with a bang is lost, whatever the score.
+  return { used, complete, exploded, score: exploded && level.goal.type === 'score' ? 0 : state.score };
 }
 
 // ---- tuning ----------------------------------------------------------------
@@ -163,7 +175,8 @@ function tuneLevel(level) {
   const winRate = level.goal.type === 'score'
     ? scores.filter((s) => s >= stars[0]).length / scores.length
     : results.filter((r) => r.complete).length / results.length;
-  return { id: level.id, moves, stars, winRate, target, seconds: Math.round((Date.now() - t0) / 1000) };
+  const boom = results.filter((r) => r.exploded).length / results.length;
+  return { id: level.id, moves, stars, winRate, boom, target, seconds: Math.round((Date.now() - t0) / 1000) };
 }
 
 // ---- workers ---------------------------------------------------------------
@@ -197,7 +210,7 @@ if (!isMainThread) {
       console.log(
         `level ${String(r.id).padStart(2)}  moves ${String(r.moves).padStart(2)}  ` +
         `stars ${r.stars.join(' / ').padEnd(22)}  bot wins ${Math.round(r.winRate * 100)}% ` +
-        `(target ${Math.round(r.target * 100)}%)  ${r.seconds}s`
+        `(target ${Math.round(r.target * 100)}%)${r.boom ? `  timer went off ${Math.round(r.boom * 100)}%` : ''}  ${r.seconds}s`
       );
     });
     w.on('error', reject);

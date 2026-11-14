@@ -134,7 +134,7 @@ export class Game {
   // finishing; otherwise wait for the next swap.
   async afterTurn() {
     const s = this.state;
-    if (s.moves <= 0 && !s.isComplete() && !(s.goal.type === 'score' && s.score >= s.level.stars[0])) {
+    if (s.moves <= 0 && !s.exploded && !s.isComplete() && !(s.goal.type === 'score' && s.score >= s.level.stars[0])) {
       const extra = await this.onOutOfMoves();
       if (extra > 0) {
         s.moves += extra;
@@ -230,6 +230,18 @@ export class Game {
         case 'shuffle':
           await r.animateShuffle(ev.moves);
           break;
+        case 'tick':
+          await r.animateTick(ev.timers);
+          break;
+        case 'explode':
+          await r.animateExplode(ev.timers);
+          break;
+        case 'spread':
+          await r.animateSpread(ev);
+          break;
+        case 'defuse':
+          r.animateDefuse(ev.ids);
+          break;
       }
     }
     this.emit();
@@ -270,15 +282,16 @@ export class Game {
     this.disarm();
     const s = this.state;
     const movesLeft = s.moves;
-    const celebrate = s.isComplete() || (s.goal.type === 'score' && s.score >= s.level.stars[0]);
+    const celebrate = !s.exploded && (s.isComplete() || (s.goal.type === 'score' && s.score >= s.level.stars[0]));
     if (celebrate) {
       this.onBanner('Janky Crush!');
       await sleep(600);
     }
     // Score levels fire whatever specials are left either way.
-    if (celebrate || s.goal.type === 'score') await this.run(bonusRound(this.board, s));
+    if (celebrate || (s.goal.type === 'score' && !s.exploded)) await this.run(bonusRound(this.board, s));
     this.onEnd({
       won: s.won(),
+      exploded: Boolean(s.exploded),
       stars: s.stars(),
       score: s.score,
       goal: s.goal.type,

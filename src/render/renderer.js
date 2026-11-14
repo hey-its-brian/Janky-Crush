@@ -54,6 +54,7 @@ const CHAIN_TOTAL_MAX = 1100;   // ...capped for very long chains
 export const BONUS_GAP_MAX = 70;       // bonus round: leftover moves turning into stripes...
 export const BONUS_TOTAL_MAX = 900;    // ...all within this
 const COLLECT_MS = 300;         // an ingredient dropping out of the exit
+const SPREAD_MS = 360;          // jam growing over a fruit
 
 const ease = {
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
@@ -259,7 +260,8 @@ export class Renderer {
     this.draw(now);
     const shaking = this.shake && now - this.shake.born < this.shake.life;
     // Specials pulse, so keep drawing while any are on the board.
-    const lit = [...this.visuals.values()].some((v) => v.candy.special && v.candy.special !== 'ingredient');
+    // Timer fruit glow and pulse too.
+    const lit = [...this.visuals.values()].some((v) => (v.candy.special && v.candy.special !== 'ingredient') || v.candy.timer != null);
     const busy = this.jiggling.size || shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint || this.aiming;
     if (busy) requestAnimationFrame((t) => this.frame(t));
     else this.running = false;
@@ -514,7 +516,7 @@ export class Renderer {
     const { x, y } = this.center(...h.at);
     const now = performance.now();
     const chips = h.left === 0 ? 16 : 9;
-    const palette = h.type === 'lock' ? ['#d6f07a', '#9ccf3a', '#5f9618', '#e9c98a'] : h.type === 'gummy' ? ['#b8ff7a', '#48d62a', '#1f8f12', '#ffffff'] : h.type === 'mochi' ? ['#ffffff', '#ffd1e6', '#ff7fb8', '#f3e6df'] : ['#6b3a16', '#8a5226', '#3b1f0b', '#c98a52'];
+    const palette = h.type === 'jam' ? ['#8e3fd0', '#c9a6ff', '#5b1f9c', '#f04f7c'] : h.type === 'lock' ? ['#d6f07a', '#9ccf3a', '#5f9618', '#e9c98a'] : h.type === 'gummy' ? ['#b8ff7a', '#48d62a', '#1f8f12', '#ffffff'] : h.type === 'mochi' ? ['#ffffff', '#ffd1e6', '#ff7fb8', '#f3e6df'] : ['#6b3a16', '#8a5226', '#3b1f0b', '#c98a52'];
     for (let i = 0; i < chips; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 0.1 + Math.random() * 0.16;
@@ -529,8 +531,135 @@ export class Renderer {
       this.effects.push({ kind: 'ring', x, y, color: '#fff4dc', born: now, life: 360 });
     }
     this.shake = { born: now, life: 140, amp: h.left === 0 ? 3 : 2 };
-    this.cue(h.type === 'mochi' || h.type === 'gummy' ? 'squish' : 'crack', { x: this.board.cols > 1 ? (h.at[1] / (this.board.cols - 1)) * 2 - 1 : 0, last: h.left === 0 });
+    this.cue(h.type === 'mochi' || h.type === 'gummy' || h.type === 'jam' ? 'squish' : 'crack', { x: this.board.cols > 1 ? (h.at[1] / (this.board.cols - 1)) * 2 - 1 : 0, last: h.left === 0 });
     this.requestDraw();
+  }
+
+  // ---- jam and timer fruit --------------------------------------------------
+
+  // Jam grows from one cell over the fruit next to it: the fruit sinks
+  // away while the jam swells out of the old cell into the new one.
+  async animateSpread({ from, to, eaten }) {
+    const k = to[0] * 100 + to[1];
+    const v = this.visuals.get(eaten.id);
+    this.blockShown.set(k, 0); // the board already has the jam: hide it while it grows
+    const grow = { kind: 'jam', from, to, k: 0, born: performance.now(), life: SPREAD_MS + 80 };
+    this.effects.push(grow);
+    this.cue('squish', { x: this.board.cols > 1 ? (to[1] / (this.board.cols - 1)) * 2 - 1 : 0 });
+    await this.tween(SPREAD_MS, (u) => {
+      grow.k = u;
+      if (v) {
+        v.scale = 1 - 0.75 * u;
+        v.alpha = 1 - u;
+      }
+    }, ease.out);
+    this.blockShown.delete(k);
+    this.effects = this.effects.filter((e) => e !== grow);
+    if (v) this.visuals.delete(eaten.id);
+    const { x, y } = this.center(...to);
+    for (let i = 0; i < 8; i++) this.burst(x, y, i % 2 ? '#c9a6ff' : '#8e3fd0', 1, 0.05 + Math.random() * 0.08);
+    this.requestDraw();
+  }
+
+  // Every timer fruit counts down: its number pops. One that is close to
+  // zero gives a warning tick.
+  async animateTick(timers) {
+    const jobs = [];
+    for (const t of timers) {
+      const v = this.visuals.get(t.id);
+      if (!v) continue;
+      this.jiggle(v, t.left <= 3 ? 0.14 : 0.07);
+      jobs.push(this.tween(260, (k) => (v.tick = Math.sin(k * Math.PI)), (u) => u).then(() => (v.tick = 0)));
+    }
+    if (timers.some((t) => t.left <= 3 && t.left > 0)) this.cue('tick');
+    await Promise.all(jobs);
+  }
+
+  // A timer got to zero: the fruit swells, then goes off with a flash that
+  // covers the board.
+  async animateExplode(timers) {
+    const now = () => performance.now();
+    for (const t of timers) {
+      const v = this.visuals.get(t.id);
+      if (v) await this.tween(520, (k) => {
+        v.scale = 1 + 0.5 * k + 0.08 * Math.sin(k * 40);
+        v.flash = k;
+      }, (u) => u);
+      const { x, y } = this.center(...t.at);
+      this.visuals.delete(t.id);
+      this.effects.push({ kind: 'board', born: now(), life: 420 });
+      this.effects.push({ kind: 'ring', x, y, color: '#ffb347', born: now(), life: 520 });
+      for (let i = 0; i < 40; i++) this.burst(x, y, ['#ff5a36', '#ffcf3a', '#ffffff', '#5a2d0c'][i % 4], 1, 0.1 + Math.random() * 0.3);
+      this.shake = { born: now(), life: 420, amp: 7 };
+      this.cue('boom');
+    }
+    await sleep(620);
+  }
+
+  // The level is won: the timers stop, with a little puff from each.
+  animateDefuse(ids) {
+    for (const id of ids) {
+      const v = this.visuals.get(id);
+      if (!v) continue;
+      const { x, y } = this.center(v.row, v.col);
+      this.burst(x, y - this.cell * 0.3, '#ffffff', 6);
+      this.jiggle(v, 0.1);
+    }
+    this.requestDraw();
+  }
+
+  // Behind a timer fruit: a warm glow that beats faster and turns red as
+  // the count gets low.
+  drawFuse(x, y, size, v, now) {
+    const { ctx } = this;
+    const left = v.candy.timer;
+    const urgent = left <= 3;
+    const beat = 0.5 + 0.5 * Math.sin(now / (urgent ? 90 : 260) + v.candy.id);
+    const r = this.cell * (0.5 + 0.06 * beat);
+    const glow = ctx.createRadialGradient(x, y, r * 0.3, x, y, r);
+    const [a, b] = urgent ? ['255,60,40', '255,120,60'] : ['255,170,40', '255,220,120'];
+    glow.addColorStop(0, `rgba(${a},${(0.55 + 0.3 * beat) * v.alpha})`);
+    glow.addColorStop(0.7, `rgba(${b},${0.3 * v.alpha})`);
+    glow.addColorStop(1, `rgba(${b},0)`);
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // A bright ring, so a timer fruit stands out from across the board.
+    ctx.beginPath();
+    ctx.arc(x, y, this.cell * 0.45, 0, Math.PI * 2);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = `rgba(${urgent ? '255,70,50' : '255,200,70'},${(0.75 + 0.25 * beat) * v.alpha})`;
+    ctx.stroke();
+  }
+
+  // The count on a timer fruit: a round badge at its lower right.
+  drawTimer(x, y, v, now) {
+    const { ctx } = this;
+    const left = v.candy.timer;
+    const urgent = left <= 3;
+    const beat = urgent ? 0.5 + 0.5 * Math.sin(now / 90 + v.candy.id) : 0;
+    const r = this.cell * 0.27 * (1 + 0.45 * (v.tick ?? 0) + 0.08 * beat) * Math.min(1, v.scale);
+    const bx = x + this.cell * 0.21, by = y + this.cell * 0.21;
+    ctx.save();
+    ctx.globalAlpha = v.alpha;
+    ctx.beginPath();
+    ctx.arc(bx, by, r, 0, Math.PI * 2);
+    ctx.fillStyle = urgent ? '#e0261b' : '#3b2a55';
+    ctx.shadowColor = 'rgba(0,0,0,.45)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 1.5;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = Math.max(1.5, r * 0.18);
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${Math.round(r * (left > 9 ? 1.2 : 1.45))}px "Lilita One", "Fredoka", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(Math.max(0, left)), bx, by + r * 0.08);
+    ctx.restore();
   }
 
   // Ingredients drop out through the exit with a golden burst.
@@ -1181,6 +1310,19 @@ export class Renderer {
         ctx.fillRect(x - r, y - r, r * 2, r * 2);
         break;
       }
+      case 'jam': {
+        // Jam swelling out of one cell into the next.
+        const sprite = this.sprites?.jam;
+        if (!sprite) break;
+        const a = this.center(...e.from), b = this.center(...e.to);
+        const size = SPRITE * (this.cell / BASE_CELL) * (0.35 + 0.65 * e.k);
+        const x = a.x + (b.x - a.x) * e.k, y = a.y + (b.y - a.y) * e.k;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
+        break;
+      }
       case 'ring': {
         // A fruit popping: a ring in its color bursting outward.
         const r = this.cell * (0.25 + 0.55 * ease.out(t));
@@ -1241,8 +1383,9 @@ export class Renderer {
         if (shell > 0 && this.sprites) {
           const size = SPRITE * (this.cell / BASE_CELL);
           const cx = x + this.cell / 2, cy = y + this.cell / 2;
-          const kind = (this.blockTypeShown.get(r * 100 + c) ?? board.blockType[r][c]) === 'mochi' ? 'mochi' : 'coco';
-          ctx.drawImage(this.sprites[`${kind}:${Math.min(2, shell)}`], cx - size / 2, cy - size / 2, size, size);
+          const type = this.blockTypeShown.get(r * 100 + c) ?? board.blockType[r][c];
+          const sprite = this.sprites[type === 'jam' ? 'jam' : `${type === 'mochi' ? 'mochi' : 'coco'}:${Math.min(2, shell)}`];
+          if (sprite) ctx.drawImage(sprite, cx - size / 2, cy - size / 2, size, size);
         }
       }
 
@@ -1341,7 +1484,9 @@ export class Renderer {
       const w = s * sx, h = s * sy;
       const sink = (s - h) * 0.3;
       ctx.globalAlpha = v.alpha;
+      if (v.candy.timer != null && !v.override) this.drawFuse(x + dx, y, s, v, now);
       ctx.drawImage(this.sprites[v.override ?? spriteKey(v.candy)], x - w / 2 + dx, y - h / 2 + sink, w, h);
+      if (v.candy.timer != null && !v.override) this.drawTimer(x + dx, y, v, now);
     }
     ctx.globalAlpha = 1;
     // Cages over the locked fruit.

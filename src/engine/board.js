@@ -29,6 +29,7 @@ const POINTS_PER_BLASTED_CANDY = 30;
 const POINTS_PER_JELLY = 100;
 const POINTS_PER_COCONUT_HIT = 80;
 const POINTS_PER_LOCK = 60;
+const POINTS_PER_TIMER = 150; // a timer fruit cleared before it went off
 
 let nextId = 1;
 
@@ -47,7 +48,9 @@ export class Board {
     // takes up the cell (no piece there), doesn't fall, and cracks a layer
     // when a match lands next to it or a blast hits it.
     this.block = Array.from({ length: rows }, () => Array(cols).fill(0));
-    // What each blocker is: 'coconut' or 'mochi' (same rules, own look).
+    // What each blocker is: 'coconut', 'mochi' or 'jam'. Coconut and mochi
+    // have the same rules and their own look. Jam has one layer and
+    // spreads: see spreadJam().
     this.blockType = Array.from({ length: rows }, () => Array(cols).fill(null));
     // Spouts above columns that drop in a special or a gummy every few
     // refills: [{ col, kind: 'bomb' | 'stripe' | 'wrapped' | 'gummy', every, n }].
@@ -64,6 +67,12 @@ export class Board {
     // bottom of `from` comes in at the top of `to`.
     this.portals = [];
     this.paths = null; // falling paths, built when first needed
+    // Timer fruit: a fruit with a count (`timer`) that goes down by one
+    // each move. { fuse, every, max }: a new one, with `fuse` on its
+    // count, drops in every `every` moves while fewer than `max` are on
+    // the board. `timerDue` is set when the next refill must bring one.
+    this.timerRule = null;
+    this.timerDue = false;
   }
 
   // A copy to try moves on. Candy objects are copied so the original is
@@ -81,6 +90,8 @@ export class Board {
     b.lock = this.lock.map((row) => [...row]);
     b.portals = this.portals;
     b.paths = this.paths;
+    b.timerRule = this.timerRule;
+    b.timerDue = this.timerDue;
     return b;
   }
 
@@ -142,6 +153,7 @@ export class Board {
   //   @             ingredient
   //   k K           coconut with one or two layers
   //   m M           mochi with one or two layers
+  //   j             jam
   //   u             gummy cube
   //   .             empty playable cell
   //   (space)       outside the board
@@ -149,11 +161,11 @@ export class Board {
     this.rows = rowsOfChars.length;
     this.cols = rowsOfChars[0].length;
     this.mask = rowsOfChars.map((row) => [...row].map((ch) => ch !== ' '));
-    this.block = rowsOfChars.map((row) => [...row].map((ch) => ({ k: 1, K: 2, m: 1, M: 2 })[ch] ?? 0));
-    this.blockType = rowsOfChars.map((row) => [...row].map((ch) => ('kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : null)));
+    this.block = rowsOfChars.map((row) => [...row].map((ch) => ({ k: 1, K: 2, m: 1, M: 2, j: 1 })[ch] ?? 0));
+    this.blockType = rowsOfChars.map((row) => [...row].map((ch) => ('kK'.includes(ch) ? 'coconut' : 'mM'.includes(ch) ? 'mochi' : ch === 'j' ? 'jam' : null)));
     this.grid = rowsOfChars.map((row) =>
       [...row].map((ch) => {
-        if (' .kKmM'.includes(ch)) return null;
+        if (' .kKmMj'.includes(ch)) return null;
         if (ch === 'u') return this.newCandy(null, GUMMY);
         if (ch === '*') return this.newCandy(null, BOMB);
         if (ch === '@') return this.newIngredient('duck');
@@ -173,6 +185,7 @@ export class Board {
         .map((cell, c) => {
           if (!this.mask[r][c]) return ' ';
           if (this.block[r][c]) {
+            if (this.blockType[r][c] === 'jam') return 'j';
             const ch = this.blockType[r][c] === 'mochi' ? 'm' : 'k';
             return this.block[r][c] > 1 ? ch.toUpperCase() : ch;
           }
@@ -528,6 +541,7 @@ export class Board {
       const cand = this.grid[r][c];
       cand.special = made.special;
       if (made.special === BOMB) cand.color = null;
+      delete cand.timer; // a timer fruit that becomes a special is safe
       made.candy = cand;
     }
     // Jelly comes off every cell that was matched or blasted, including
@@ -562,7 +576,8 @@ export class Board {
       blasted * POINTS_PER_BLASTED_CANDY +
       jellyHit.length * POINTS_PER_JELLY +
       blocksHit.length * POINTS_PER_COCONUT_HIT +
-      unlocked.length * POINTS_PER_LOCK;
+      unlocked.length * POINTS_PER_LOCK +
+      cleared.filter((x) => x.timer != null).length * POINTS_PER_TIMER;
     return {
       groups,
       cleared,
@@ -815,6 +830,11 @@ export class Board {
         const cell = dispensed && i === cells.length - 1 ? dispensed
           : c === ingredientCol && i === 0 ? this.newIngredient(this.nextIngredientKind())
           : this.newCandy(this.randomColor());
+        if (this.timerDue && !cell.special && this.timerCount() < this.timerRule.max) {
+          // The count starts to go down on the next move.
+          Object.assign(cell, { timer: this.timerRule.fuse, fresh: true });
+          this.timerDue = false;
+        }
         this.grid[at[0]][at[1]] = cell;
         const spawn = { id: cell.id, candy: cell, color: cell.color, to: at, fromRow: i - cells.length, dispensed: cell === dispensed };
         if (via.length) Object.assign(spawn, { via, col: c });
@@ -900,6 +920,97 @@ export class Board {
         }
       }
     return out;
+  }
+
+  // ---- jam -----------------------------------------------------------------
+
+  jamCount() {
+    let n = 0;
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) if (this.block[r][c] && this.blockType[r][c] === 'jam') n++;
+    return n;
+  }
+
+  // Jam grows by one cell: it covers a fruit next to it, and the fruit is
+  // gone. It takes a plain fruit if it can, a special if it must, and never
+  // a locked fruit, a timer fruit, an ingredient or a gummy. Returns
+  // { from, to, eaten }, or null if no jam has room to grow.
+  spreadJam() {
+    const plain = [], special = [];
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) {
+        if (!this.block[r][c] || this.blockType[r][c] !== 'jam') continue;
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const to = [r + dr, c + dc];
+          const cell = this.get(...to);
+          if (!cell || fixedPiece(cell) || this.lock[to[0]][to[1]] || cell.timer != null) continue;
+          (cell.special ? special : plain).push({ from: [r, c], to });
+        }
+      }
+    const options = plain.length ? plain : special;
+    if (!options.length) return null;
+    const { from, to } = options[randInt(this.rng, options.length)];
+    const eaten = this.grid[to[0]][to[1]];
+    this.grid[to[0]][to[1]] = null;
+    this.block[to[0]][to[1]] = 1;
+    this.blockType[to[0]][to[1]] = 'jam';
+    return { from, to, eaten };
+  }
+
+  // ---- timer fruit ---------------------------------------------------------
+
+  timerCount() {
+    let n = 0;
+    for (const row of this.grid) for (const c of row) if (c?.timer != null) n++;
+    return n;
+  }
+
+  // Put `n` timer fruit on the board at the start of a level, away from
+  // the bottom rows so each one takes some work to reach.
+  placeTimers(n, fuse) {
+    const cells = [];
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) {
+        const cell = this.grid[r][c];
+        if (cell && !cell.special && !this.lock[r][c]) cells.push([r, c]);
+      }
+    for (let i = 0; i < n && cells.length; i++) {
+      const [r, c] = cells.splice(randInt(this.rng, cells.length), 1)[0];
+      this.grid[r][c].timer = fuse;
+    }
+  }
+
+  // One move went by: every timer fruit counts down by one. A fruit that
+  // dropped in during this move starts to count on the next one. Returns
+  // { ticked: [{ id, at, left }], exploded: [{ id, at }] }.
+  tickTimers() {
+    const ticked = [], exploded = [];
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) {
+        const cell = this.grid[r][c];
+        if (cell?.timer == null) continue;
+        if (cell.fresh) {
+          delete cell.fresh;
+          continue;
+        }
+        cell.timer--;
+        ticked.push({ id: cell.id, at: [r, c], left: cell.timer });
+        if (cell.timer <= 0) exploded.push({ id: cell.id, at: [r, c] });
+      }
+    return { ticked, exploded };
+  }
+
+  // The level is won: every timer stops. Returns the ids of the fruit.
+  defuseAll() {
+    const ids = [];
+    for (const row of this.grid)
+      for (const cell of row)
+        if (cell?.timer != null) {
+          delete cell.timer;
+          delete cell.fresh;
+          ids.push(cell.id);
+        }
+    return ids;
   }
 
   jellyCount() {

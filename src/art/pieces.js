@@ -115,7 +115,7 @@ export const pieceImage = (name) => `./art/pieces/${name}.${FRUIT_KEYS.includes(
 // Which picture each sprite that is not a fruit uses (sprite key -> name).
 export const PIECE_PICTURES = {
   bomb: 'bomb', 'ing:duck': 'duck', 'ing:pup': 'pup', 'coco:1': 'coco1', 'coco:2': 'coco2',
-  'mochi:1': 'mochi1', 'mochi:2': 'mochi2', gummy: 'gummy', lock: 'cage',
+  'mochi:1': 'mochi1', 'mochi:2': 'mochi2', gummy: 'gummy', lock: 'cage', jam: 'jam',
 };
 
 // A piece for the page (goal icons, the fruit that flies to the blender).

@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v45';
+const VERSION = 'jc-v46';
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,8 @@ const ASSETS = [
   './art/scene/zone4.webp',
   './art/scene/zone5.webp',
   './art/scene/zone6.webp',
+  './art/scene/zone7.webp',
+  './art/scene/zone8.webp',
   './art/map/balloon.webp',
   './art/map/beachhut.webp',
   './art/map/cloud.webp',
@@ -57,6 +59,14 @@ const ASSETS = [
   './art/map/shell.webp',
   './art/map/starfish.webp',
   './art/map/sailboat.webp',
+  './art/map/berrybush.webp',
+  './art/map/jamcottage.webp',
+  './art/map/reeds.webp',
+  './art/map/hedgehog.webp',
+  './art/map/stall.webp',
+  './art/map/lanternpole.webp',
+  './art/map/rockets.webp',
+  './art/map/fox.webp',
   './art/map/ground.png',
   './art/host/idle.webp',
   './art/host/blink.webp',
@@ -68,6 +78,7 @@ const ASSETS = [
   './art/pieces/mochi1.webp',
   './art/pieces/mochi2.webp',
   './art/pieces/gummy.webp',
+  './art/pieces/jam.webp',
   './art/pieces/duck.webp',
   './art/pieces/pup.webp',
   './art/pieces/cage.webp',

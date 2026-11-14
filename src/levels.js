@@ -1,12 +1,17 @@
-// Levels 1–60. Each level's layout, goal and number of fruit colors is
+// Levels 1–80. Each level's layout, goal and number of fruit colors is
 // designed here; its moves (for every goal but score) and star scores come
 // from level-tuning.js, which tools/tune.mjs writes by having a computer
 // player play every level many times.
 //
 // Layout: 9 strings of 9. ' ' not on the board, '.' plain, '1' foam,
 // '2' double foam, 'k'/'K' coconut, 'm'/'M' mochi (one or two layers),
-// 'u' gummy cube, 'L' locked fruit, 'l' locked fruit on foam. See
-// src/engine/level.js. `dispensers` put a spout above a column that drops
+// 'u' gummy cube, 'L' locked fruit, 'l' locked fruit on foam, 'j' jam
+// (it grows by one cell after each move that clears none of it), 'J' jam
+// on foam. See
+// src/engine/level.js. `timers` puts timer fruit on the board:
+// { start, fuse, every, max } is `start` of them at the beginning, each
+// with `fuse` moves on its count, and a new one every `every` moves while
+// fewer than `max` are there. A count that gets to zero loses the level. `dispensers` put a spout above a column that drops
 // in a special or a gummy every few refills. `portals` join cells:
 // [fromRow, fromCol, toRow, toCol, color]: fruit that falls out of the
 // bottom of the first cell comes in at the top of the second. Every part
@@ -15,7 +20,7 @@
 // level's intro.
 //
 // Goals: score, jelly (clear the foam), ingredients (bring friends down),
-// blockers (clear every coconut, mochi and gummy), collect (gather so many of each fruit).
+// blockers (clear every coconut, mochi, gummy and jam), collect (gather so many of each fruit).
 
 import { TUNING } from './level-tuning.js';
 
@@ -270,6 +275,117 @@ export const LEVEL_DESIGNS = [
     id: 60, goal: { type: 'jelly' }, colors: 5,
     layout: ['222222222', '2l22222l2', '222222222', '         ', '111111111', '1k11111k1', '111111111', '111111111', '111111111'],
     portals: across(2, ALL, 4, MIRROR),
+  },
+
+  // ---- Berry Bog: jam --------------------------------------------------------
+
+  // 61–65: jam, then jam with each kind of goal
+  {
+    id: 61, goal: { type: 'blockers' }, colors: 5,
+    tip: 'New: jam. Match beside it to clear it. After each move that clears no jam, the jam grows by one cell.',
+    layout: [...fill('.', 7), '...jjj...', '...jjj...'],
+  },
+  {
+    id: 62, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.K.....K.', ...fill('.', 4), 'jj.....jj', 'jjj...jjj', 'jjjj.jjjj'],
+  },
+  {
+    id: 63, goal: { type: 'jelly' }, colors: 5,
+    layout: ['111111111', '111111111', '111111111', '1111j1111', '111jjj111', '1111j1111', '111111111', '111111111', '111111111'],
+  },
+  {
+    id: 64, goal: { type: 'score' }, moves: 24, colors: 5,
+    tip: 'Jam covers the fruit it grows over. Keep it small.',
+    layout: ['.........', '.........', '.........', 'j.......j', 'j.......j', 'j.......j', '.........', '.........', '.........'],
+  },
+  {
+    id: 65, goal: { type: 'collect', targets: { r: 40, b: 40 } }, colors: 5,
+    layout: [...fill('.', 7), 'j.j.j.j.j', '.j.j.j.j.'],
+  },
+
+  // 66–70: jam with everything else
+  {
+    id: 66, goal: { type: 'ingredients', count: 3 }, colors: 5,
+    tip: 'Friends cannot go through jam. Clear a path.',
+    layout: [...fill('.', 5), '..j.j.j..', ...fill('.', 3)],
+  },
+  {
+    id: 67, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.........', '.M.M.M.M.', '.........', '.........', '.........', 'j.......j', 'jj.....jj', 'jjj...jjj'],
+  },
+  {
+    id: 68, goal: { type: 'jelly' }, colors: 5,
+    layout: ['j.......j', '.2222222.', '.2111112.', '.21...12.', '.21...12.', '.21...12.', '.2111112.', '.2222222.', 'j.......j'],
+  },
+  {
+    // The locked fruit hold the jam in: it cannot grow over them.
+    id: 69, goal: { type: 'blockers' }, colors: 5,
+    tip: 'Jam cannot grow over a locked fruit.',
+    layout: ['.........', '.K.....K.', '.........', '.........', '.........', '..jLjLj..', '..LjLjL..', '.jLjLjLj.', '..LjLjL..'],
+  },
+  {
+    id: 70, goal: { type: 'jelly' }, colors: 5,
+    layout: ['111111111', '1.......1', '1.k...k.1', '1.......1', '1...j...1', '1.......1', '1.k...k.1', '1j.....j1', '111111111'],
+  },
+
+  // ---- Festival Pier: timer fruit -----------------------------------------------
+
+  // 71–75: timer fruit, then timers with each kind of goal
+  {
+    id: 71, goal: { type: 'score' }, moves: 20, colors: 5,
+    tip: 'New: timer fruit. Its count goes down by one each move. Match it before the count gets to zero.',
+    layout: FULL,
+    timers: { start: 1, fuse: 12, every: 6, max: 2 },
+  },
+  {
+    id: 72, goal: { type: 'jelly' }, colors: 5,
+    layout: ['111111111', '111111111', '111111111', '111222111', '111222111', '111222111', '111111111', '111111111', '111111111'],
+    timers: { start: 2, fuse: 11, every: 5, max: 3 },
+  },
+  {
+    id: 73, goal: { type: 'collect', targets: { o: 40, g: 40 } }, colors: 5,
+    layout: DIAMOND,
+    timers: { start: 2, fuse: 9, every: 5, max: 3 },
+  },
+  {
+    id: 74, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.........', 'K.K.K.K.K', '.........', '.K.K.K.K.', '.........', 'K.K.K.K.K', '.........', '.........'],
+    timers: { start: 1, fuse: 9, every: 5, max: 3 },
+  },
+  {
+    id: 75, goal: { type: 'ingredients', count: 3 }, colors: 5,
+    tip: 'A timer fruit that becomes a special is safe.',
+    layout: NARROW,
+    timers: { start: 1, fuse: 10, every: 5, max: 2 },
+  },
+
+  // 76–80: timers with the other mechanics
+  {
+    id: 76, goal: { type: 'score' }, moves: 26, colors: 5,
+    layout: [...fill('.', 4), '         ', ...fill('.', 4)],
+    portals: across(3, ALL, 5, MIRROR),
+    timers: { start: 2, fuse: 12, every: 5, max: 3 },
+  },
+  {
+    id: 77, goal: { type: 'jelly' }, colors: 5,
+    layout: ['.........', '.l1...1l.', '.11...11.', '.........', '....2....', '.........', '.11...11.', '.l1...1l.', '.........'],
+    timers: { start: 2, fuse: 11, every: 5, max: 3 },
+  },
+  {
+    id: 78, goal: { type: 'jelly' }, colors: 5,
+    tip: 'Jam does not grow over a timer fruit.',
+    layout: ['.........', '.........', '..11111..', '..11111..', '.........', '....J....', '...JJJ...', '..JJJJJ..', '.JJJJJJJ.'],
+    timers: { start: 1, fuse: 10, every: 5, max: 3 },
+  },
+  {
+    id: 79, goal: { type: 'collect', targets: { y: 20, p: 20, r: 20 } }, colors: 6,
+    layout: PLUS,
+    timers: { start: 2, fuse: 16, every: 7, max: 3 },
+  },
+  {
+    id: 80, goal: { type: 'jelly' }, colors: 5,
+    layout: ['222222222', '2.......2', '2.11111.2', '2.1...1.2', '2.1.j.1.2', '2.1...1.2', '2.11111.2', '2j.....j2', '222222222'],
+    timers: { start: 2, fuse: 13, every: 6, max: 3 },
   },
 ];
 
