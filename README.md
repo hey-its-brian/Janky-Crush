@@ -51,6 +51,8 @@ node tools/tune.mjs 7 12      # ...or just some levels
 node tools/make-icons.mjs     # regenerate home-screen icons (needs Playwright)
 python3 tools/render-pieces.py   # re-render the 3D fruit sprites (pip install bpy pillow)
 python3 tools/cut-art.py         # cut the map sprites, the host and the board pieces out of art/source (pip install "rembg[cpu]" pillow numpy scipy)
+python3 tools/make-cage.py       # build the cage and portal sprites (pip install pillow numpy scipy)
+python3 tools/make-title.py      # cut out the logo and scale the welcome backdrop
 ```
 
 ### Levels
@@ -79,6 +81,7 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
 | `art/pieces/` | The board pieces. The six fruit (strawberry, orange, star fruit, pear, blueberry, grapes) are 3D renders from `tools/render-pieces.py` (Blender). The color bomb, coconut, mochi, gummy cube, duck and pup are generated pictures cut out by `tools/cut-art.py`; `PROMPTS.md` has the prompts. |
 | `art/scene/` | The backdrop behind the board, one painted image for each map zone. They were made with an image model; `PROMPTS.md` has the prompts. |
+| `art/title/` | The welcome screen: the logo and the hot spring backdrop. `tools/make-title.py` makes them from the generated pictures in `art/source/title/`; `PROMPTS.md` has the prompts. |
 | `art/map/` | The map's buildings, trees, animals and small props as cut-out sprites, and the ground tile. `tools/cut-art.py` makes them from the generated pictures in `art/source/map/`; `PROMPTS.md` has the prompts. |
 | `art/host/` | The capybara host in its three poses (idle, cheer, worried) and its blink frame, made the same way from `art/source/host/`. |
 | `src/art/` | The rest of the art, drawn as SVG in code: fallback fruits, special overlays, steam, butterflies and birds, coin, heart and booster icons. `map-art.js` and `capy.js` give the map and the host their sprites. |

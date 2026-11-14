@@ -4,7 +4,8 @@ import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES } from 
 import { buildWorld, setWorldZone } from './ui/world.js';
 import { renderMap, zoneNumber } from './ui/map.js';
 import { capy } from './art/capy.js';
-import { striped, wrapped, pieceIcon } from './art/pieces.js';
+import { steam } from './art/scene.js';
+import { specialIcon, pieceIcon } from './art/pieces.js';
 import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic, songFor } from './audio/music.js';
@@ -49,22 +50,34 @@ const clock = (ms) => {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 };
 
+// The scene on the start screen: the host sits in the hot spring, with
+// ripples around it and steam above the water. Built once.
+function buildTitleStage() {
+  const stage = $('title-stage');
+  if (stage.firstChild) return;
+  const wisps = [[30, 55.5, 0], [43, 53.5, 1.7], [62, 54.5, 2.9], [70, 56.5, 0.9]]
+    .map(([x, y, d]) => `<div class="sprite steam" style="left:${x}%;top:${y}%;animation-delay:-${d}s">${steam()}</div>`).join('');
+  // Our own art, never user input.
+  stage.innerHTML = `<div class="title-ripple"></div><div class="title-ripple late"></div>` +
+    `<div class="title-host">${capy('idle')}</div><div class="title-water"></div>${wisps}`;
+}
+
 // The start screen: two save files, Normal and Easy.
 function showTitle() {
   game?.stop();
   closeDialog();
   $('game-screen').hidden = true;
   $('map-screen').hidden = true;
-  setWorldZone($('world'), 1);
-  $('world').hidden = false;
+  $('world').hidden = true;
   $('title-screen').hidden = false;
-  $('title-host').innerHTML = capy('cheer'); // our own art, never user input
+  buildTitleStage();
   playMusic(0);
   const card = (mode, name, tag) => {
     const slot = progress.slotInfo(mode);
     const head = el('div', { class: 'head' }, el('h2', { text: name }), el('span', { class: 'tag', text: tag }));
     if (!slot) {
       return el('div', { class: 'panel save-card' }, head,
+        el('div', { class: 'facts new', text: 'Level 1' }),
         button('New game', () => { progress.use(mode); showMap(); }));
     }
     const level = Math.min(progress.unlocked(slot), LEVELS.length);
@@ -75,7 +88,7 @@ function showTitle() {
     const over = el('button', { class: 'link-btn', type: 'button', text: 'Start over' });
     over.addEventListener('click', () => { tapFeedback(); confirmStartOver(mode, name); });
     return el('div', { class: 'panel save-card' }, head, facts,
-      el('div', { class: 'row' }, button('Continue', () => { progress.use(mode); showMap(); }), over));
+      button('Play', () => { progress.use(mode); showMap(); }), over);
   };
   $('save-cards').replaceChildren(
     card('normal', 'Normal', 'Lives refill over time'),
@@ -369,8 +382,8 @@ function showResult(r) {
     const s = r.stats;
     const chip = (svg, n) => el('span', { class: 'chip' }, el('span', { svg }), `×${n}`);
     const specials = el('span', { class: 'val' },
-      s.striped ? chip(striped('r', 'h'), s.striped) : null,
-      s.wrapped ? chip(wrapped('o'), s.wrapped) : null,
+      s.striped ? chip(specialIcon('r', 'striped'), s.striped) : null,
+      s.wrapped ? chip(specialIcon('o', 'wrapped'), s.wrapped) : null,
       s.bomb ? chip(pieceIcon('bomb'), s.bomb) : null);
     const rows = [
       s.striped + s.wrapped + s.bomb ? statRow('Specials made', specials) : null,

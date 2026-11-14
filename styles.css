@@ -434,24 +434,57 @@ img.blink { position: absolute; left: 0; top: 0; opacity: 0; animation: blink 4.
 
 /* ---- start screen ------------------------------------------------------------------ */
 
-.title-screen { position: fixed; inset: 0; z-index: 2; overflow-y: auto; }
-.title-inner {
-  max-width: 440px; margin: 0 auto; min-height: 100%;
-  padding: calc(env(safe-area-inset-top, 0px) + 28px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px);
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
+.title-screen { position: fixed; inset: 0; z-index: 2; overflow: hidden; background: #89a54f; --stage: min(100vw, 520px); }
+/* On a wide screen the scene stays phone-shaped in the middle, over a
+   blurred copy of itself that fills the sides. */
+.title-fill { position: absolute; inset: -5%; background: url("./art/title/backdrop.webp") 50% 40% / cover; filter: blur(28px) brightness(.85); }
+@media (max-width: 560px) { .title-fill { display: none; } }
+/* The scene keeps the picture's shape, and the middle of the pool (61.5%
+   of the way down the picture) is always at the middle of the screen. The
+   host is a part of the scene, so it stays in the pool on every phone. */
+.title-stage {
+  position: absolute; left: 50%; width: var(--stage); aspect-ratio: 9 / 16;
+  top: calc(49% - var(--stage) * 1.0933); transform: translateX(-50%);
+  background: url("./art/title/backdrop.webp") 50% 0 / 100% 100%;
 }
-.logo { margin: 0; display: flex; flex-direction: column; align-items: center; line-height: .9; transform: rotate(-4deg); }
-.logo span { font-size: 76px; --stroke: var(--pink-deep); -webkit-text-stroke-width: 10px; }
-.logo span + span { font-size: 92px; --stroke: #c25a00; color: #ffe14d; }
-.title-host { width: 190px; height: 180px; animation: hop 1.8s ease-in-out infinite; }
-.save-cards { width: 100%; display: flex; flex-direction: column; gap: 14px; }
-.save-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
-.save-card .head { display: flex; align-items: center; gap: 10px; }
-.save-card h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 28px; color: var(--ink); }
-.save-card .tag { margin-left: auto; font-weight: 600; font-size: 14px; color: var(--ink-soft); text-align: right; }
-.save-card .facts { display: flex; gap: 14px; font-family: var(--display); font-size: 20px; color: var(--ink); }
-.save-card .facts span { display: flex; align-items: center; gap: 5px; }
-.save-card .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+.title-stage::before { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 100vh; background: #89a54f; }
+.title-stage::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 14%; background: linear-gradient(rgba(137, 165, 79, 0), #89a54f 85%); }
+.title-host { position: absolute; left: 31.5%; top: 47.4%; width: 36%; aspect-ratio: 1; animation: soak 3.4s ease-in-out infinite; -webkit-mask-image: linear-gradient(#000 75%, transparent 79%); mask-image: linear-gradient(#000 75%, transparent 79%); }
+/* The water in front of the host: it hides the host's legs. */
+.title-water {
+  position: absolute; left: 33%; top: 61.3%; width: 33%; height: 3%; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 35%, rgba(205, 250, 246, .95), rgba(120, 222, 222, .85) 50%, rgba(120, 222, 222, 0) 71%);
+}
+.title-ripple {
+  position: absolute; left: 49.5%; top: 62.8%; width: 30%; height: 3%; margin: -1.5% 0 0 -15%; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .8); opacity: 0; animation: ripple 3.4s ease-out infinite;
+}
+.title-ripple.late { animation-delay: -1.7s; }
+@keyframes ripple { 0% { transform: scale(.8); opacity: 0; } 20% { opacity: .8; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes soak { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1.6%); } }
+.title-inner {
+  position: relative; max-width: 440px; margin: 0 auto; height: 100%;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+}
+.logo { margin: 0; width: min(88%, 37vh); animation: logo-in .7s cubic-bezier(.2, 1.5, .4, 1) both, logo-float 4.2s ease-in-out .7s infinite; filter: drop-shadow(0 8px 10px rgba(60, 20, 0, .35)); }
+.logo img { display: block; width: 100%; height: auto; }
+@keyframes logo-in { from { transform: scale(.3) rotate(-10deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+@keyframes logo-float { 0%, 100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-7px) rotate(1.2deg); } }
+.save-cards { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; animation: cards-in .5s ease-out .25s both; }
+@keyframes cards-in { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.save-card { padding: 12px 12px 8px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; text-align: center; }
+.save-card .head { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.save-card h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 27px; line-height: 1.1; color: var(--ink); }
+.save-card .tag { font-weight: 600; font-size: 12.5px; color: var(--ink-soft); }
+.save-card .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; font-family: var(--display); font-size: 18px; color: var(--ink); min-height: 50px; align-content: center; }
+.save-card .facts span { display: flex; align-items: center; gap: 4px; }
+.save-card .facts span:first-child { flex-basis: 100%; justify-content: center; }
+.save-card .facts.new { align-items: center; color: var(--ink-soft); }
+.save-card .btn { width: 100%; font-size: 22px; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+.save-card .link-btn { padding: 4px; font-size: 13.5px; }
+.save-card:not(:has(.link-btn)) { padding-bottom: 14px; }
+@media (prefers-reduced-motion: reduce) { .logo, .save-cards, .title-host, .title-ripple { animation: none; } }
 .link-btn { background: none; border: none; padding: 8px 4px; font-weight: 600; font-size: 15px; color: var(--ink-soft); text-decoration: underline; }
 
 /* ---- lives, coins and boosters ---------------------------------------------------- */

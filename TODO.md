@@ -57,6 +57,10 @@
       holds a fruit in place until a match or a blast opens it. Firefly
       Grove (51–60) has portals: fruit that falls into a ring comes out of
       the ring of the same color.
+- [x] **Art pass 2.** A new welcome screen: a 3D logo, a hot spring scene
+      with the host in the pool, and the two saves side by side. The cage
+      on locked fruit and the swirl in the portals are generated art. The
+      striped and wrapped icons in the results dialog use the 3D fruit.
 - [ ] **More level packs** of 15–30, each adding a mechanic (spreading
       chocolate-like blockers, timer bombs, conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
