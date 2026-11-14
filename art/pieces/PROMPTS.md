@@ -54,3 +54,40 @@ pup, from the host (`art/source/host/idle.webp`):
 > orange from its head and put one small green leaf on its head. Keep the
 > same colors, the 3D clay style, the sitting position, and the plain
 > white background.
+
+## Cage and portal
+
+`tools/make-cage.py` makes these two sprites. They are not cut by
+`tools/cut-art.py`.
+
+The cage (`cage.webp`) is built from two pictures, so that the bars are
+straight and line up with the cell. Z-Image Turbo, seed 7, 8 steps.
+
+pole (1536 x 864):
+
+> One single straight thick green bamboo pole lying perfectly horizontal,
+> seen from the side, spanning the picture from left to right, with three
+> bamboo node rings, cut flat at both ends. Stylized 3D cartoon render,
+> soft rounded chunky shape, glossy, very vivid saturated green, soft
+> highlight along the top. Centered, plain flat bright magenta pink
+> background, no ground, no shadow, no text, no leaves, no other objects.
+
+knot (1024 x 1024):
+
+> One single chunky round knot of thick beige rope, a ball of rope wrapped
+> in a criss-cross X pattern, seen from the front. Stylized 3D cartoon
+> render, soft rounded chunky shape, warm beige and tan colors, soft
+> highlight on the upper left. Centered, fills half of the frame, plain
+> flat bright magenta pink background, no ground, no shadow, no text, no
+> other objects.
+
+The portal swirl (`portal.webp`) is white light on black (1024 x 1024).
+The tool makes the black see-through, and the game tints the swirl in each
+portal color.
+
+> A magical swirling vortex portal seen from directly above, a perfect
+> circle. Soft glowing spiral arms of white and pale silver light turning
+> toward a bright center, with tiny sparkles, cartoon game effect,
+> stylized 3D render, smooth and soft. Monochrome white light only.
+> Centered, fills most of the frame, pure solid black background, no text,
+> no frame, no objects.

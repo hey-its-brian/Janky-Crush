@@ -115,13 +115,32 @@ export const pieceImage = (name) => `./art/pieces/${name}.${FRUIT_KEYS.includes(
 // Which picture each sprite that is not a fruit uses (sprite key -> name).
 export const PIECE_PICTURES = {
   bomb: 'bomb', 'ing:duck': 'duck', 'ing:pup': 'pup', 'coco:1': 'coco1', 'coco:2': 'coco2',
-  'mochi:1': 'mochi1', 'mochi:2': 'mochi2', gummy: 'gummy',
+  'mochi:1': 'mochi1', 'mochi:2': 'mochi2', gummy: 'gummy', lock: 'cage',
 };
 
 // A piece for the page (goal icons, the fruit that flies to the blender).
 export function pieceIcon(name) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">` +
     `<image href="${pieceImage(name)}" x="3" y="3" width="94" height="94"/></svg>`;
+}
+
+// A striped or wrapped fruit for the page (the results dialog), built from
+// the fruit's picture like the board sprite is.
+export function specialIcon(color, kind) {
+  const href = pieceImage(color);
+  if (kind === 'wrapped') {
+    const h = halo('#8fe9ff'), bub = bubble();
+    return svg(h.defs + bub.defs, h.body + `<image href="${href}" x="17" y="19" width="66" height="66"/>` + bub.body);
+  }
+  const h = halo(GLOW[color]), m = id('m'), w = id('w');
+  // The mask is the fruit's own shape, turned white, so the bands show
+  // only on the fruit.
+  return svg(h.defs +
+    `<filter id="${w}"><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/></filter>` +
+    `<mask id="${m}"><image href="${href}" x="11" y="13" width="78" height="78" filter="url(#${w})"/></mask>`,
+    h.body + `<image href="${href}" x="11" y="13" width="78" height="78"/>` +
+    `<g mask="url(#${m})" opacity=".92">${[36.5, 52, 67.5].map((y) => `<rect x="8" y="${y - 4}" width="84" height="8" rx="4" fill="#fff"/>`).join('')}</g>` +
+    twinkle(84, 20, 7) + twinkle(14, 82, 5));
 }
 
 // The fruit's SVG body without the outer <svg>, so specials can wrap it.

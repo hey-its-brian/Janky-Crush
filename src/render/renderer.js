@@ -2,7 +2,7 @@
 // Visual state (where each candy is drawn) is kept separately from the
 // board, so animations can move candies between logical positions.
 
-import { buildSprites, spriteKey, PALETTE, SPRITE } from './sprites.js';
+import { buildSprites, spriteKey, PALETTE, PORTAL_COLORS, SPRITE } from './sprites.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sameCell = (a, b) => a[0] === b[0] && a[1] === b[1];
@@ -77,8 +77,6 @@ const START_SPEED = 16;     // cells/s: a nudge so one-cell drops aren't sluggis
 const BOUNCE = 0.14;        // how much of the landing speed bounces back
 const MAX_HOP_SPEED = 5;    // cells/s, so even big drops only hop a little
 const STACK_DELAY_MS = 12;  // candies in a column fall a hair apart
-// One color for each portal on a board, so its two ends match.
-const PORTAL_COLORS = ['#7cf3ff', '#c79bff', '#ffd45e', '#7dffb0', '#ff9ad0'];
 
 export class Renderer {
   constructor(canvas, board) {
@@ -703,32 +701,51 @@ export class Renderer {
     return PORTAL_COLORS[(portal.color ?? this.board.portals.indexOf(portal)) % PORTAL_COLORS.length];
   }
 
-  // The two ends of each portal: a glowing oval under the entrance cell
-  // and one above the exit cell, in the portal's own color.
+  // The two ends of each portal: a ring of light under the entrance cell
+  // and one above the exit cell, in the portal's own color. Seen at a
+  // slant, so it is an oval, with a swirl that turns inside it.
   drawPortals(now) {
     const { ctx, board } = this;
     if (!board.portals.length) return;
     const pulse = 0.5 + 0.5 * Math.sin(now / 300);
+    const rx = this.cell * 0.45, ry = this.cell * 0.15;
     ctx.save();
     for (const portal of board.portals) {
       const color = this.portalColor(portal);
+      const swirl = this.sprites?.[`portal:${color}`];
       for (const [r, c, dy] of [[...portal.from, 0.5], [...portal.to, -0.5]]) {
         const { x } = this.center(r, c);
-        const y = Math.max(this.cell * 0.11 + 3, Math.min(this.height - this.cell * 0.11 - 3, PAD + r * this.pitch + this.cell / 2 + dy * this.pitch));
+        const y = Math.max(ry + 4, Math.min(this.height - ry - 4, PAD + r * this.pitch + this.cell / 2 + dy * this.pitch));
+        // The hole, with the portal's glow around it.
         ctx.beginPath();
-        ctx.ellipse(x, y, this.cell * 0.4, this.cell * 0.11, 0, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(20, 8, 50, .85)';
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(16, 6, 44, .92)';
         ctx.shadowColor = color;
-        ctx.shadowBlur = 8 + 6 * pulse;
+        ctx.shadowBlur = 9 + 7 * pulse;
         ctx.fill();
-        ctx.lineWidth = 3;
+        ctx.shadowBlur = 0;
+        // The swirl, turning, squashed into the oval.
+        if (swirl) {
+          ctx.save();
+          ctx.clip();
+          ctx.translate(x, y);
+          ctx.scale(1, ry / rx);
+          ctx.rotate(-now / 900);
+          ctx.globalAlpha = 0.8 + 0.2 * pulse;
+          ctx.drawImage(swirl, -rx * 1.08, -rx * 1.08, rx * 2.16, rx * 2.16);
+          ctx.restore();
+        }
+        // The rim: a dark edge, the color, and a thin highlight on the far side.
+        ctx.lineWidth = 4.5;
+        ctx.strokeStyle = 'rgba(16, 6, 44, .55)';
+        ctx.stroke();
+        ctx.lineWidth = 2.6;
         ctx.strokeStyle = color;
         ctx.stroke();
-        ctx.shadowBlur = 0;
         ctx.beginPath();
-        ctx.ellipse(x, y, this.cell * 0.24, this.cell * 0.05, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(255,255,255,${0.35 + 0.4 * pulse})`;
-        ctx.lineWidth = 1.5;
+        ctx.ellipse(x, y, rx, ry, 0, Math.PI * 1.08, Math.PI * 1.92);
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.35 * pulse})`;
         ctx.stroke();
       }
     }

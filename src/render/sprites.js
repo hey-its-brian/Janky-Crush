@@ -26,6 +26,10 @@ const FILL = { fruit: 0.84, special: 0.94, ingredient: 0.84, coconut: 0.86 };
 // about 88% of a cell.
 const IMAGE_FILL = 0.58;
 
+// One color for each portal on a board, so its two ends match.
+export const PORTAL_COLORS = ['#7cf3ff', '#c79bff', '#ffd45e', '#7dffb0', '#ff9ad0'];
+const PORTAL_PICTURE = './art/pieces/portal.webp';
+
 export function spriteKey(candy) {
   if (candy.special === 'bomb') return 'bomb';
   if (candy.special === 'ingredient') return `ing:${candy.kind}`;
@@ -140,10 +144,35 @@ async function imageSprites(k, img, px) {
 async function pictureSprite(key, img, px) {
   const canvas = blank(px);
   const ctx = canvas.getContext('2d');
+  if (key === 'lock') { // the cage is as big as a cell and sits on the fruit: no ground shadow
+    const size = px * 0.67;
+    ctx.drawImage(img, (px - size) / 2, (px - size) / 2, size, size);
+    return [key, canvas];
+  }
   if (key === 'bomb') ctx.drawImage(await rasterize(bombBack(), px, FILL.special), 0, 0);
   drawPiece(ctx, img, px, px * (key === 'bomb' ? 0.54 : key.startsWith('ing:') ? 0.6 : 0.62));
   if (key === 'bomb') ctx.drawImage(await rasterize(bombFront(), px, FILL.special), 0, 0);
   return [key, canvas];
+}
+
+// The swirl inside a portal, once in each portal color. The picture is
+// white light; the color goes over it and a little white stays on top.
+async function portalSprites(px) {
+  const img = new Image();
+  img.src = PORTAL_PICTURE;
+  try { await img.decode(); } catch { return []; }
+  return PORTAL_COLORS.map((color) => {
+    const canvas = blank(px);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, px, px);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, px, px);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(img, 0, 0, px, px);
+    return [`portal:${color}`, canvas];
+  });
 }
 
 // Resolves to { key: canvas } at `scale` device pixels per CSS px.
@@ -155,6 +184,6 @@ export async function buildSprites(scale) {
     .map(async ([key, svgText, fill]) => [key, await rasterize(svgText, px, fill)]);
   const imgSprites = FRUIT_KEYS.filter((k) => loaded[k]).map((k) => imageSprites(k, loaded[k], px));
   const pictures = Object.entries(PIECE_PICTURES).filter(([, name]) => loaded[name]).map(([key, name]) => pictureSprite(key, loaded[name], px));
-  const entries = [...await Promise.all(svgSprites), ...(await Promise.all(imgSprites)).flat(), ...await Promise.all(pictures)];
+  const entries = [...await Promise.all(svgSprites), ...(await Promise.all(imgSprites)).flat(), ...await Promise.all(pictures), ...await portalSprites(px)];
   return Object.fromEntries(entries);
 }
