@@ -67,6 +67,13 @@
       fruit. Festival Pier (71–80) has timer fruit: the count goes down
       each move, and the level is lost if it gets to zero. These levels
       are tuned harder (the bot wins about half its games).
+- [x] **Prize wheel and two more boosters.** Sweep clears a full row and
+      column; Picker takes every fruit of one kind. The first win on a
+      level gives a spin point. Five points spin the small wheel, ten the
+      grand wheel (two bundles, more coins). Eight equal slices on each:
+      boosters, a bundle of one of each, coins, and a life refill that is
+      kept until the lives run out. Saves from before the wheel get one
+      point for each level already beaten. The slices are in `src/save.js`.
 - [ ] **More level packs** of 15–30, each adding a mechanic (conveyors).
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
       feature-complete. Wrap it with Capacitor so the same code runs as a

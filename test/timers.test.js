@@ -4,6 +4,7 @@ import { Board } from '../src/engine/board.js';
 import { LevelState, setupBoard } from '../src/engine/level.js';
 import { runTurn, runBonus, playSmash } from '../src/engine/turn.js';
 import { makeRng } from '../src/rng.js';
+import { LEVELS } from '../src/levels.js';
 
 const level = (extra = {}) => ({ goal: { type: 'jelly' }, moves: 20, stars: [100, 200, 300], ...extra });
 const BOARD = [
@@ -96,4 +97,19 @@ test('a level starts with its timers and brings in more', () => {
   }
   assert.ok(most <= 3);
   assert.ok(fresh);
+});
+
+test('the jam and timer levels play through without getting stuck', () => {
+  for (const lvl of LEVELS.filter((l) => l.id > 60)) {
+    for (let seed = 1; seed <= 3; seed++) {
+      const board = setupBoard(lvl, makeRng(seed));
+      const state = new LevelState(lvl, board);
+      for (let i = 0; i < 60 && !state.isOver(); i++) {
+        const move = board.findPossibleMove();
+        assert.ok(move, `level ${lvl.id}: a move is always there`);
+        runTurn(board, state, ...move);
+      }
+      assert.ok(state.isOver(), `level ${lvl.id} ends`);
+    }
+  }
 });

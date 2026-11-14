@@ -1,11 +1,12 @@
 // Plays one level: takes swaps, runs each turn's events (from
 // engine/turn.js) through the renderer one at a time, and ends the level
 // with the bonus round. Also owns touch input and the in-level boosters
-// (Smash, Switch, Shuffle); paying for things is up to the caller.
+// (Smash, Switch, Shuffle, Sweep, Picker); paying for things is up to the
+// caller.
 
 import { Board } from './engine/board.js';
 import { setupBoard, LevelState } from './engine/level.js';
-import { playTurn, bonusRound, playSmash, playSwitch } from './engine/turn.js';
+import { playTurn, bonusRound, playSmash, playSwitch, playSweep, playPick } from './engine/turn.js';
 import { Renderer, BONUS_GAP_MAX, BONUS_TOTAL_MAX } from './render/renderer.js';
 import { makeRng } from './rng.js';
 import { play } from './audio/sfx.js';
@@ -18,6 +19,8 @@ const HINT_AFTER_MS = 6000;
 // Callouts as a chain grows (cascade number → word).
 const CHAIN_WORDS = { 3: 'Juicy!', 5: 'Fresh!', 7: 'Tropical!', 9: 'Smoothie!' };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Boosters that the player aims with one tap on a cell.
+const TAP_AIMED = ['smash', 'sweep', 'pick'];
 
 export class Game {
   // onChange(hud) after anything the HUD shows changes; onBanner(text) to
@@ -33,7 +36,7 @@ export class Game {
     this.onOutOfMoves = onOutOfMoves;
     this.onBooster = onBooster;
     this.onCleared = onCleared; // each fruit as it pops: { color, x, y } on the canvas
-    this.armed = null; // 'smash' or 'switch' while waiting for the player to aim it
+    this.armed = null; // a booster's name while it waits for the player to aim it
     this.busy = false;
     this.over = true;
     this.bindInput();
@@ -196,6 +199,21 @@ export class Game {
     await this.afterTurn();
   }
 
+  // Sweep clears the row and column of the cell; Picker takes every fruit
+  // of the kind in it.
+  async useAimed(name, at) {
+    if (name === 'smash') return this.useSmash(at);
+    if (name === 'pick' && !this.board.matchColor(...at)) return;
+    this.busy = true;
+    this.disarm();
+    clearTimeout(this.hintTimer);
+    this.started = true;
+    if (name === 'pick') this.comboShout = true;
+    await this.run((name === 'sweep' ? playSweep : playPick)(this.board, this.state, at));
+    this.onBooster(name);
+    await this.afterTurn();
+  }
+
   async useSwitch(a, b) {
     if (!this.board.canSwitch(a, b)) return;
     this.busy = true;
@@ -342,8 +360,8 @@ export class Game {
       const p = local(e);
       const cell = this.renderer.cellAt(p.x, p.y);
       if (!cell) return;
-      // Coconuts can't be picked up, only smashed.
-      if (!this.board.get(...cell) && this.armed !== 'smash') return;
+      // Coconuts can't be picked up, only smashed or swept.
+      if (!this.board.get(...cell) && this.armed !== 'smash' && this.armed !== 'sweep') return;
       c.setPointerCapture(e.pointerId);
       start = { ...p, cell, swiped: false };
       this.renderer.setHint(null);
@@ -359,7 +377,7 @@ export class Game {
       start.swiped = true;
       const [r, col] = start.cell;
       const target = Math.abs(dx) > Math.abs(dy) ? [r, col + Math.sign(dx)] : [r + Math.sign(dy), col];
-      if (this.armed === 'smash' || !this.board.playable(...target)) return;
+      if (TAP_AIMED.includes(this.armed) || !this.board.playable(...target)) return;
       if (this.armed === 'switch') this.useSwitch(start.cell, target);
       else this.attemptSwap(start.cell, target);
     });
@@ -369,7 +387,7 @@ export class Game {
       if (!start.swiped) {
         const cell = start.cell;
         const sel = this.selected;
-        if (this.armed === 'smash') this.useSmash(cell);
+        if (TAP_AIMED.includes(this.armed)) this.useAimed(this.armed, cell);
         else if (sel && sel[0] === cell[0] && sel[1] === cell[1]) this.select(null);
         else if (sel && Board.adjacent(sel, cell)) {
           if (this.armed === 'switch') this.useSwitch(sel, cell);

@@ -56,6 +56,17 @@ export function* playSmash(board, state, at) {
   yield* settle(board, state, step);
 }
 
+// Sweep a row and a column, or pick every fruit of one kind.
+export function* playSweep(board, state, at) {
+  const step = board.sweepStep(at);
+  if (step) yield* settle(board, state, step);
+}
+
+export function* playPick(board, state, at) {
+  const step = board.pickStep(at);
+  if (step) yield* settle(board, state, step);
+}
+
 // Swap any two neighbors. If they make a match or a combo it resolves as
 // usual; if not, they just trade places.
 export function* playSwitch(board, state, a, b) {

@@ -1033,6 +1033,31 @@ export class Board {
     return this.commit(pass, []);
   }
 
+  // The Sweep booster: clear the whole row and the whole column of a cell.
+  // Works on any cell of the board. Returns a step.
+  sweepStep(at) {
+    if (!this.playable(...at)) return null;
+    const pass = this.newPass();
+    this.lineBlast(pass, 'row', at[0], at);
+    this.lineBlast(pass, 'col', at[1], at);
+    this.runPass(pass);
+    return this.commit(pass, []);
+  }
+
+  // The Picker booster: take every fruit of the kind in this cell. Returns
+  // a step, or null for a cell with no fruit kind (empty, a color bomb, an
+  // ingredient, a blocker).
+  pickStep(at) {
+    const color = this.playable(...at) ? this.matchColor(...at) : null;
+    if (!color) return null;
+    const pass = this.newPass();
+    const targets = [at, ...this.cellsOfColor(color).filter((p) => key(p) !== key(at))];
+    this.startBlast(pass, { kind: 'bolts', at: [...at], targets });
+    for (const p of targets) this.mark(pass, ...p);
+    this.runPass(pass);
+    return this.commit(pass, []);
+  }
+
   // The Switch booster: swap any two neighbors, match or not.
   canSwitch(a, b) {
     return Board.adjacent(a, b) && !!this.get(...a) && !!this.get(...b) && !this.locked(...a) && !this.locked(...b);

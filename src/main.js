@@ -1,12 +1,12 @@
 import { Game } from './game.js';
 import { LEVELS } from './levels.js';
-import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES } from './save.js';
+import { Progress, PRICES, EXTRA_MOVES, BOOSTERS, DAILY_COINS, MAX_LIVES, SPIN_COST } from './save.js';
 import { buildWorld, setWorldZone } from './ui/world.js';
 import { renderMap, zoneNumber } from './ui/map.js';
 import { capy } from './art/capy.js';
 import { steam } from './art/scene.js';
 import { specialIcon, pieceIcon } from './art/pieces.js';
-import { coin, heart, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
+import { coin, heart, gift, lifeRefill, wheelIcon, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic, songFor } from './audio/music.js';
 import { announce, primeVoice, voiceInfo } from './audio/voice.js';
@@ -155,6 +155,8 @@ function showMap(then = null) {
 function updateTopbar() {
   if (!progress.active) return;
   $('coins-count').textContent = fmt(progress.coins);
+  $('spin-points').textContent = String(progress.spins);
+  $('wheel-btn').classList.toggle('ready', progress.spins >= SPIN_COST.small);
   if (progress.easy) {
     $('lives-count').textContent = '\u221e';
     $('lives-timer').textContent = 'Easy';
@@ -394,6 +396,7 @@ function showResult(r) {
       s.defused ? statRow('Timers stopped', el('span', { class: 'val', text: String(s.defused) })) : null,
       s.bonus ? statRow('Leftover moves bonus', el('span', { class: 'val', text: `+${fmt(s.bonus)}` })) : null,
       statRow('Coins earned', el('span', { class: 'val' }, icon(coin()), `+${coins.total}`)),
+      coins.spin ? statRow('Spin point', el('span', { class: 'val' }, icon(wheelIcon()), `+${coins.spin}`)) : null,
     ].filter(Boolean);
     const score = el('div', { class: 'final toon', text: '0' });
     countUp(score, r.score);
@@ -498,13 +501,24 @@ function showLives(level = null) {
     if (level) showIntro(level);
     else showLives();
   });
+  // A life refill from the prize wheel, if there is one.
+  const kept = progress.lifeRefills;
+  const useKept = button(`Use life refill (${kept} left)`, () => {
+    if (!progress.useLifeRefill()) return;
+    play('star', { i: 2 });
+    updateTopbar();
+    if (level) showIntro(level);
+    else showLives();
+  });
   openDialog(level ? 'No lives left' : 'Lives', [
     icon(heart(), 'icon big'),
     count,
     note,
     el('p', { class: 'muted', text: `One life comes back every 30 minutes, up to ${MAX_LIVES}.` }),
+    kept ? el('p', { class: 'goal-text' }, icon(lifeRefill()), `Life refills: ${kept}`) : null,
     coinTag(progress.coins),
-  ], full ? [button('OK', closeDialog)] : [button(level ? 'Wait' : 'OK', closeDialog, 'orange'), refill], { host: level ? 'worried' : 'idle' });
+  ], full ? [button('OK', closeDialog)] : [kept ? useKept : null, refill, button(level ? 'Wait' : 'OK', closeDialog, 'orange')].filter(Boolean),
+  { host: level ? 'worried' : 'idle', stack: !full && kept > 0 });
   refresh();
   livesDialogOpen = refresh;
 }
@@ -534,9 +548,104 @@ function showShop() {
   ], [button('Done', closeDialog)], { host: 'cheer' });
 }
 
+// ---- the prize wheel ------------------------------------------------------------------
+
+const WHEEL_COLORS = ['#ffd1e6', '#fff1b8', '#c9f1ff', '#dcf8c6'];
+const prizeIcon = (p) => (p.type === 'booster' ? BOOSTER_ICONS[p.name]() : p.type === 'bundle' ? gift() : p.type === 'life' ? lifeRefill() : coin());
+const prizeLabel = (p) => (p.type === 'coins' ? String(p.n) : p.type === 'bundle' ? `\u00d7${BOOSTERS.length * p.n}` : `\u00d7${p.n}`);
+const prizeName = (p) => (p.type === 'booster' ? `${BOOSTER_NAMES[p.name]} \u00d7${p.n}`
+  : p.type === 'bundle' ? 'A bundle of power-ups'
+  : p.type === 'life' ? 'A life refill'
+  : `${p.n} coins`);
+const prizeNote = (p) => (p.type === 'booster' ? BOOSTER_INFO[p.name]
+  : p.type === 'bundle' ? `One of each: ${listing(BOOSTERS.map((b) => BOOSTER_NAMES[b]))}.`
+  : p.type === 'life' ? 'Keep it for when you run out of lives. It brings them all back.'
+  : 'Spend them in the shop.');
+
+// The wheel: eight slices of the same size, slice 0 at the top.
+function wheelArt(prizes) {
+  const step = 360 / prizes.length;
+  const stops = prizes.map((_, i) => `${WHEEL_COLORS[i % WHEEL_COLORS.length]} ${i * step}deg ${(i + 1) * step}deg`).join(', ');
+  const wheel = el('div', { class: 'wheel', style: `background:conic-gradient(from ${-step / 2}deg, ${stops})` },
+    ...prizes.map((p, i) => el('div', { class: 'slice', style: `transform:rotate(${i * step}deg)` },
+      el('span', { class: p.type === 'bundle' || p.type === 'life' ? 'top' : '' }, icon(prizeIcon(p)), el('b', { text: prizeLabel(p) })))));
+  return { wheel, wrap: el('div', { class: 'wheel-wrap' }, wheel, el('i', { class: 'wheel-hub' }), el('i', { class: 'wheel-pointer' })) };
+}
+
+let spinning = false;
+
+// The prize wheel dialog. `kind` is 'small' (5 points) or 'grand' (10).
+function showWheel(kind = 'small') {
+  if (spinning) return;
+  const prizes = progress.wheel(kind);
+  const { wheel, wrap } = wheelArt(prizes);
+  const tab = (k, text) => {
+    const b = el('button', { class: `tab${k === kind ? ' on' : ''}`, type: 'button', text });
+    b.addEventListener('click', () => { tapFeedback(); showWheel(k); });
+    return b;
+  };
+  const cost = SPIN_COST[kind];
+  const spin = button(`Spin \u00b7 ${cost}`, async () => {
+    const won = progress.spin(kind);
+    if (!won) return;
+    spinning = true;
+    for (const b of $('dialog').querySelectorAll('button')) b.disabled = true;
+    points.lastChild.textContent = ` Spin points: ${progress.spins}`;
+    updateTopbar();
+    await turnWheel(wheel, won.index, prizes.length);
+    spinning = false;
+    showPrize(won.prize, kind);
+  });
+  if (progress.spins < cost) spin.disabled = true;
+  const points = el('p', { class: 'goal-text' }, icon(wheelIcon()), ` Spin points: ${progress.spins}`);
+  openDialog('Prize wheel', [
+    el('div', { class: 'tabs' }, tab('small', `${SPIN_COST.small} points`), tab('grand', `${SPIN_COST.grand} points`)),
+    wrap,
+    points,
+    el('p', { class: 'muted', text: kind === 'small'
+      ? 'Beat a level for the first time to get a spin point. Save 10 points for the grand wheel: its prizes are bigger.'
+      : 'The grand wheel: two bundles and more coins.' }),
+  ], [button('Close', closeDialog, 'orange'), spin], { host: 'cheer' });
+}
+
+// Turn the wheel until slice `index` is under the pointer: fast, then
+// slower and slower, with a tick at each slice that goes by.
+function turnWheel(wheel, index, n) {
+  const step = 360 / n;
+  const end = 360 * 5 - index * step + (Math.random() - 0.5) * step * 0.6;
+  const t0 = performance.now(), duration = 4200;
+  let last = 0;
+  return new Promise((resolve) => {
+    const frame = (now) => {
+      const t = Math.min(1, (now - t0) / duration);
+      const angle = end * (1 - (1 - t) ** 4);
+      wheel.style.transform = `rotate(${angle}deg)`;
+      const passed = Math.floor((angle + step / 2) / step);
+      if (passed !== last) {
+        last = passed;
+        play('tick');
+        haptic(1);
+      }
+      if (t < 1) requestAnimationFrame(frame);
+      else setTimeout(resolve, 450);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+
+function showPrize(prize, kind) {
+  play('win');
+  updateTopbar();
+  openDialog('You won!', [
+    icon(prizeIcon(prize), 'icon big'),
+    el('div', { class: 'big-text toon', text: prizeName(prize) }),
+    el('p', { class: 'goal-text', text: prizeNote(prize) }),
+  ], [button('Wheel', () => showWheel(kind), 'orange'), button('Great!', closeDialog)], { host: 'cheer', confetti: true });
+}
+
 // ---- boosters in a level -----------------------------------------------------------
 
-const AIM_HINT = { smash: 'Tap a fruit to smash!', switch: 'Swap any two fruits!' };
+const AIM_HINT = { smash: 'Tap a fruit to smash!', switch: 'Swap any two fruits!', sweep: 'Tap to clear a row and a column!', pick: 'Tap a fruit to take all of its kind!' };
 
 function renderBoosters() {
   const bar = $('boosters');
@@ -782,6 +891,8 @@ $('coins-pill').addEventListener('click', () => { tapFeedback(); showShop(); });
 $('heart-icon').innerHTML = heart(); // our own art, never user input
 $('top-avatar-art').innerHTML = capy('idle');
 $('coin-icon').innerHTML = coin();
+$('wheel-icon').innerHTML = wheelIcon();
+$('wheel-btn').addEventListener('click', () => { tapFeedback(); showWheel(); });
 
 // iPhones only allow sound after a tap, so wake the audio on the first one
 // (and after the app comes back from the background).
