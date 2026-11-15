@@ -55,6 +55,7 @@ export const BONUS_GAP_MAX = 70;       // bonus round: leftover moves turning in
 export const BONUS_TOTAL_MAX = 900;    // ...all within this
 const COLLECT_MS = 300;         // an ingredient dropping out of the exit
 const SPREAD_MS = 360;          // jam growing over a fruit
+const CONVEY_MS = 300;          // the conveyors moving one cell
 
 const ease = {
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
@@ -261,7 +262,7 @@ export class Renderer {
     const shaking = this.shake && now - this.shake.born < this.shake.life;
     // Specials pulse, so keep drawing while any are on the board.
     // Timer fruit glow and pulse too.
-    const lit = [...this.visuals.values()].some((v) => (v.candy.special && v.candy.special !== 'ingredient') || v.candy.timer != null);
+    const lit = this.board.belts.length > 0 || [...this.visuals.values()].some((v) => (v.candy.special && v.candy.special !== 'ingredient') || v.candy.timer != null);
     const busy = this.jiggling.size || shaking || this.tweens.length || this.particles.length || this.effects.length || lit || this.selected || this.hint || this.aiming;
     if (busy) requestAnimationFrame((t) => this.frame(t));
     else this.running = false;
@@ -533,6 +534,120 @@ export class Renderer {
     this.shake = { born: now, life: 140, amp: h.left === 0 ? 3 : 2 };
     this.cue(h.type === 'mochi' || h.type === 'gummy' || h.type === 'jam' ? 'squish' : 'crack', { x: this.board.cols > 1 ? (h.at[1] / (this.board.cols - 1)) * 2 - 1 : 0, last: h.left === 0 });
     this.requestDraw();
+  }
+
+  // ---- conveyors ---------------------------------------------------------------
+
+  // The belts move one cell and carry their pieces along. A piece that
+  // leaves the end of a belt shrinks away there and pops in at the start.
+  async animateConvey(moves) {
+    const jobs = moves.map((m) => ({ v: this.visuals.get(m.id), m })).filter((j) => j.v);
+    this.cue('swap');
+    this.beltShift = { born: performance.now(), life: CONVEY_MS };
+    await this.tween(CONVEY_MS, (k) => {
+      for (const { v, m } of jobs) {
+        if (m.wrap) {
+          // Out along the belt's direction, then in from behind the start.
+          const half = k < 0.5;
+          const u = half ? k * 2 : (k - 0.5) * 2;
+          v.row = half ? m.from[0] : m.to[0];
+          v.col = half ? m.from[1] : m.to[1];
+          v.scale = half ? 1 - u : u;
+          v.alpha = half ? 1 - u : u;
+        } else {
+          v.row = m.from[0] + (m.to[0] - m.from[0]) * k;
+          v.col = m.from[1] + (m.to[1] - m.from[1]) * k;
+        }
+      }
+    }, ease.inOut);
+    for (const { v, m } of jobs) {
+      v.row = m.to[0];
+      v.col = m.to[1];
+      v.scale = 1;
+      v.alpha = 1;
+    }
+    this.beltShift = null;
+    this.requestDraw();
+  }
+
+  // Which way each cell of a belt moves, and whether the belt is a ring.
+  beltDirs(path) {
+    const n = path.length;
+    const ring = Math.abs(path[0][0] - path[n - 1][0]) + Math.abs(path[0][1] - path[n - 1][1]) === 1;
+    return path.map(([r, c], i) => {
+      // Toward the next cell, or (at the end of an open belt) the same
+      // way as the piece came in.
+      const last = i === n - 1 && !ring;
+      const o = last ? path[i - 1] : path[(i + 1) % n];
+      return { r, c, dr: last ? r - o[0] : o[0] - r, dc: last ? c - o[1] : o[1] - c, last, first: i === 0 && !ring };
+    });
+  }
+
+  // The belts, under the pieces: an orange frame around each cell. It has
+  // no fill, so foam under a belt still shows.
+  drawBelts() {
+    const { ctx, board } = this;
+    if (!board.belts.length) return;
+    ctx.save();
+    for (const path of board.belts) {
+      for (const [r, c] of path) {
+        const x = PAD + c * this.pitch, y = PAD + r * this.pitch, s = this.cell;
+        ctx.beginPath();
+        ctx.roundRect(x + 2, y + 2, s - 4, s - 4, 8);
+        ctx.fillStyle = 'rgba(255, 150, 40, .16)';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(255, 170, 60, .95)';
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 240, 200, .9)';
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // Over the pieces: an arrow on the edge between each two cells of a
+  // belt, and at the two ends of an open belt. The arrows slide the way
+  // the belt moves and jump ahead when it does.
+  drawBeltArrows(now) {
+    const { ctx, board } = this;
+    if (!board.belts.length) return;
+    const bob = Math.sin(now / 260) * 0.05;
+    const push = this.beltShift ? Math.sin(Math.min(1, (now - this.beltShift.born) / this.beltShift.life) * Math.PI) * 0.3 : 0;
+    const arrow = (x, y, dr, dc, size) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.atan2(dr, dc));
+      ctx.beginPath();
+      ctx.moveTo(size * 0.6, 0);
+      ctx.lineTo(-size * 0.45, -size * 0.6);
+      ctx.lineTo(-size * 0.15, 0);
+      ctx.lineTo(-size * 0.45, size * 0.6);
+      ctx.closePath();
+      ctx.fillStyle = '#ff9a1f';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(60, 20, 0, .5)';
+      ctx.shadowBlur = 3;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fill();
+      ctx.restore();
+    };
+    const size = this.cell * 0.2;
+    for (const path of board.belts) {
+      for (const d of this.beltDirs(path)) {
+        const { x, y } = this.center(d.r, d.c);
+        const along = (0.5 + bob + push) * this.pitch;
+        // On the edge toward the next cell: for the last cell of an open
+        // belt this is the way out.
+        arrow(x + d.dc * along, y + d.dr * along, d.dr, d.dc, d.last ? size * 1.15 : size);
+        // The way in, at the start of an open belt.
+        if (d.first) arrow(x - d.dc * (0.5 - bob - push) * this.pitch, y - d.dr * (0.5 - bob - push) * this.pitch, d.dr, d.dc, size * 1.15);
+      }
+    }
   }
 
   // ---- jam and timer fruit --------------------------------------------------
@@ -1420,6 +1535,8 @@ export class Renderer {
       ctx.restore();
     }
 
+    this.drawBelts();
+
     // Candies spawning above the board shouldn't show over the frame.
     ctx.save();
     ctx.beginPath();
@@ -1497,6 +1614,7 @@ export class Renderer {
           const { x, y } = this.center(r, c);
           ctx.drawImage(this.sprites.lock, x - size / 2, y - size / 2, size, size);
         }
+    this.drawBeltArrows(now);
     this.drawPortals(now);
     ctx.restore();
 

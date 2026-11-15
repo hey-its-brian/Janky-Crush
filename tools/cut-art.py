@@ -44,6 +44,10 @@ SPRITES = {
     'hedgehog': ('model', 320, True),
     'stall': ('model', 384, True), 'lanternpole': ('model', 400, True), 'rockets': ('model', 288, True),
     'fox': ('model', 320, True),
+    'watermill': ('model', 384, True), 'willow': ('model', 400, True), 'sacks': ('model', 288, True),
+    'otter': ('model', 320, True),
+    'crystals': ('model', 400, True), 'cavehut': ('model', 384, True), 'mushrooms': ('model', 288, True),
+    'mole': ('model', 320, True),
 }
 
 _session = None

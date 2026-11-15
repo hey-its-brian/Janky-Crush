@@ -62,11 +62,21 @@ const ZONES = [
     props: ['stall', 'lanternpole', 'stall', 'lanternpole'], small: ['rockets'],
     critters: ['fox'], flowers: ['orange', 'white'],
   },
+  {
+    from: 81, name: 'Mill Stream', ground: ['#a8e07a', '#86cf5e'],
+    props: ['willow', 'watermill', 'willow', 'willow'], small: ['sacks'],
+    critters: ['otter'], flowers: ['white', 'orange', 'pink'],
+  },
+  {
+    from: 91, name: 'Crystal Cavern', ground: ['#6b5aa8', '#4f418a'], night: true,
+    props: ['crystals', 'cavehut', 'crystals', 'crystals'], small: ['mushrooms'],
+    critters: ['mole'], flowers: ['blue', 'pink'],
+  },
 ];
 // Trees sway a little; buildings do not.
-const TREES = ['yuzutree', 'palm', 'palm:flip', 'sakura', 'pine', 'bamboo', 'lanterntree', 'berrybush'];
+const TREES = ['yuzutree', 'palm', 'palm:flip', 'sakura', 'pine', 'bamboo', 'lanterntree', 'berrybush', 'willow', 'crystals'];
 // Width and height of the small props, in px.
-const SMALL = { torch: [26, 100], lantern: [62, 104], pine: [44, 62], fireflyjar: [40, 66], reeds: [48, 62], rockets: [48, 58] };
+const SMALL = { torch: [26, 100], lantern: [62, 104], pine: [44, 62], fireflyjar: [40, 66], reeds: [48, 62], rockets: [48, 58], sacks: [52, 46], mushrooms: [46, 50] };
 
 const zoneOf = (id) => [...ZONES].reverse().find((z) => id >= z.from);
 // Which zone (1-based) a level is in.

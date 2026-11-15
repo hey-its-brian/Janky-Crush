@@ -254,6 +254,9 @@ export class Game {
         case 'explode':
           await r.animateExplode(ev.timers);
           break;
+        case 'convey':
+          await r.animateConvey(ev.moves);
+          break;
         case 'spread':
           await r.animateSpread(ev);
           break;

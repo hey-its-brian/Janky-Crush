@@ -11,6 +11,7 @@
 //   { type: 'explode', timers }        a timer got to zero: the level is lost
 //   { type: 'spread', from, to, eaten } jam grew over a fruit
 //   { type: 'defuse', ids }            the level is won: timers stop
+//   { type: 'convey', moves }          the conveyors moved: [{ id, from, to, wrap }]
 
 export const POINTS_PER_INGREDIENT = 1000;
 
@@ -29,10 +30,20 @@ export function* playTurn(board, state, a, b) {
 }
 
 // What the board does after each move of the player (not after a
-// booster): timer fruit count down, and jam grows if none of it was
-// cleared in the move.
+// booster): the conveyors move (and any match that they make clears),
+// timer fruit count down, and jam grows if none of it was cleared in the
+// move.
 function* afterMove(board, state, seen) {
   if (state.isComplete() || state.scoreReached()) return;
+  if (board.belts.length) {
+    const moves = board.convey();
+    if (moves.length) yield { type: 'convey', moves };
+    yield* fall(board, state); // an ingredient can ride a belt to an exit
+    const step = board.resolveStep(null);
+    if (step) yield* settle(board, state, step, seen);
+    else if (!board.findPossibleMove()) yield { type: 'shuffle', moves: board.shuffle() };
+    if (state.isComplete() || state.scoreReached()) return;
+  }
   const { ticked, exploded } = board.tickTimers();
   if (ticked.length) yield { type: 'tick', timers: ticked };
   if (exploded.length) {

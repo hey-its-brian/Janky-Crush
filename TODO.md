@@ -74,7 +74,14 @@
       boosters, a bundle of one of each, coins, and a life refill that is
       kept until the lives run out. Saves from before the wheel get one
       point for each level already beaten. The slices are in `src/save.js`.
-- [ ] **More level packs** of 15–30, each adding a mechanic (conveyors).
+- [x] **Phase 5, pack 3: levels 81–100.** Mill Stream (81–90) has
+      conveyors: after each move, everything on a belt goes one cell along
+      it. A belt is a short line (the piece at the end comes back in at the
+      start) or a closed ring. Crystal Cavern (91–100) has no new mechanic:
+      each level mixes two or three of the old ones. Level 100 is a
+      milestone board, not the end: the "more soon" sign stays.
+- [ ] **More level packs** after 100: about one new mechanic for each 20
+      levels, and more mixes of the old ones.
 - [ ] **Native iPhone app (not listed in any store)**, once the game is
       feature-complete. Wrap it with Capacitor so the same code runs as a
       real app, and install through TestFlight internal testing (no App

@@ -1,4 +1,4 @@
-// Levels 1–80. Each level's layout, goal and number of fruit colors is
+// Levels 1–100. Each level's layout, goal and number of fruit colors is
 // designed here; its moves (for every goal but score) and star scores come
 // from level-tuning.js, which tools/tune.mjs writes by having a computer
 // player play every level many times.
@@ -11,7 +11,9 @@
 // src/engine/level.js. `timers` puts timer fruit on the board:
 // { start, fuse, every, max } is `start` of them at the beginning, each
 // with `fuse` moves on its count, and a new one every `every` moves while
-// fewer than `max` are there. A count that gets to zero loses the level. `dispensers` put a spout above a column that drops
+// fewer than `max` are there. A count that gets to zero loses the level.
+// `belts` are conveyors: each is a list of cells, and after each move
+// everything on a belt goes one cell along it. `dispensers` put a spout above a column that drops
 // in a special or a gummy every few refills. `portals` join cells:
 // [fromRow, fromCol, toRow, toCol, color]: fruit that falls out of the
 // bottom of the first cell comes in at the top of the second. Every part
@@ -35,6 +37,16 @@ const ALL = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 const MIRROR = [8, 7, 6, 5, 4, 3, 2, 1, 0];
 const across = (fromRow, fromCols, toRow, toCols, color = null) =>
   fromCols.map((c, i) => [fromRow, c, toRow, toCols[i], color ?? i]);
+
+// Conveyors. A belt along a row or a column, from one cell to another
+// (the order gives the direction), and a closed ring that turns clockwise
+// around a rectangle.
+const span = (from, to) => Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => from + i * Math.sign(to - from));
+const beltRow = (r, from, to) => span(from, to).map((c) => [r, c]);
+const beltCol = (c, from, to) => span(from, to).map((r) => [r, c]);
+const beltRing = (r0, c0, r1, c1) => [
+  ...beltRow(r0, c0, c1 - 1), ...beltCol(c1, r0, r1 - 1), ...beltRow(r1, c1, c0 + 1), ...beltCol(c0, r1, r0 + 1),
+];
 
 // ---- board shapes ----------------------------------------------------------
 
@@ -385,6 +397,127 @@ export const LEVEL_DESIGNS = [
   {
     id: 80, goal: { type: 'jelly' }, colors: 5,
     layout: ['222222222', '2.......2', '2.11111.2', '2.1...1.2', '2.1.j.1.2', '2.1...1.2', '2.11111.2', '2j.....j2', '222222222'],
+    timers: { start: 2, fuse: 13, every: 6, max: 3 },
+  },
+
+  // ---- Mill Stream: conveyors ---------------------------------------------------
+
+  // 81–85: conveyors, then conveyors with each kind of goal
+  {
+    id: 81, goal: { type: 'score' }, moves: 20, colors: 5,
+    tip: 'New: conveyors. After each move, the fruit on a belt goes one cell along it.',
+    layout: FULL,
+    belts: [beltRow(4, 2, 6)],
+  },
+  {
+    id: 82, goal: { type: 'jelly' }, colors: 5,
+    layout: fill('1'),
+    belts: [beltRow(2, 1, 4), beltRow(6, 7, 4)],
+  },
+  {
+    id: 83, goal: { type: 'collect', targets: { r: 45, y: 45 } }, colors: 5,
+    tip: 'A ring belt turns in a circle. Nothing leaves it.',
+    layout: FULL,
+    belts: [beltRing(3, 3, 5, 5)],
+  },
+  {
+    id: 84, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.........', '.K.K.K.K.', '..M.M.M..', '.K.K.K.K.', '..M.M.M..', '.K.K.K.K.', '.........', '.........'],
+    belts: [beltCol(0, 2, 6), beltCol(8, 6, 2)],
+  },
+  {
+    id: 85, goal: { type: 'ingredients', count: 3 }, colors: 5,
+    tip: 'Friends ride the belts too.',
+    layout: NARROW,
+    belts: [beltRow(3, 2, 6), beltRow(6, 6, 2)],
+  },
+
+  // 86–90: conveyors with everything else
+  {
+    id: 86, goal: { type: 'score' }, moves: 25, colors: 5,
+    layout: FULL,
+    belts: [beltRing(1, 1, 3, 3), beltRing(5, 5, 7, 7)],
+  },
+  {
+    id: 87, goal: { type: 'jelly' }, colors: 5,
+    layout: ['.........', '.2222222.', '.2222222.', '.........', '.2222222.', '.........', '.2222222.', '.2222222.', '.........'],
+    belts: [beltRow(3, 2, 6), beltRow(5, 6, 2)],
+  },
+  {
+    // The belt down the middle keeps the two patches of jam apart.
+    id: 88, goal: { type: 'blockers' }, colors: 5,
+    tip: 'Jam does not grow onto a conveyor.',
+    layout: [...fill('.', 5), 'j.......j', 'jj.....jj', 'jjj...jjj', 'jjj...jjj'],
+    belts: [beltCol(4, 0, 8)],
+  },
+  {
+    id: 89, goal: { type: 'collect', targets: { o: 55, b: 55 } }, colors: 5,
+    layout: FULL,
+    belts: [beltRing(2, 2, 6, 6)],
+    timers: { start: 2, fuse: 11, every: 5, max: 3 },
+  },
+  {
+    id: 90, goal: { type: 'jelly' }, colors: 5,
+    layout: ['111111111', '1.......1', '1.K...K.1', '1.......1', '111111111', '1.......1', '1.K...K.1', '1.......1', '111111111'],
+    belts: [beltRow(4, 1, 7)],
+  },
+
+  // ---- Crystal Cavern: all the mechanics, mixed ----------------------------------
+
+  {
+    id: 91, goal: { type: 'jelly' }, colors: 5,
+    tip: 'From here, the levels mix what you know.',
+    layout: ['..l...l..', '.1111111.', '.1111111.', '         ', '.1111111.', '.1l111l1.', '.1111111.', '.1111111.', '.........'],
+    portals: across(2, ALL, 4, MIRROR),
+  },
+  {
+    id: 92, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.M.M.M.M.', '.........', '.........', '.........', '.........', 'j.......j', 'jj.....jj', 'jjj...jjj'],
+    timers: { start: 1, fuse: 12, every: 6, max: 2 },
+  },
+  {
+    id: 93, goal: { type: 'collect', targets: { g: 35, p: 35 } }, colors: 6,
+    layout: ['....j....', '.........', '.........', '.........', '.........', '.........', '.........', '.........', 'jj.....jj'],
+    belts: [beltRing(3, 3, 5, 5)],
+  },
+  {
+    id: 94, goal: { type: 'ingredients', count: 3 }, colors: 5,
+    layout: ['.........', '.........', '.K.K.K.K.', '.........', '         ', '.........', '..k.k.k..', '.........', '.........'],
+    portals: across(3, ALL, 5, MIRROR),
+  },
+  {
+    id: 95, goal: { type: 'score' }, moves: 28, colors: 5,
+    layout: DIAMOND,
+    belts: [beltRow(4, 2, 6)],
+    timers: { start: 2, fuse: 12, every: 5, max: 3 },
+  },
+  {
+    id: 96, goal: { type: 'jelly' }, colors: 5,
+    layout: ['222222222', '2l11111l2', '21.....12', '21.....12', '21..J..12', '21.....12', '21.....12', '2l1JJJ1l2', '222JJJ222'],
+  },
+  {
+    id: 97, goal: { type: 'blockers' }, colors: 5,
+    layout: ['.........', '.u.u.u.u.', 'u.u.u.u.u', 'M.M.M.M.M', '.........', '.K.K.K.K.', '.j.....j.', '.j.....j.', '.........'],
+    belts: [beltRow(4, 2, 6), beltRow(8, 6, 2)],
+    dispensers: [{ col: 2, kind: 'gummy', every: 5 }, { col: 6, kind: 'gummy', every: 5 }],
+  },
+  {
+    id: 98, goal: { type: 'collect', targets: { r: 22, o: 22, y: 22 } }, colors: 5,
+    layout: ['.........', ' ....... ', '  .....  ', '         ', '         ', '         ', '  .....  ', ' ....... ', '.........'],
+    portals: across(2, [2, 3, 4, 5, 6], 6, [6, 5, 4, 3, 2]),
+    timers: { start: 2, fuse: 18, every: 7, max: 3 },
+  },
+  {
+    id: 99, goal: { type: 'ingredients', count: 4 }, colors: 5,
+    layout: [...fill('.', 5), '.j.j.j.j.', ...fill('.', 3)],
+    belts: [beltRow(3, 2, 6), beltRow(7, 6, 2)],
+  },
+  {
+    // The milestone board: every mechanic from the last forty levels.
+    id: 100, goal: { type: 'jelly' }, colors: 5,
+    tip: 'Level 100! Jam, timers and a ring belt, all in one board.',
+    layout: ['222222222', '2.......2', '2.11111.2', '2.12J21.2', '2.12J21.2', '2.12J21.2', '2.11111.2', '2.......2', '222222222'],
+    belts: [beltRing(2, 2, 6, 6)],
     timers: { start: 2, fuse: 13, every: 6, max: 3 },
   },
 ];

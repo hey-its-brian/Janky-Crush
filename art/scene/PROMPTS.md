@@ -113,3 +113,28 @@ lantern light".
 > quarter: steaming dark teal hot spring water with glowing floating paper
 > lanterns, wooden pier posts and smooth rounded rocks at the left and
 > right corners, a few sparkles.
+
+## zone9.webp: Mill Stream
+
+> A cozy hot spring by an old water mill on a bright fresh morning. Top
+> quarter: clear blue sky with fluffy clouds, green hills, a wooden water
+> mill with a big turning water wheel at the left edge, raised bamboo
+> water flumes carrying streams of water across the top, leafy trees at
+> the right edge. Middle: calm open turquoise water with soft wisps of
+> steam. Bottom quarter: clear steaming turquoise hot spring water, smooth
+> rounded mossy rocks at the left and right corners, a small wooden
+> bucket, a few floating oranges, little waterfalls from bamboo spouts.
+
+## zone10.webp: Crystal Cavern
+
+For this one, "warm sunlight from the upper left" in the ending is "soft
+crystal light".
+
+> A hidden hot spring inside a glowing crystal cavern. Top quarter: dark
+> purple cave ceiling with hanging stalactites, big glowing crystals in
+> pink, cyan and violet at the left and right edges, a shaft of soft light
+> from a hole in the roof, tiny sparkles in the air. Middle: calm open
+> deep teal water that glows softly, with wisps of steam. Bottom quarter:
+> steaming glowing teal hot spring water, clusters of bright crystals and
+> smooth rounded dark rocks at the left and right corners, small glowing
+> mushrooms.

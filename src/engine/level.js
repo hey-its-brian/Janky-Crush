@@ -50,6 +50,9 @@ export function setupBoard(level, rng) {
     // Ingredients replace candies, which can use up the only legal move.
     if (!board.findPossibleMove()) board.shuffle();
   }
+  // `belts` in a level: [[[r, c], [r, c], ...], ...], each belt a list of
+  // cells in the order that it moves.
+  board.belts = level.belts ?? [];
   // `timers` in a level: { start, fuse, every, max }. `start` timer fruit
   // are on the board at the beginning, each with `fuse` on its count. A
   // new one drops in every `every` moves while fewer than `max` are there.

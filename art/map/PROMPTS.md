@@ -67,6 +67,14 @@ Size is 1024 x 1024 unless the table gives a different size.
 | lanternpole | 7 | A cute tall wooden festival pole with a golden ball on top, hung with strings of glowing round paper lanterns in red, yellow and blue and little triangle pennant flags |
 | rockets | 7 | A small wooden crate holding three chunky colorful firework rockets with striped bodies, pointed cone tops and short fuses |
 | fox | 7 | A cute chubby orange fox with a white belly and a fluffy white-tipped tail, sitting and holding a glowing sparkler stick in one paw, happy face with rosy cheeks |
+| watermill | 7 | A small cute wooden water mill house with a red tile roof and a big round wooden water wheel on its side, a little stream of water falling from the wheel |
+| willow | 7 | A cute round leafy willow tree with long soft drooping green branches and a short thick brown trunk |
+| sacks | 7 | A cute small pile of three plump flour sacks tied with rope, next to a little wooden wheelbarrow |
+| otter | 7 | A cute chubby brown otter with a cream belly, standing and hugging a big orange in its paws, happy face with rosy cheeks, small round ears |
+| crystals | 7 | A cute tall cluster of big chunky glowing crystals in pink, cyan and violet growing from a small dark rock base |
+| cavehut | 7 | A small cute round stone cave entrance hut with a wooden door, a glowing lantern hanging beside it, and pink and cyan crystals growing on its roof |
+| mushrooms | 7 | A cute small group of three chunky glowing mushrooms with cyan and violet caps with white dots, on a tiny mossy rock |
+| mole | 7 | A cute chubby grey mole with a pink nose and big pink paws, wearing a small yellow miner helmet with a lamp, standing and holding a pink crystal, happy face with rosy cheeks |
 | shell | 12 | A cute chunky spiral sea shell, pastel pink and cream |
 | starfish | 7 | A cute chubby orange starfish with a happy face, lying flat, seen from above |
 | sailboat | 7 | A cute small toy sailboat with a chunky wooden hull and one red and white striped sail (green background, no water) |

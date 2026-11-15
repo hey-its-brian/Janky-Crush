@@ -67,6 +67,10 @@ export class Board {
     // bottom of `from` comes in at the top of `to`.
     this.portals = [];
     this.paths = null; // falling paths, built when first needed
+    // Conveyors: each belt is a list of cells in the order that it moves.
+    // After each move of the player, everything on a belt goes one cell
+    // along, and the last cell's piece comes back in at the first.
+    this.belts = [];
     // Timer fruit: a fruit with a count (`timer`) that goes down by one
     // each move. { fuse, every, max }: a new one, with `fuse` on its
     // count, drops in every `every` moves while fewer than `max` are on
@@ -90,6 +94,7 @@ export class Board {
     b.lock = this.lock.map((row) => [...row]);
     b.portals = this.portals;
     b.paths = this.paths;
+    b.belts = this.belts;
     b.timerRule = this.timerRule;
     b.timerDue = this.timerDue;
     return b;
@@ -922,6 +927,33 @@ export class Board {
     return out;
   }
 
+  // ---- conveyors -----------------------------------------------------------
+
+  onBelt(r, c) {
+    return this.belts.some((path) => path.some((p) => p[0] === r && p[1] === c));
+  }
+
+  // Every belt moves one cell. A locked fruit takes its lock with it.
+  // Returns [{ id, from, to, wrap }]; `wrap` is a piece that left the end
+  // of a belt and came back in at its start (not for a belt that is a
+  // closed ring, where the end is next to the start).
+  convey() {
+    const moves = [];
+    for (const path of this.belts) {
+      const n = path.length;
+      const cells = path.map(([r, c]) => this.grid[r][c]);
+      const locks = path.map(([r, c]) => this.lock[r][c]);
+      const ring = Math.abs(path[0][0] - path[n - 1][0]) + Math.abs(path[0][1] - path[n - 1][1]) === 1;
+      path.forEach(([r, c], i) => {
+        const j = (i - 1 + n) % n;
+        this.grid[r][c] = cells[j];
+        this.lock[r][c] = locks[j];
+        if (cells[j]) moves.push({ id: cells[j].id, from: path[j], to: [r, c], wrap: i === 0 && !ring });
+      });
+    }
+    return moves;
+  }
+
   // ---- jam -----------------------------------------------------------------
 
   jamCount() {
@@ -933,7 +965,8 @@ export class Board {
 
   // Jam grows by one cell: it covers a fruit next to it, and the fruit is
   // gone. It takes a plain fruit if it can, a special if it must, and never
-  // a locked fruit, a timer fruit, an ingredient or a gummy. Returns
+  // a locked fruit, a timer fruit, an ingredient or a gummy. It does not
+  // grow onto a conveyor. Returns
   // { from, to, eaten }, or null if no jam has room to grow.
   spreadJam() {
     const plain = [], special = [];
@@ -943,7 +976,7 @@ export class Board {
         for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           const to = [r + dr, c + dc];
           const cell = this.get(...to);
-          if (!cell || fixedPiece(cell) || this.lock[to[0]][to[1]] || cell.timer != null) continue;
+          if (!cell || fixedPiece(cell) || this.lock[to[0]][to[1]] || cell.timer != null || this.onBelt(...to)) continue;
           (cell.special ? special : plain).push({ from: [r, c], to });
         }
       }
