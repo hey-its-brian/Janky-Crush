@@ -1,0 +1,11 @@
+{
+  "appId": "com.mothmantech.capymatch",
+  "appName": "Yuzu Springs",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#89a54f",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false
+  }
+}
