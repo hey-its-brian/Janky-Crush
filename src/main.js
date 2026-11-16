@@ -962,8 +962,10 @@ if (!isNative && 'serviceWorker' in navigator && window.isSecureContext) {
 }
 
 // A shortcut for tests: index.html?dev=level:62 opens that level and
-// ?dev=map opens the map, in the Easy save. The simulator checks use it.
-const dev = new URLSearchParams(location.search).get('dev');
+// ?dev=map opens the map, in the Easy save. The native app cannot start
+// with a query, so the simulator checks use a copy of index.html that has
+// <html data-dev="map"> (or "level:62").
+const dev = new URLSearchParams(location.search).get('dev') ?? document.documentElement.dataset.dev;
 if (dev) {
   progress.use('easy');
   const level = LEVELS.find((l) => l.id === Number(dev.split(':')[1]));
