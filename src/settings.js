@@ -1,8 +1,8 @@
-// Player settings (sound, music, announcer voice, haptics), saved on the phone. Like the save
+// Player settings (sound, music, haptics), saved on the phone. Like the save
 // file, storage may be blocked, so reads and writes are guarded.
 
 const KEY = 'janky-crush:settings:v1';
-const DEFAULTS = { sfx: true, music: true, voice: true, haptics: true };
+const DEFAULTS = { sfx: true, music: true, haptics: true };
 
 let current = { ...DEFAULTS };
 try {

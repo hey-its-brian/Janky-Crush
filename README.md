@@ -77,8 +77,8 @@ bump `VERSION`, or the installed app keeps serving the old copy.
 | `src/engine/level.js` | Level setup from a layout, and goal tracking. |
 | `src/engine/turn.js` | A turn, a booster (Smash, Switch) and the end-of-level bonus, as sequences of events. |
 | `src/save.js` | The Normal and Easy save files: levels, coins, boosters, lives, spin points and the daily bonus, plus the coin prices and payouts and the prize wheel's slices. Tested in `test/save.test.js`. |
-| `src/settings.js` | Sound, music, announcer voice and haptics switches. |
-| `src/audio/` | Synthesized sound effects and instruments, the music, the announcer voice, and haptic taps. |
+| `src/settings.js` | Sound, music and haptics switches. |
+| `src/audio/` | Synthesized sound effects and instruments, the music, and haptic taps. |
 | `art/pieces/` | The board pieces. The six fruit (strawberry, orange, star fruit, pear, blueberry, grapes) are 3D renders from `tools/render-pieces.py` (Blender). The color bomb, coconut, mochi, gummy cube, jam, duck and pup are generated pictures cut out by `tools/cut-art.py`; `PROMPTS.md` has the prompts. |
 | `art/scene/` | The backdrop behind the board, one painted image for each map zone. They were made with an image model; `PROMPTS.md` has the prompts. |
 | `art/title/` | The welcome screen: the logo and the hot spring backdrop. `tools/make-title.py` makes them from the generated pictures in `art/source/title/`; `PROMPTS.md` has the prompts. |

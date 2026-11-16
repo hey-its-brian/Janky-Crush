@@ -17,7 +17,8 @@ const HAPTIC = { squish: 1, crack: 1, smash: 2, match: 1, swap: 1, boing: 1, zap
 
 const HINT_AFTER_MS = 6000;
 // Callouts as a chain grows (cascade number → word).
-const CHAIN_WORDS = { 3: 'Juicy!', 5: 'Fresh!', 7: 'Tropical!', 9: 'Smoothie!' };
+// What the game calls out at big moments, small to large. All fruit words.
+const CHAIN_WORDS = { 3: 'Zesty!', 5: 'Juiced!', 7: 'Fresh Squeezed!', 9: 'Fruit Punch!' };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Boosters that the player aims with one tap on a cell.
 const TAP_AIMED = ['smash', 'sweep', 'pick'];
@@ -274,9 +275,9 @@ export class Game {
     if (this.state.inBonus) return;
     if (this.comboShout) {
       this.comboShout = false;
-      this.onCallout('Tropical!');
+      this.onCallout('Fresh Squeezed!');
     } else if (ev.step.created.some((m) => m.special === 'bomb')) {
-      this.onCallout('Smoothie!');
+      this.onCallout('Fruit Punch!');
     } else if (CHAIN_WORDS[ev.cascade]) {
       this.onCallout(CHAIN_WORDS[ev.cascade]);
     }

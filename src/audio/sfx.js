@@ -45,6 +45,11 @@ export function unlockAudio() {
     // Respect the iPhone's silent switch like other casual games.
     if (navigator.audioSession) navigator.audioSession.type = 'ambient';
     ctx = new AC();
+    // iOS can stop the audio for a call, an alarm or another app's sound
+    // ("interrupted"). Start again as soon as the game is in front.
+    ctx.addEventListener?.('statechange', () => {
+      if (ctx.state !== 'running' && ctx.state !== 'closed' && !document.hidden) ctx.resume().catch(() => {});
+    });
     buildBuses(ctx, getSetting('sfx') ? SFX_LEVEL : 0, getSetting('music') ? MUSIC_LEVEL : 0);
     for (const fn of unlockListeners.splice(0)) fn(ctx);
   }
@@ -422,7 +427,7 @@ const RECIPES = {
     wash({ dur: 0.55, vol: 0.2, from: 300, to: 1500, attack: 0.2 });
     for (let i = 0; i < 6; i++) mallet(major(8 - i, C4), i * 0.06, { dur: 0.4, vol: 0.08 });
   },
-  // Under the announcer: a marimba flourish that grows with each tier.
+  // With each callout word: a marimba flourish that grows with each tier.
   cheer: ({ tier = 1 } = {}) => {
     const runs = [[0, 2, 4], [0, 2, 4, 7], [0, 2, 4, 5, 7, 9], [0, 2, 4, 5, 7, 9, 11, 14]];
     const run = runs[Math.min(3, tier - 1)];

@@ -9,7 +9,6 @@ import { specialIcon, pieceIcon } from './art/pieces.js';
 import { coin, heart, gift, lifeRefill, wheelIcon, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic, songFor } from './audio/music.js';
-import { announce, primeVoice, voiceInfo } from './audio/voice.js';
 import { haptic, tactile } from './audio/haptics.js';
 import { isNative } from './native.js';
 import { cloudLoad, cloudStore } from './cloud.js';
@@ -229,14 +228,15 @@ function cheer(text) {
 }
 
 // Callout words get bigger jingles as they get rarer.
-const CHEER_TIER = { 'Juicy!': 1, 'Fresh!': 2, 'Tropical!': 3, 'Smoothie!': 4 };
+const CHEER_TIER = { 'Zesty!': 1, 'Juiced!': 2, 'Fresh Squeezed!': 3, 'Fruit Punch!': 4 };
 
 function callout(text) {
   play('cheer', { tier: CHEER_TIER[text] ?? 1 });
-  announce(text);
   haptic(1);
   const c = $('callout');
   c.textContent = text;
+  // The long words are smaller, so each one fits on one line.
+  c.style.fontSize = text.length > 12 ? '42px' : text.length > 8 ? '52px' : '';
   c.hidden = false;
   c.classList.remove('play');
   void c.offsetWidth;
@@ -248,7 +248,6 @@ function callout(text) {
 
 function showBanner(text) {
   play('fanfare');
-  announce(text);
   haptic(2);
   const b = $('banner');
   b.textContent = text;
@@ -721,19 +720,7 @@ function offerMoves() {
   });
 }
 
-// Says a callout right away (inside the tap, which iPhones like best) and
-// shows which voice is in use, to check the announcer works.
-function voiceTest() {
-  const info = el('small', { class: 'muted voice-info', text: voiceInfo() });
-  const btn = el('button', { class: 'btn orange toon small', type: 'button', text: 'Test voice' });
-  btn.addEventListener('click', () => {
-    announce('Juicy!', true);
-    setTimeout(() => (info.textContent = voiceInfo()), 1500);
-  });
-  return el('div', { class: 'voice-test' }, btn, info);
-}
-
-// Sound, music, voice and haptics switches. `back` reopens whatever came before.
+// Sound, music and haptics switches. `back` reopens whatever came before.
 function showSettings(back = closeDialog) {
   const toggle = (key, name, note) => {
     const btn = el('button', { class: 'toggle', type: 'button', 'aria-pressed': String(getSetting(key)) },
@@ -750,9 +737,7 @@ function showSettings(back = closeDialog) {
   openDialog('Settings', [
     toggle('sfx', 'Sound effects'),
     toggle('music', 'Music'),
-    toggle('voice', 'Announcer voice', 'Uses the phone\u2019s built-in voice'),
-    voiceTest(),
-    toggle('haptics', 'Haptics', 'On iPhone, a light tick when you tap'),
+    toggle('haptics', 'Haptics', isNative ? 'A tap that you feel for each match' : 'On iPhone, a light tick when you tap'),
   ], [button('Done', back)], { host: 'idle', stack: true });
 }
 
@@ -898,7 +883,7 @@ $('wheel-btn').addEventListener('click', () => { tapFeedback(); showWheel(); });
 
 // iPhones only allow sound after a tap, so wake the audio on the first one
 // (and after the app comes back from the background).
-const wakeSound = () => { unlockAudio(); primeVoice(); };
+const wakeSound = () => unlockAudio();
 document.addEventListener('pointerdown', wakeSound, { capture: true });
 document.addEventListener('touchend', wakeSound, { capture: true });
 document.addEventListener('click', wakeSound, { capture: true });

@@ -109,10 +109,8 @@
 - [ ] Coin prices and payouts (top of `src/save.js`): check after some
       real play that coins feel neither tight nor endless.
 
-- [ ] Announcer voice: on hold. Silent on the iPhone home-screen app so
-      far; Settings has a Test voice button to check it. Should work in the
-      native app.
-
+- [x] Announcer voice: removed (Nov 2026). In the native app it spoke with the
+      phone's built-in voice, sounded bad, and took the audio from the music.
 - [ ] Gravity, bounce and jelly wobble feel right for now (constants at
       the top of `src/render/renderer.js`). Re-check once blockers,
       jelly tiles and boosters are in, since busier boards may need it
