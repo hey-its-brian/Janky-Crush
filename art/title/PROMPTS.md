@@ -9,13 +9,13 @@ the two pictures in this folder.
 Model: Qwen-Image (`mcp-tools/Qwen-Image` on Hugging Face), 4:3, seed 7,
 16 steps, guidance 4.
 
-> A mobile puzzle game title logo. The words "Janky" on the top line and
-> "Crush" on the bottom line, in big chunky bubbly 3D cartoon letters,
-> slightly tilted and playful. "Janky" is glossy white letters with a thick
-> hot pink outline. "Crush" is bigger, glossy golden yellow letters with a
+> A mobile puzzle game title logo. The words "Yuzu" on the top line and
+> "Springs" on the bottom line, in big chunky bubbly 3D cartoon letters,
+> slightly tilted and playful. "Yuzu" is glossy white letters with a thick
+> hot pink outline. "Springs" is bigger, glossy golden yellow letters with a
 > thick orange outline. The letters look like shiny polished candy with
 > soft highlights. A small orange yuzu fruit with a green leaf sits on top
-> of the letter J, and a few small fruit pieces (strawberry, blueberry,
+> of the letter Y, and a few small fruit pieces (strawberry, blueberry,
 > star fruit) are tucked around the letters. Stylized 3D render, very vivid
 > saturated colors, soft light from the upper left, centered, plain flat
 > bright green background, no ground, no shadow.

@@ -434,7 +434,7 @@ const RECIPES = {
       bubbles({ at: top, count: tier + 1 });
     }
   },
-  // "Janky Crush!": a warm horn fanfare over a marimba run and a splash.
+  // "Splash Time!": a warm horn fanfare over a marimba run and a splash.
   fanfare: () => {
     [0, 4, 7, 12].forEach((n, i) => horn(semi(n - 12), i * 0.12, { dur: 0.18, vol: 0.08 }));
     [0, 4, 7, 12].forEach((n) => horn(semi(n - 12), 0.5, { dur: 1.1, vol: 0.06 }));

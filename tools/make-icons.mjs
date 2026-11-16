@@ -43,5 +43,9 @@ for (const size of [192, 180]) {
   }, { data: png.toString('base64'), size });
   writeFileSync(`${OUT}icon-${size}.png`, Buffer.from(scaled, 'base64'));
 }
+// The App Store icon for the native app: the same picture at 1024 px.
+const big = await browser.newPage({ viewport: { width: 512, height: 512 }, deviceScaleFactor: 2 });
+await big.setContent(html);
+writeFileSync(`${OUT}icon-1024.png`, await big.locator('#icon').screenshot({ omitBackground: false }));
 await browser.close();
-console.log('wrote icons/icon-512.png, icon-192.png, icon-180.png');
+console.log('wrote icons/icon-1024.png, icon-512.png, icon-192.png, icon-180.png');

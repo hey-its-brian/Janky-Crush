@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Progress, MAX_LIVES, LIFE_REFILL_MS, PRICES, START_COINS, DAILY_COINS, BOOSTERS, SPIN_COST, WHEELS } from '../src/save.js';
+import { mergeSaves, Progress, MAX_LIVES, LIFE_REFILL_MS, PRICES, START_COINS, DAILY_COINS, BOOSTERS, SPIN_COST, WHEELS } from '../src/save.js';
 
 const fresh = (mode = 'normal') => {
   const p = new Progress({ version: 2, active: null, slots: { normal: null, easy: null } });
@@ -145,4 +145,73 @@ test('a life refill brings back all the lives, and is kept until it is needed', 
   assert.equal(p.lives(2000), MAX_LIVES);
   assert.equal(p.lifeRefills, 0);
   assert.equal(p.useLifeRefill(), false);
+});
+
+// ---- two copies of the save (this phone and iCloud) ---------------------------
+
+const copyOf = (p) => JSON.parse(JSON.stringify(p.data));
+
+test('a save gets the time of each save', () => {
+  const p = fresh();
+  p.recordWin(1, 1, 100, 0);
+  assert.ok(p.data.savedAt > 0);
+});
+
+test('merge: levels keep the best of the two copies, the rest comes from the newer copy', () => {
+  const a = fresh();
+  a.recordWin(1, 3, 5000, 0);
+  a.recordWin(2, 1, 1000, 0);
+  const older = copyOf(a);
+  older.savedAt = 1000;
+  const b = fresh();
+  b.recordWin(2, 3, 900, 0);
+  b.recordWin(3, 2, 700, 0);
+  b.slot.coins = 77;
+  const newer = copyOf(b);
+  newer.savedAt = 2000;
+  for (const merged of [mergeSaves(older, newer), mergeSaves(newer, older)]) {
+    const slot = merged.slots.normal;
+    assert.deepEqual(slot.levels[1], { stars: 3, best: 5000 });
+    assert.deepEqual(slot.levels[2], { stars: 3, best: 1000 });
+    assert.deepEqual(slot.levels[3], { stars: 2, best: 700 });
+    assert.equal(slot.coins, 77);
+    assert.equal(merged.savedAt, 2000);
+  }
+});
+
+test('merge: a save file that only one copy has is kept', () => {
+  const a = fresh();
+  a.recordWin(1, 2, 100, 0);
+  const b = fresh('easy');
+  b.recordWin(1, 3, 100, 0);
+  const merged = mergeSaves(copyOf(a), copyOf(b));
+  assert.equal(merged.slots.normal.levels[1].stars, 2);
+  assert.equal(merged.slots.easy.levels[1].stars, 3);
+});
+
+test('merge with no other copy changes nothing', () => {
+  const a = copyOf(fresh());
+  assert.equal(mergeSaves(a, null), a);
+  assert.equal(mergeSaves(null, a), a);
+});
+
+test('adopt takes in the iCloud copy, keeps the save file in use, and says if anything changed', () => {
+  const p = fresh();
+  p.recordWin(1, 1, 100, 0);
+  const cloud = copyOf(p);
+  cloud.slots.normal.levels[2] = { stars: 3, best: 900 };
+  cloud.active = 'easy';
+  cloud.savedAt = p.data.savedAt - 5000;
+  assert.equal(p.adopt(cloud), true);
+  assert.equal(p.level(2).stars, 3);
+  assert.equal(p.data.active, 'normal');
+  assert.equal(p.adopt(copyOf(p)), false);
+});
+
+test('saving calls onSave with the data', () => {
+  const p = fresh();
+  let got = null;
+  p.onSave = (data) => (got = data);
+  p.recordWin(1, 1, 100, 0);
+  assert.equal(got, p.data);
 });

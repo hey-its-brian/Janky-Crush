@@ -6,6 +6,8 @@
   "description": "A private match-3 game for iPhone. No real-money purchases, no tracking.",
   "scripts": {
     "test": "node --test test/*.test.js",
-    "serve": "python3 -m http.server 8000"
+    "serve": "python3 -m http.server 8000",
+    "www": "node tools/build-www.mjs",
+    "ios": "node tools/build-www.mjs && npx cap sync ios"
   }
 }

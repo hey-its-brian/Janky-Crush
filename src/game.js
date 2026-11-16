@@ -305,7 +305,7 @@ export class Game {
     const movesLeft = s.moves;
     const celebrate = !s.exploded && (s.isComplete() || (s.goal.type === 'score' && s.score >= s.level.stars[0]));
     if (celebrate) {
-      this.onBanner('Janky Crush!');
+      this.onBanner('Splash Time!');
       await sleep(600);
     }
     // Score levels fire whatever specials are left either way.

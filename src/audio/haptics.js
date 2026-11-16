@@ -7,8 +7,12 @@
 // really toggles a switch, so tactile() also lays an invisible switch over
 // each button and wraps the board in a switch's label: every real tap
 // toggles it and ticks, and the tap still reaches the button or board.
+//
+// The native app has real haptics: a light, medium or heavy tap from the
+// phone's Taptic Engine, for strength 1, 2 and 3 or more.
 
 import { getSetting, onSettingChange } from '../settings.js';
+import { isNative, native } from '../native.js';
 
 let label = null;
 
@@ -37,6 +41,10 @@ export function haptic(strength = 1) {
   const now = performance.now();
   if (now - last < 40) return; // the phone can't render taps closer than this
   last = now;
+  if (isNative) {
+    native('Haptics', 'impact', { style: strength >= 3 ? 'HEAVY' : strength === 2 ? 'MEDIUM' : 'LIGHT' });
+    return;
+  }
   if (navigator.vibrate) {
     navigator.vibrate(strength > 1 ? [18, 30, 18, 30, 24].slice(0, strength * 2 - 1) : 12);
     return;
@@ -84,6 +92,11 @@ function wrapInLabel(el) {
 const TAPPABLE = 'button, .node:not(.locked)';
 
 export function tactile(boardEl) {
+  if (isNative) {
+    // No switches are necessary: a light tap for each press of a button.
+    document.addEventListener('pointerdown', (e) => e.target.closest?.(TAPPABLE) && haptic(1), true);
+    return;
+  }
   if (!isIos) return;
   const update = () => document.documentElement.classList.toggle('no-haptics', !getSetting('haptics'));
   update();

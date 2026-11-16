@@ -11,6 +11,8 @@ import { unlockAudio, play } from './audio/sfx.js';
 import { playMusic, songFor } from './audio/music.js';
 import { announce, primeVoice, voiceInfo } from './audio/voice.js';
 import { haptic, tactile } from './audio/haptics.js';
+import { isNative } from './native.js';
+import { cloudLoad, cloudStore } from './cloud.js';
 import { getSetting, setSetting } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -917,7 +919,39 @@ window.addEventListener('resize', () => {
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
-if ('serviceWorker' in navigator && window.isSecureContext) {
+// ---- iCloud save (the native app) --------------------------------------------------
+
+// Bring in the iCloud copy of the save, merge it with the one on this
+// phone, and send the result back. Runs at the start and each time the
+// app comes back to the front, but not in the middle of a level.
+async function syncCloud() {
+  const { data, available } = await cloudLoad();
+  if (!available) {
+    // Say it one time: the save is on this iPhone only.
+    if (!localStorage.getItem('yuzu-springs:no-icloud') && !$('title-screen').hidden && $('dialog').hidden) {
+      localStorage.setItem('yuzu-springs:no-icloud', '1');
+      openDialog('iCloud is off', [
+        el('p', { class: 'goal-text', text: 'Your progress is saved on this iPhone only. Sign in to iCloud in Settings to keep a copy and to play on your other devices.' }),
+      ], [button('OK', closeDialog)], { host: 'idle' });
+    }
+    return;
+  }
+  if (data && progress.adopt(data)) {
+    if (!$('title-screen').hidden) showTitle();
+    else if (!$('map-screen').hidden && $('dialog').hidden) showMap();
+  }
+  cloudStore(progress.data);
+}
+
+if (isNative) {
+  progress.onSave = cloudStore;
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && (!$('title-screen').hidden || !$('map-screen').hidden)) syncCloud();
+  });
+}
+
+// The native app has its files inside it: no offline worker there.
+if (!isNative && 'serviceWorker' in navigator && window.isSecureContext) {
   // When an update takes over, restart on the new version right away, but
   // only from the start screen so a level in progress is never lost.
   const hadWorker = !!navigator.serviceWorker.controller;
@@ -928,3 +962,4 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
 }
 
 showTitle();
+if (isNative) syncCloud();

@@ -89,6 +89,31 @@ export function loadSave() {
   return blank();
 }
 
+// Two copies of the save (this phone's and iCloud's) made into one. For
+// each save file: the levels keep the best stars and score from the two,
+// and all the rest (coins, boosters, lives, spin points) comes from the
+// copy that was saved last. Returns a new object.
+export function mergeSaves(a, b) {
+  if (!b) return a;
+  if (!a) return b;
+  const [older, newer] = (a.savedAt ?? 0) >= (b.savedAt ?? 0) ? [b, a] : [a, b];
+  const out = structuredClone(newer);
+  for (const mode of Object.keys({ ...older.slots, ...newer.slots })) {
+    const o = older.slots[mode], n = out.slots[mode];
+    if (!o) continue;
+    if (!n) {
+      out.slots[mode] = structuredClone(o);
+      continue;
+    }
+    for (const [id, l] of Object.entries(o.levels)) {
+      const have = n.levels[id] ?? { stars: 0, best: 0 };
+      n.levels[id] = { stars: Math.max(have.stars, l.stars), best: Math.max(have.best, l.best) };
+    }
+  }
+  Object.values(out.slots).forEach(upgrade);
+  return out;
+}
+
 function write(data) {
   try {
     localStorage.setItem(KEY, JSON.stringify(data));
@@ -103,8 +128,25 @@ export class Progress {
     Object.values(data.slots).forEach(upgrade);
   }
 
+  // `onSave`, if set, gets the data after each save (the native app
+  // sends it to iCloud).
   save() {
+    this.data.savedAt = Date.now();
     write(this.data);
+    this.onSave?.(this.data);
+  }
+
+  // Take in a copy of the save from iCloud: merge it with this one. The
+  // save file in use stays the same. Returns true if anything changed.
+  adopt(other) {
+    const before = JSON.stringify(this.data);
+    const active = this.data.active;
+    const merged = mergeSaves(this.data, other);
+    merged.active = active;
+    if (JSON.stringify(merged) === before) return false;
+    this.data = merged;
+    write(this.data);
+    return true;
   }
 
   // ---- save files ---------------------------------------------------------
