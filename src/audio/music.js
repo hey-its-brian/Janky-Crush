@@ -1,8 +1,8 @@
-// Background music, played live with Web Audio: three warm, easygoing songs
-// in the same island style. The map plays "Lazy Springs"; levels take turns
-// through all three. Everything goes through a gentle lowpass so nothing is
-// shrill. Notes are scheduled a little ahead on a timer, the usual way to
-// keep Web Audio music in time.
+// Background music. The game plays recorded ska tracks (see tracks.js),
+// looped with Web Audio. If a track cannot be loaded, one of three built-in
+// songs plays in its place. Those are played live: warm, easygoing songs in
+// the same island style, through a gentle lowpass so nothing is shrill, with
+// notes scheduled a little ahead on a timer.
 //
 // Each song is eight bars of chords with a tune, then a sparser answer the
 // second time round, so it never feels busy. Steps are eighth notes. Tones
@@ -10,6 +10,7 @@
 
 import { audioContext, musicOutput, onUnlock } from './sfx.js';
 import { pluck, epiano, reed, softBass, marimba, vibes, softened } from './synth.js';
+import { TRACKS } from './tracks.js';
 
 const AHEAD = 0.15;
 const hz = (semi, root) => root * 2 ** (semi / 12);
@@ -199,10 +200,7 @@ const POLKA = {
 
 export const SONGS = [LAZY, SHUFFLE, POLKA];
 
-// Which song a level plays: they take turns.
-export const songFor = (levelId) => (levelId - 1) % SONGS.length;
-
-// ---- playing ------------------------------------------------------------------------
+// ---- playing: the built-in songs ---------------------------------------------------
 
 let timer = null;
 let nextTime = 0;
@@ -238,27 +236,109 @@ function tick() {
   }
 }
 
-// Start the music, or switch songs (at the next bar line, so it doesn't
-// stumble). `which` is an index into SONGS. Waits for the first tap.
-export function playMusic(which = 0) {
+// Start a built-in song, or switch songs at the next bar line.
+function playSynth(ctx, which) {
   const next = SONGS[which] ?? LAZY;
+  out ??= softened(ctx, bus, 2400);
+  if (timer) {
+    pending = next === song ? null : next;
+    return;
+  }
+  song = next;
+  nextTime = ctx.currentTime + 0.1;
+  step = 0;
+  timer = setInterval(tick, 25);
+}
+
+function stopSynth() {
+  clearInterval(timer);
+  timer = null;
+  pending = null;
+}
+
+// ---- playing: the recorded tracks ---------------------------------------------------
+
+const TRACK_LEVEL = 1.2; // recorded tracks against the built-in songs
+const FADE = 0.5;        // seconds, when one track gives way to the next
+const KEEP = 3;          // decoded tracks to keep in memory (each is about 30 MB)
+
+const buffers = new Map(); // name -> Promise of an AudioBuffer, most recent last
+let wanted = null;         // the track that should be playing
+let playing = null;        // { name, source, gain }
+
+function loadTrack(ctx, name) {
+  let buffer = buffers.get(name);
+  buffers.delete(name);
+  buffer ??= fetch(new URL(`../../music/${name}.mp3`, import.meta.url))
+    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(`music ${res.status}`))))
+    .then((data) => new Promise((resolve, reject) => ctx.decodeAudioData(data, resolve, reject)));
+  buffers.set(name, buffer);
+  for (const old of buffers.keys()) {
+    if (buffers.size <= KEEP) break;
+    if (old !== name && old !== playing?.name) buffers.delete(old);
+  }
+  return buffer;
+}
+
+function fadeOut(ctx) {
+  if (!playing) return;
+  const { source, gain } = playing;
+  playing = null;
+  const t = ctx.currentTime;
+  gain.gain.cancelScheduledValues(t);
+  gain.gain.setValueAtTime(gain.gain.value, t);
+  gain.gain.linearRampToValueAtTime(0, t + FADE);
+  source.stop(t + FADE + 0.05);
+  source.onended = () => gain.disconnect();
+}
+
+function startTrack(ctx, name, buffer) {
+  const { start, length } = TRACKS[name];
+  fadeOut(ctx);
+  stopSynth();
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  source.loopStart = start;
+  source.loopEnd = start + length;
+  const gain = ctx.createGain();
+  const t = ctx.currentTime;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(TRACK_LEVEL, t + FADE);
+  source.connect(gain).connect(bus);
+  source.start(t, start);
+  playing = { name, source, gain };
+}
+
+// Start the music, or change to another track. `name` is a key of TRACKS.
+// Waits for the first tap. If the file cannot be loaded or decoded, the
+// built-in song of that track plays in its place.
+export function playMusic(name = 'map1') {
+  const track = TRACKS[name];
+  if (!track) return;
+  wanted = name;
   onUnlock((ctx) => {
     bus ??= musicOutput();
-    out ??= softened(ctx, bus, 2400);
-    if (timer) {
-      pending = next === song ? null : next;
-      return;
-    }
-    song = next;
-    nextTime = ctx.currentTime + 0.1;
-    step = 0;
-    timer = setInterval(tick, 25);
+    if (wanted !== name || playing?.name === name) return;
+    loadTrack(ctx, name).then(
+      (buffer) => {
+        if (wanted === name && playing?.name !== name) startTrack(ctx, name, buffer);
+      },
+      () => {
+        buffers.delete(name);
+        if (wanted !== name) return;
+        fadeOut(ctx);
+        playSynth(ctx, track.synth);
+      },
+    );
   });
 }
 
 export function stopMusic() {
-  clearInterval(timer);
-  timer = null;
+  wanted = null;
+  stopSynth();
+  const ctx = audioContext();
+  if (ctx) fadeOut(ctx);
 }
 
 // Render `seconds` of a song into an offline context (tools only).
@@ -269,3 +349,6 @@ export function renderMusic(off, output, seconds, which = 0) {
   for (let t = 0.05, n = 0; t < seconds; t += stepLength(s), n++) scheduleStep(off, s, n, t);
   out = saved;
 }
+
+// What is playing now: a track name, 'synth' for a built-in song, or null.
+export const nowPlaying = () => playing?.name ?? (timer ? 'synth' : null);

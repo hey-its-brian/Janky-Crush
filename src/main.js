@@ -8,7 +8,8 @@ import { steam } from './art/scene.js';
 import { specialIcon, pieceIcon } from './art/pieces.js';
 import { coin, heart, gift, lifeRefill, wheelIcon, BOOSTER_ICONS, BOOSTER_NAMES, BOOSTER_INFO } from './art/icons.js';
 import { unlockAudio, play } from './audio/sfx.js';
-import { playMusic, songFor } from './audio/music.js';
+import { playMusic } from './audio/music.js';
+import { trackForLevel, trackForMap } from './audio/tracks.js';
 import { haptic, tactile } from './audio/haptics.js';
 import { isNative } from './native.js';
 import { cloudLoad, cloudStore } from './cloud.js';
@@ -72,7 +73,7 @@ function showTitle() {
   $('world').hidden = true;
   $('title-screen').hidden = false;
   buildTitleStage();
-  playMusic(0);
+  sceneMusic('title');
   const card = (mode, name, tag) => {
     const slot = progress.slotInfo(mode);
     const head = el('div', { class: 'head' }, el('h2', { text: name }), el('span', { class: 'tag', text: tag }));
@@ -117,10 +118,10 @@ function showMap(then = null) {
   $('game-screen').hidden = true;
   $('world').hidden = true;
   $('map-screen').hidden = false;
-  playMusic(0);
   const before = lastCurrent[progress.active];
   const { current: next, y, fromY } = renderMap($('map'), LEVELS, progress, (level) => { tapFeedback(); showIntro(level); }, { from: before });
   lastCurrent[progress.active] = next.id;
+  sceneMusic(trackForMap(zoneNumber(next.id)));
   const moved = before && before < next.id;
   if (moved) {
     play('sparkle', { kind: 'stripe' });
@@ -187,7 +188,7 @@ function showGame(level) {
   });
   setHost('idle');
   $('host-bubble').hidden = true;
-  playMusic(songFor(level.id));
+  sceneMusic(trackForLevel(level));
   getGame().start(level);
   renderBoosters();
 }
@@ -327,8 +328,17 @@ function openDialog(title, body, actions, { host = null, confetti = false, stack
   $('dialog-actions').querySelector('button')?.focus();
 }
 
+// The music of the screen that is open. A dialog can play its own music
+// (the prize wheel); the screen's music comes back when the dialog closes.
+let sceneTrack = 'title';
+function sceneMusic(name) {
+  sceneTrack = name;
+  playMusic(name);
+}
+
 function closeDialog() {
   livesDialogOpen = null;
+  playMusic(sceneTrack);
   $('dialog').hidden = true;
   $('confetti').replaceChildren();
 }
@@ -579,6 +589,7 @@ let spinning = false;
 function showWheel(kind = 'small') {
   if (spinning) return;
   const prizes = progress.wheel(kind);
+  playMusic('wheel');
   const { wheel, wrap } = wheelArt(prizes);
   const tab = (k, text) => {
     const b = el('button', { class: `tab${k === kind ? ' on' : ''}`, type: 'button', text });

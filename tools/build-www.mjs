@@ -12,7 +12,7 @@ const OUT = `${ROOT}www/`;
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT);
-for (const name of ['index.html', 'styles.css', 'manifest.webmanifest', 'src', 'fonts', 'icons', 'art']) {
+for (const name of ['index.html', 'styles.css', 'manifest.webmanifest', 'src', 'fonts', 'icons', 'art', 'music']) {
   cpSync(ROOT + name, OUT + name, {
     recursive: true,
     // Not the generated source pictures (large, not used in the game),

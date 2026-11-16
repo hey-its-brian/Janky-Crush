@@ -1,6 +1,6 @@
 // Offline support: serve the app shell from cache, refresh it in the
 // background. Bump VERSION whenever the file list changes.
-const VERSION = 'jc-v50';
+const VERSION = 'jc-v51';
 const ASSETS = [
   './',
   './index.html',
@@ -110,6 +110,7 @@ const ASSETS = [
   './src/settings.js',
   './src/audio/sfx.js',
   './src/audio/music.js',
+  './src/audio/tracks.js',
   './src/audio/haptics.js',
   './src/audio/synth.js',
   './src/engine/board.js',
