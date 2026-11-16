@@ -46,6 +46,6 @@ for (const size of [192, 180]) {
 // The App Store icon for the native app: the same picture at 1024 px.
 const big = await browser.newPage({ viewport: { width: 512, height: 512 }, deviceScaleFactor: 2 });
 await big.setContent(html);
-writeFileSync(`${OUT}icon-1024.png`, await big.locator('#icon').screenshot({ omitBackground: false }));
+writeFileSync(fileURLToPath(new URL('../ios-assets/icon-1024.png', import.meta.url)), await big.locator('#icon').screenshot({ omitBackground: false }));
 await browser.close();
-console.log('wrote icons/icon-1024.png, icon-512.png, icon-192.png, icon-180.png');
+console.log('wrote ios-assets/icon-1024.png, icons/icon-512.png, icon-192.png, icon-180.png');

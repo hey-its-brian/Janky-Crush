@@ -961,5 +961,15 @@ if (!isNative && 'serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('./sw.js');
 }
 
-showTitle();
-if (isNative) syncCloud();
+// A shortcut for tests: index.html?dev=level:62 opens that level and
+// ?dev=map opens the map, in the Easy save. The simulator checks use it.
+const dev = new URLSearchParams(location.search).get('dev');
+if (dev) {
+  progress.use('easy');
+  const level = LEVELS.find((l) => l.id === Number(dev.split(':')[1]));
+  if (level) showGame(level);
+  else showMap();
+} else {
+  showTitle();
+  if (isNative) syncCloud();
+}
